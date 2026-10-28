@@ -9,14 +9,17 @@
 mod buttons;
 mod events;
 mod icon;
+mod instance;
 mod model;
 mod paint;
 mod place;
 mod widget;
-pub use events::{request_exit, signal_running};
+pub use events::request_exit;
+pub use instance::signal_running;
 use buttons::*;
 use events::*;
 use icon::*;
+use instance::*;
 use model::*;
 use paint::*;
 use place::*;
@@ -102,6 +105,8 @@ struct Ui {
     away: u32,
     taskbar_created: u32,
     model: Model,
+    // Exit was asked while Claude Desktop was switching: exit once the switch is done.
+    exit_pending: bool,
 }
 
 thread_local! {
@@ -122,7 +127,8 @@ unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {
     // Per thread: covers every window made here, unlike the process-wide call.
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     let inst = GetModuleHandleW(ptr::null());
-    let msg_class = wide("cud-tray");
+    // Its own class, so a second launch signals the same kind (normal or demo).
+    let msg_class = wide(tray_class(is_demo(&state())));
     let widget_class = wide("cud-widget");
     let mut wc: WNDCLASSW = mem::zeroed();
     wc.hInstance = inst;
@@ -154,6 +160,7 @@ unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {
             away: 0,
             taskbar_created: RegisterWindowMessageW(wide("TaskbarCreated").as_ptr()),
             model,
+            exit_pending: false,
         })
     });
     add_icon();

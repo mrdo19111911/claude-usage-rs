@@ -26,7 +26,10 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
             }
             0
         }
-        WM_EXIT_APP => exit(),
+        WM_EXIT_APP => {
+            ask_exit(false);
+            0
+        }
         WM_OPEN_APP => {
             open_dashboard();
             0
@@ -68,7 +71,7 @@ pub(super) unsafe fn menu(x: i32, y: i32) {
         ID_OPEN => open_dashboard(),
         ID_PIN if pin_on => unpin(),
         ID_PIN => pin(None),
-        ID_QUIT => exit(),
+        ID_QUIT => ask_exit(true),
         _ => {}
     }
 }
@@ -82,14 +85,35 @@ pub fn request_exit() {
     unsafe { PostMessageW(h, WM_EXIT_APP, 0, 0) };
 }
 
-// From a second launch: asks the running tray to open its dashboard. False if none found.
-pub fn signal_running() -> bool {
-    let h = unsafe { FindWindowW(wide("cud-tray").as_ptr(), ptr::null()) };
-    if h.is_null() {
-        return false;
+// What an exit request does now: a Desktop switch killed midway skips its rollback.
+#[derive(Debug, PartialEq)]
+pub(super) enum ExitStep {
+    Now,
+    Wait,
+    Stay,
+}
+
+pub(super) fn exit_step(asked: bool, switching: bool) -> ExitStep {
+    match (asked, switching) {
+        (false, _) => ExitStep::Stay,
+        (true, true) => ExitStep::Wait,
+        (true, false) => ExitStep::Now,
     }
-    unsafe { PostMessageW(h, WM_OPEN_APP, 0, 0) };
-    true
+}
+
+// Every exit request (menu, dashboard): at once, or once the Desktop switch is done.
+pub(super) fn ask_exit(from_menu: bool) {
+    // A fresh read: the model can be 2 s old.
+    let state = ui(|u| u.state.clone());
+    if exit_step(true, model(&state()).desk_switching) == ExitStep::Now {
+        exit();
+    }
+    ui(|u| u.exit_pending = true);
+    if from_menu {
+        let text = wide("Claude Desktop is switching accounts. The dashboard will close as soon as it is done.");
+        let style = MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND;
+        unsafe { MessageBoxW(ptr::null_mut(), text.as_ptr(), wide("Claude usage").as_ptr(), style) };
+    }
 }
 
 // Takes the icon out of the tray, then ends the program.
@@ -108,6 +132,10 @@ pub(super) fn exit() -> ! {
 pub(super) unsafe fn refresh() {
     let state = ui(|u| u.state.clone());
     let m = model(&state());
+    // An exit asked during a Desktop switch: the switch is done now.
+    if exit_step(ui(|u| u.exit_pending), m.desk_switching) == ExitStep::Now {
+        exit();
+    }
     ui(|u| u.model = m);
     update_icon(false);
     for (w, visible) in ui(|u| [(u.hover, true), (u.pinned, u.pin_on)]) {
@@ -117,3 +145,7 @@ pub(super) unsafe fn refresh() {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "events_tests.rs"]
+mod tests;

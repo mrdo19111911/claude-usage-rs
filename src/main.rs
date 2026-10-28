@@ -84,7 +84,7 @@ fn main() {
         if windows_sys::Win32::Foundation::GetLastError() == windows_sys::Win32::Foundation::ERROR_ALREADY_EXISTS {
             eprintln!("The dashboard is already running: hover its icon in the tray.");
             // A double-click shows no stderr: the running one opens its dashboard instead.
-            tray::signal_running();
+            tray::signal_running(demo);
             return;
         }
     }

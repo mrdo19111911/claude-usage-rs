@@ -29,6 +29,8 @@ another module needs them.
 - Click icon or widget: dashboard. Right-click icon: Open dashboard / Pin widget / Exit.
 - Pinned widget: always on top, drags anywhere, ✕ unpins; place kept in `widget.json`.
 - Exit (menu or dashboard button): icon removed from the tray, then the program ends.
+- Exit while a Claude Desktop switch runs waits for it (killed midway it skips its
+  rollback): the menu says so in a box; the 2 s refresh exits once the switch is done.
 
 ## Switching from the widget
 
