@@ -786,7 +786,7 @@ impl App {
         let accounts: Vec<Value> = st.accounts.iter().map(|a| json!({
             "id": a.id, "uuid": a.account_uuid, "email": a.email, "plan": a.plan, "enabled": a.enabled, "nextCheck": a.next_check,
             "usage": a.usage, "error": a.error, "raw": a.raw,
-            "history": a.history.iter().filter(|p| p.0 > t - 6 * HOUR).collect::<Vec<_>>(),
+            "history": thin_history(&a.history, t),
         })).collect();
         let desktop_now = self.desktop_dir.as_deref().and_then(desktop::signed_in);
         let desktop: Vec<Value> = st.desktop.iter().map(|d| {
@@ -916,6 +916,20 @@ fn backoff_ms(after: Option<i64>, strikes: u32) -> i64 {
         _ => SLOW_DOWN_MS << strikes.saturating_sub(1).min(3),
     };
     ms.min(MAX_WAIT_MS)
+}
+
+// The last 7 days of figures for the charts: every point of the last 6 hours, older
+// ones one per 10 minutes (the last of each), so the page stays small.
+fn thin_history(h: &[(i64, i64, i64)], t: i64) -> Vec<(i64, i64, i64)> {
+    let mut out: Vec<(i64, i64, i64)> = vec![];
+    for &p in h.iter().filter(|p| p.0 > t - 7 * 24 * HOUR) {
+        let old = p.0 <= t - 6 * HOUR;
+        match out.last_mut() {
+            Some(last) if old && last.0 / 600_000 == p.0 / 600_000 => *last = p,
+            _ => out.push(p),
+        }
+    }
+    out
 }
 
 // When to ask for an account's usage next, after figures fetched at `t`.
@@ -1311,6 +1325,23 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn thins_old_history_only() {
+        let (h, t) = (3_600_000, 10 * 24 * 3_600_000);
+        let mut pts = vec![(t - 8 * 24 * h, 1, 1)]; // past 7 days: dropped
+        for i in 0..30 {
+            pts.push((t - 10 * h + i * 60_000, i, i)); // 30 points a minute apart, 10 h ago
+        }
+        for i in 0..30 {
+            pts.push((t - h + i * 60_000, i, i)); // 30 points in the last hour: all kept
+        }
+        let out = super::thin_history(&pts, t);
+        let old: Vec<_> = out.iter().filter(|p| p.0 < t - 6 * h).collect();
+        assert!(old.len() <= 4 && !old.is_empty(), "one per 10 min: {}", old.len());
+        assert_eq!(old.last().unwrap().1, 29, "keeps the last of each bucket");
+        assert_eq!(out.iter().filter(|p| p.0 >= t - 6 * h).count(), 30);
+    }
+
     #[test]
     fn checks_less_when_far_from_a_limit_and_not_at_all_while_one_is_full() {
         use super::{next_check_at, Usage, Win};
