@@ -71,6 +71,16 @@ pub(super) fn hit_at(pinned: bool, x: i32, y: i32) -> Option<Pick> {
     HITS.with(|h| hit(&h.borrow()[pinned as usize], x, y))
 }
 
+// The footer's "Open dashboard" link, per window, as last drawn (layout.rs sets it).
+pub(super) fn set_footer(pinned: bool, r: RECT) {
+    let _ = (pinned, r);
+}
+
+pub(super) fn in_footer(pinned: bool, x: i32, y: i32) -> bool {
+    let _ = (pinned, x, y);
+    false
+}
+
 // The pointer is over `r` in that widget (hover state: filled instead of outlined).
 // widget.rs keeps the pointer's place (WM_MOUSEMOVE, WM_MOUSELEAVE).
 pub(super) fn hot(pinned: bool, r: &RECT) -> bool {
