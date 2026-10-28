@@ -322,6 +322,10 @@ impl App {
     }
 
     // ----- Claude Desktop -----
+    fn data_dir(&self) -> &Path {
+        self.data_file.parent().unwrap_or(Path::new("."))
+    }
+
     // Gives the account Claude Desktop is signed in to now an entry, if it has none.
     fn sync_desktop(&self, st: &mut State) {
         let Some(dir) = &self.desktop_dir else { return };
@@ -329,7 +333,7 @@ impl App {
         if st.desktop.iter().any(|d| d.uuid == uuid) {
             return;
         }
-        let label = format!("Account {}", &uuid[..8]);
+        let label = noted_email(self.data_dir(), &uuid).unwrap_or_else(|| format!("Account {}", &uuid[..8]));
         st.desktop.push(DesktopAccount { uuid, label: label.clone() });
         self.log(st, format!("Claude Desktop: added {label} (signed in now)"));
         self.save(st);
@@ -671,7 +675,7 @@ impl App {
             let cli = st.accounts.iter().find(|a| a.account_uuid.as_deref() == Some(d.uuid.as_str()));
             json!({
                 "uuid": d.uuid, "label": d.label,
-                "email": cli.map(|a| a.email.clone()),
+                "email": cli.map(|a| a.email.clone()).or_else(|| noted_email(self.data_dir(), &d.uuid)),
                 "usage": cli.and_then(|a| a.usage.clone()),
                 "hasSignIn": self.desktop_store.has_sign_in(&d.uuid),
                 "signedIn": desktop_now.as_deref() == Some(d.uuid.as_str()),
@@ -699,6 +703,36 @@ impl App {
         })
         .to_string()
     }
+}
+
+// ---------- Claude Desktop names ----------
+// Claude Desktop keeps no readable email, but it hands each Code session the account's
+// uuid and email (CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL). A SessionStart hook
+// runs `claude-usage --note-session`, which saves them as desktop-names/<uuid>.
+fn names_dir(data_dir: &Path) -> PathBuf {
+    data_dir.join("desktop-names")
+}
+
+fn valid_email(s: &str) -> bool {
+    s.len() <= 200 && s.contains('@') && !s.chars().any(|c| c.is_control() || c.is_whitespace())
+}
+
+fn note_session(data_dir: &Path, uuid: &str, email: &str) -> bool {
+    if !desktop::valid_account_id(uuid) || !valid_email(email) {
+        return false;
+    }
+    let file = names_dir(data_dir).join(uuid);
+    if fs::read_to_string(&file).is_ok_and(|s| s == email) {
+        return true;
+    }
+    fs::create_dir_all(names_dir(data_dir)).is_ok() && write_private(&file, email).is_ok()
+}
+
+fn noted_email(data_dir: &Path, uuid: &str) -> Option<String> {
+    if !desktop::valid_account_id(uuid) {
+        return None;
+    }
+    fs::read_to_string(names_dir(data_dir).join(uuid)).ok().filter(|s| valid_email(s))
 }
 
 // ---------- helpers ----------
@@ -1004,6 +1038,16 @@ fn main() {
     let claude_dir = config_dir.clone().unwrap_or_else(|| home().join(".claude"));
     let data_dir = std::env::var_os("CUD_DATA_DIR").map(PathBuf::from).unwrap_or_else(|| home().join(".claude-usage-dashboard"));
 
+    // As a SessionStart hook: silent, and never fails the session it runs in.
+    if args.iter().any(|a| a == "--note-session") {
+        if std::env::var("CLAUDE_CODE_ENTRYPOINT").as_deref() == Ok("claude-desktop") {
+            if let (Ok(u), Ok(e)) = (std::env::var("CLAUDE_CODE_ACCOUNT_UUID"), std::env::var("CLAUDE_CODE_USER_EMAIL")) {
+                note_session(&data_dir, &u, &e);
+            }
+        }
+        return;
+    }
+
     let app = Arc::new(App {
         st: Mutex::new(State::default()),
         demo,
@@ -1089,6 +1133,21 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn notes_desktop_session_names() {
+        let d = std::env::temp_dir().join(format!("cud-names-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let u = "fb2bda4d-0000-4000-8000-000000000001";
+        assert_eq!(super::noted_email(&d, u), None);
+        assert!(super::note_session(&d, u, "a@example.com"));
+        assert_eq!(super::noted_email(&d, u).as_deref(), Some("a@example.com"));
+        assert!(super::note_session(&d, u, "b@example.com"), "a new email replaces the old");
+        assert_eq!(super::noted_email(&d, u).as_deref(), Some("b@example.com"));
+        assert!(!super::note_session(&d, "../../evil", "a@example.com"), "uuid is a file name: checked");
+        assert!(!super::note_session(&d, u, "not an email"));
+        assert_eq!(super::noted_email(&d, "../x"), None);
+    }
+
     #[test]
     fn backs_off_after_429() {
         use super::{backoff_ms, retry_after_ms};
