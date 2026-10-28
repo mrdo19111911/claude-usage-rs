@@ -141,6 +141,8 @@ struct App {
     desktop_store: desktop::Store,
     switching: AtomicBool,
     login: Mutex<Option<login::Pending>>,
+    // The email Claude Desktop is to be signed in to next, after a sign-out for it.
+    desktop_expect: Mutex<Option<String>>,
 }
 
 impl App {
@@ -332,6 +334,10 @@ impl App {
     fn sync_desktop(&self, st: &mut State) {
         let Some(dir) = &self.desktop_dir else { return };
         let Some(uuid) = desktop::signed_in(dir) else { return };
+        // Signed in again after a sign-out for it: the wait is over.
+        if !self.switching.load(Ordering::SeqCst) {
+            self.desktop_expect.lock().unwrap().take();
+        }
         if st.desktop.iter().any(|d| d.uuid == uuid) {
             return;
         }
@@ -387,12 +393,15 @@ impl App {
     // ----- Adding a Claude Code account -----
     // Sign-in in the browser (login.rs): the dashboard keeps the new account's tokens as
     // its own and leaves the login Claude Code uses now as it is.
-    fn start_login(&self) -> Result<String, String> {
+    fn start_login(&self, email: Option<&str>) -> Result<String, String> {
         if self.demo {
             return Err("Not in demo mode.".into());
         }
         let p = login::start(now());
-        let url = login::authorize_url(&p, CLIENT_ID, self.port);
+        let mut url = login::authorize_url(&p, CLIENT_ID, self.port);
+        if let Some(e) = email.filter(|e| valid_email(e)) {
+            url.push_str(&format!("&login_hint={}", login::encode(e)));
+        }
         *self.login.lock().unwrap() = Some(p);
         open_browser(&url);
         Ok(url)
@@ -756,7 +765,7 @@ impl App {
         let st = self.st.lock().unwrap();
         let t = now();
         let accounts: Vec<Value> = st.accounts.iter().map(|a| json!({
-            "id": a.id, "email": a.email, "plan": a.plan, "enabled": a.enabled,
+            "id": a.id, "uuid": a.account_uuid, "email": a.email, "plan": a.plan, "enabled": a.enabled,
             "usage": a.usage, "error": a.error, "raw": a.raw,
             "history": a.history.iter().filter(|p| p.0 > t - 6 * HOUR).collect::<Vec<_>>(),
         })).collect();
@@ -777,6 +786,7 @@ impl App {
                 "found": self.desktop_dir.is_some(),
                 "dir": self.desktop_dir.as_ref().map(|d| d.display().to_string()),
                 "switching": self.switching.load(Ordering::Relaxed),
+                "expect": *self.desktop_expect.lock().unwrap(),
                 "accounts": desktop,
             },
             "now": t,
@@ -1076,10 +1086,13 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 app.save(&st);
             }
             ("POST", "/api/login") => {
-                let url = app.start_login()?;
+                let url = app.start_login(body["email"].as_str())?;
                 return Ok((200, json!({ "url": url }).to_string(), "application/json"));
             }
-            ("POST", "/api/desktop/add") => app.start_desktop_switch(None)?,
+            ("POST", "/api/desktop/add") => {
+                app.start_desktop_switch(None)?;
+                *app.desktop_expect.lock().unwrap() = body["email"].as_str().filter(|e| valid_email(e)).map(String::from);
+            }
             _ if path.starts_with("/api/desktop/") => {
                 let parts: Vec<&str> = path.trim_start_matches("/api/desktop/").split('/').collect();
                 let uuid = parts[0];
@@ -1189,6 +1202,7 @@ fn main() {
         desktop_store: desktop::Store { root: data_dir.join("desktop") },
         switching: AtomicBool::new(false),
         login: Mutex::new(None),
+        desktop_expect: Mutex::new(None),
     });
 
     {
