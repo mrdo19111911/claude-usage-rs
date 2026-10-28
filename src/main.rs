@@ -83,6 +83,8 @@ fn main() {
         windows_sys::Win32::System::Threading::CreateMutexW(std::ptr::null(), 0, name.as_ptr());
         if windows_sys::Win32::Foundation::GetLastError() == windows_sys::Win32::Foundation::ERROR_ALREADY_EXISTS {
             eprintln!("The dashboard is already running: hover its icon in the tray.");
+            // A double-click shows no stderr: the running one opens its dashboard instead.
+            tray::signal_running();
             return;
         }
     }
@@ -144,6 +146,8 @@ fn main() {
     #[cfg(windows)]
     {
         println!("Running in the tray: hover its icon for the figures, right-click it to quit.");
+        // Let go of the terminal: closing it or Ctrl+C there would kill us, icon left behind.
+        unsafe { windows_sys::Win32::System::Console::FreeConsole() };
         let st = app.clone();
         tray::start(Arc::new(move || st.public_state()), url.clone(), data_dir.clone());
     }

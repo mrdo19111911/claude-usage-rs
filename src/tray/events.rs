@@ -27,6 +27,10 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
             0
         }
         WM_EXIT_APP => exit(),
+        WM_OPEN_APP => {
+            open_dashboard();
+            0
+        }
         WM_TIMER if wp == TIMER_REFRESH => {
             refresh();
             0
@@ -78,17 +82,26 @@ pub fn request_exit() {
     unsafe { PostMessageW(h, WM_EXIT_APP, 0, 0) };
 }
 
+// From a second launch: asks the running tray to open its dashboard. False if none found.
+pub fn signal_running() -> bool {
+    let h = unsafe { FindWindowW(wide("cud-tray").as_ptr(), ptr::null()) };
+    if h.is_null() {
+        return false;
+    }
+    unsafe { PostMessageW(h, WM_OPEN_APP, 0, 0) };
+    true
+}
+
 // Takes the icon out of the tray, then ends the program.
 pub(super) fn exit() -> ! {
-    UI.with(|u| {
-        if let Some(u) = u.borrow().as_ref() {
-            let mut n: NOTIFYICONDATAW = unsafe { mem::zeroed() };
-            n.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
-            n.hWnd = u.msg;
-            n.uID = 1;
-            unsafe { Shell_NotifyIconW(NIM_DELETE, &n) };
-        }
-    });
+    // The window out of the borrow first: Shell_NotifyIconW can re-enter msg_proc.
+    if let Some(msg) = UI.with(|u| u.borrow().as_ref().map(|u| u.msg)) {
+        let mut n: NOTIFYICONDATAW = unsafe { mem::zeroed() };
+        n.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
+        n.hWnd = msg;
+        n.uID = 1;
+        unsafe { Shell_NotifyIconW(NIM_DELETE, &n) };
+    }
     std::process::exit(0);
 }
 

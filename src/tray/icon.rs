@@ -38,13 +38,20 @@ pub(super) unsafe fn update_icon(add: bool) {
         return;
     }
     let icon = make_icon(size, five, week);
+    // No icon made: keep the old one and try again next time.
+    if icon.is_null() && !add {
+        return;
+    }
     let mut n = nid();
     n.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
     n.uCallbackMessage = WM_TRAY;
     n.hIcon = icon;
     tip(&mut n, &m);
     if add {
-        Shell_NotifyIconW(NIM_ADD, &n);
+        // After TaskbarCreated the icon may still be there: then update it.
+        if Shell_NotifyIconW(NIM_ADD, &n) == 0 {
+            Shell_NotifyIconW(NIM_MODIFY, &n);
+        }
         n.Anonymous.uVersion = NOTIFYICON_VERSION_4;
         Shell_NotifyIconW(NIM_SETVERSION, &n);
     } else {
@@ -59,10 +66,19 @@ pub(super) unsafe fn update_icon(add: bool) {
     }
 }
 
+// Opaque ARGB from a COLORREF (0x00bbggrr).
+fn argb(c: u32) -> u32 {
+    0xff00_0000 | (c & 0xff) << 16 | (c & 0xff00) | (c >> 16 & 0xff)
+}
+
+// Bytes of a 1-bpp mask: each row padded to a 16-bit word.
+fn mask_len(size: i32) -> usize {
+    ((size as usize + 15) / 16 * 2) * size as usize
+}
+
 // Top bar: 5-hour limit; bottom bar: weekly. Gray while there are no figures.
-pub(super) unsafe fn make_icon(size: i32, five: Option<i64>, week: Option<i64>) -> HICON {
+fn icon_pixels(size: i32, five: Option<i64>, week: Option<i64>) -> Vec<u32> {
     let n = size as usize;
-    let argb = |c: u32| 0xff00_0000 | (c & 0xff) << 16 | (c & 0xff00) | (c >> 16 & 0xff);
     let mut px = vec![0u32; n * n];
     let r = (n / 4) as f32;
     for y in 0..n {
@@ -89,6 +105,11 @@ pub(super) unsafe fn make_icon(size: i32, five: Option<i64>, week: Option<i64>) 
             }
         }
     }
+    px
+}
+
+pub(super) unsafe fn make_icon(size: i32, five: Option<i64>, week: Option<i64>) -> HICON {
+    let px = icon_pixels(size, five, week);
     let mut bmi: BITMAPINFO = mem::zeroed();
     bmi.bmiHeader.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
     bmi.bmiHeader.biWidth = size;
@@ -98,11 +119,54 @@ pub(super) unsafe fn make_icon(size: i32, five: Option<i64>, week: Option<i64>) 
     bmi.bmiHeader.biCompression = BI_RGB;
     let mut bits: *mut core::ffi::c_void = ptr::null_mut();
     let color = CreateDIBSection(ptr::null_mut(), &bmi, DIB_RGB_COLORS, &mut bits, ptr::null_mut(), 0);
-    ptr::copy_nonoverlapping(px.as_ptr(), bits as *mut u32, n * n);
-    let mask = CreateBitmap(size, size, 1, 1, ptr::null());
+    if color.is_null() || bits.is_null() {
+        if !color.is_null() {
+            DeleteObject(color);
+        }
+        return ptr::null_mut();
+    }
+    ptr::copy_nonoverlapping(px.as_ptr(), bits as *mut u32, px.len());
+    // All-zero mask: the alpha channel alone decides what shows.
+    let zeros = vec![0u8; mask_len(size)];
+    let mask = CreateBitmap(size, size, 1, 1, zeros.as_ptr() as *const _);
     let info = ICONINFO { fIcon: TRUE, xHotspot: 0, yHotspot: 0, hbmMask: mask, hbmColor: color };
     let icon = CreateIconIndirect(&info);
     DeleteObject(color);
     DeleteObject(mask);
     icon
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mask_rows_are_word_aligned() {
+        assert_eq!(mask_len(16), 2 * 16);
+        assert_eq!(mask_len(20), 4 * 20);
+        assert_eq!(mask_len(32), 4 * 32);
+    }
+
+    #[test]
+    fn pixels_have_clear_corners_and_coloured_bars() {
+        let n = 16;
+        let px = icon_pixels(n as i32, Some(50), None);
+        assert_eq!(px.len(), n * n);
+        for i in [0, n - 1, n * (n - 1), n * n - 1] {
+            assert_eq!(px[i], 0);
+        }
+        let m = (n / 6).max(2);
+        // Top bar starts filled in the 5-hour level's color; the bottom one is gray.
+        assert_eq!(px[m * n + m], argb(level(50)));
+        assert_eq!(px[(n - m - 1) * n + m], argb(rgb(0x5a, 0x5a, 0x5e)));
+    }
+
+    #[test]
+    fn makes_an_icon() {
+        unsafe {
+            let icon = make_icon(16, Some(80), Some(10));
+            assert!(!icon.is_null());
+            DestroyIcon(icon);
+        }
+    }
 }

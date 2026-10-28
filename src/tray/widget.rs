@@ -46,8 +46,15 @@ pub(super) unsafe fn show_pinned() {
         let s = dpi_at(0, 0);
         (wa.right - width(s) - (16.0 * s) as i32, wa.top + (16.0 * s) as i32)
     });
-    let s = dpi_at(x, y);
-    SetWindowPos(w, HWND_TOPMOST, x, y, width(s), layout(&m, s, true, ptr::null_mut()), SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    let place = |s: f32| {
+        let (ww, hh) = (width(s), layout(&m, s, true, ptr::null_mut()));
+        SetWindowPos(w, HWND_TOPMOST, x, y, ww, hh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    };
+    // Twice: a move onto a screen with another DPI sends WM_DPICHANGED, whose handler
+    // moves the window to Windows' suggested spot; the second call, at the window's
+    // own DPI now, puts it back.
+    place(dpi_at(x, y));
+    place(GetDpiForWindow(w) as f32 / 96.0);
     InvalidateRect(w, ptr::null(), FALSE);
 }
 

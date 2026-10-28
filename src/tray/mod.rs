@@ -12,7 +12,7 @@ mod model;
 mod paint;
 mod place;
 mod widget;
-pub use events::request_exit;
+pub use events::{request_exit, signal_running};
 use events::*;
 use icon::*;
 use model::*;
@@ -39,6 +39,8 @@ pub type StateFn = Arc<dyn Fn() -> String + Send + Sync>;
 const WM_TRAY: u32 = WM_APP + 1;
 // Exit asked from another thread (the dashboard's Exit button): see request_exit.
 const WM_EXIT_APP: u32 = WM_APP + 2;
+// A second launch asks this one to open the dashboard: see signal_running.
+const WM_OPEN_APP: u32 = WM_APP + 3;
 static MSG_HWND: AtomicPtr<core::ffi::c_void> = AtomicPtr::new(ptr::null_mut());
 // The icon and the open widgets, every 2 s.
 const TIMER_REFRESH: usize = 1;
@@ -107,7 +109,8 @@ pub fn start(state: StateFn, url: String, data_dir: PathBuf) {
 }
 
 unsafe fn run(state: StateFn, url: String, file: PathBuf) {
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    // Per thread: covers every window made here, unlike the process-wide call.
+    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     let inst = GetModuleHandleW(ptr::null());
     let msg_class = wide("cud-tray");
     let widget_class = wide("cud-widget");

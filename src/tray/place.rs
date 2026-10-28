@@ -2,6 +2,10 @@
 
 use super::*;
 
+#[cfg(test)]
+#[path = "place_tests.rs"]
+mod tests;
+
 // ---------- The widget ----------
 
 pub(super) unsafe fn dpi_at(x: i32, y: i32) -> f32 {
@@ -30,19 +34,31 @@ pub(super) unsafe fn fit(w: HWND) {
     SetWindowPos(w, HWND_TOPMOST, 0, 0, width(s), h, SWP_NOMOVE | SWP_NOACTIVATE);
 }
 
-// Above the icon (or beside it, for a taskbar at the side), inside the screen.
+// Above the icon (or beside it, for a taskbar at the side), inside the work area.
+// A screen narrower than the widget keeps its left edge.
+pub(super) fn hover_pos(ax: i32, ay: i32, ww: i32, hh: i32, wa: RECT, gap: i32) -> (i32, i32) {
+    let hi = (wa.right - ww - gap).max(wa.left);
+    let x = (ax - ww / 2).clamp((wa.left + gap).min(hi), hi);
+    let y = if ay >= wa.bottom { wa.bottom - hh - gap } else if ay < wa.top { wa.top + gap } else { (ay - hh - gap).max(wa.top + gap) };
+    (x, y)
+}
+
 pub(super) unsafe fn show_hover(ax: i32, ay: i32) {
     let (w, m) = ui(|u| {
         u.away = 0;
         (u.hover, u.model.clone())
     });
-    let s = dpi_at(ax, ay);
-    let (ww, hh) = (width(s), layout(&m, s, false, ptr::null_mut()));
     let wa = work_area(ax, ay);
-    let gap = (12.0 * s) as i32;
-    let x = (ax - ww / 2).clamp(wa.left + gap, (wa.right - ww - gap).max(wa.left));
-    let y = if ay >= wa.bottom { wa.bottom - hh - gap } else if ay < wa.top { wa.top + gap } else { (ay - hh - gap).max(wa.top + gap) };
-    SetWindowPos(w, HWND_TOPMOST, x, y, ww, hh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    let place = |s: f32| {
+        let (ww, hh) = (width(s), layout(&m, s, false, ptr::null_mut()));
+        let (x, y) = hover_pos(ax, ay, ww, hh, wa, (12.0 * s) as i32);
+        SetWindowPos(w, HWND_TOPMOST, x, y, ww, hh, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    };
+    // Twice: a move onto a screen with another DPI sends WM_DPICHANGED, whose handler
+    // moves the window to Windows' suggested spot; the second call, at the window's
+    // own DPI now, puts it back.
+    place(dpi_at(ax, ay));
+    place(GetDpiForWindow(w) as f32 / 96.0);
     InvalidateRect(w, ptr::null(), FALSE);
     SetTimer(ui(|u| u.msg), TIMER_HOVER, 150, None);
 }

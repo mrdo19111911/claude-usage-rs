@@ -63,6 +63,8 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
     let draw = !dc.is_null();
     let pad = p.px(14.0);
     let mut y = p.px(10.0);
+    // The DC's own font, put back before ours are deleted.
+    let old = if draw { SelectObject(dc, p.fonts[NORMAL]) } else { ptr::null_mut() };
     if draw {
         SetBkMode(dc, TRANSPARENT as i32);
         p.fill(0, 0, w, 10_000, BG);
@@ -143,9 +145,30 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
         let br = CreateSolidBrush(BORDER);
         FrameRect(dc, &RECT { left: 0, top: 0, right: w, bottom: y }, br);
         DeleteObject(br);
+        SelectObject(dc, old);
         for f in p.fonts {
             DeleteObject(f);
         }
     }
     y
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_puts_the_dc_font_back() {
+        unsafe {
+            let dc = CreateCompatibleDC(ptr::null_mut());
+            let before = GetCurrentObject(dc, OBJ_FONT as u32);
+            let mut m = Model::default();
+            m.cli.email = Some("a@x.com".into());
+            m.cli.usage = Some(Use::default());
+            m.others.push(("b@x.com".into(), None));
+            assert!(layout(&m, 1.0, false, dc) > 0);
+            assert_eq!(GetCurrentObject(dc, OBJ_FONT as u32), before);
+            DeleteDC(dc);
+        }
+    }
 }
