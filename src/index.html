@@ -77,7 +77,20 @@
   .mini svg text { font-size: 11px; }
   .tip { position: absolute; pointer-events: none; background: #0d0d0e; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; display: none; z-index: 2; }
   .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  /* The two separate logins: Claude CLI (terminal + VS Code) and Claude Desktop. */
+  :root { --code: #2bb5a8; --desk: #a37cf0; }
+  .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .side { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; border-top: 3px solid var(--c); }
+  .side.code { --c: var(--code); } .side.desk { --c: var(--desk); }
+  .side-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .side-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .side-switch { display: flex; gap: 8px; margin-top: 12px; }
+  .side-switch select { flex: 1; min-width: 0; background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 14px; }
+  .tag { display: inline-block; border: 1px solid var(--c); color: var(--c); border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .tag.code { --c: var(--code); } .tag.desk { --c: var(--desk); }
+  .tag.sm { font-size: 11.5px; padding: 0 8px; margin-right: 4px; }
   @media (max-width: 760px) {
+    .sides, .side-bars { grid-template-columns: 1fr; }
     .card { padding: 16px; }
     thead { display: none; }
     tr { display: block; border-bottom: 1px solid var(--line); }
@@ -87,6 +100,15 @@
 </head>
 <body>
 <main>
+  <section class="card">
+    <h2>In use now</h2>
+    <div class="sub note">Two separate logins: switching one never changes the other.</div>
+    <div class="sides" id="sides">
+      <div class="side code" id="sideCode"></div>
+      <div class="side desk" id="sideDesk"></div>
+    </div>
+  </section>
+
   <section class="card">
     <div class="head">
       <div>
@@ -119,11 +141,11 @@
     <div class="sub" id="desktopSub" style="display:none"></div>
     <div class="scroll">
       <table>
-        <thead><tr><th>Account</th><th>Status</th><th>5-hour session</th><th>Weekly</th><th>Use in</th></tr></thead>
+        <thead><tr><th>Account</th><th>Status</th><th>5-hour session</th><th>Weekly</th><th>Claude CLI</th><th>Claude Desktop</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <p class="note"><b>Terminal / VS Code</b> switches at once. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
+    <p class="note"><b>Claude CLI</b> (terminal and VS Code share one login) switches at once; auto-switch moves only this one. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
   </section>
 
   <section class="card">
@@ -210,18 +232,56 @@ function checkLine(a) {
   return parts.length ? `<div class="meta" style="margin-top:6px">${parts.join(' · ')}</div>` : '';
 }
 
-function useButtons(a, d) {
+// The table's last two cells: one per login, each switched on its own.
+function useCells(a, d) {
   const D = S.desktop, busy = D.switching;
   const term = a && a.id === S.activeId
-    ? '<div class="on">✓ Terminal / VS Code</div>'
-    : a ? `<button class="btn" data-activate="${a.id}">Terminal / VS Code</button>`
-    : `<button class="btn" data-signin="${esc(d.email || '')}">Terminal / VS Code (sign in)</button>`;
-  if (!D.found || S.demo) return `<div class="use">${term}</div>`;
+    ? '<div class="on">✓ In use</div>'
+    : a ? `<button class="btn" data-activate="${a.id}">Use here</button>`
+    : `<button class="btn" data-signin="${esc(d.email || '')}">Sign in</button>`;
+  if (!D.found || S.demo) return `<td><div class="use">${term}</div></td><td><span class="note">—</span></td>`;
   const email = (a && a.email) || (d && d.email) || '';
-  const desk = d && d.signedIn ? '<div class="on">✓ Claude Desktop</div>'
-    : d && d.hasSignIn ? `<button class="btn" data-dswitch="${d.uuid}" ${busy ? 'disabled' : ''}>Claude Desktop</button>`
-    : `<button class="btn" data-dfirst="${esc(email)}" ${busy ? 'disabled' : ''}>Claude Desktop (first time)</button>`;
-  return `<div class="use">${term}${desk}</div>`;
+  const desk = d && d.signedIn ? '<div class="on">✓ In use</div>'
+    : d && d.hasSignIn ? `<button class="btn" data-dswitch="${d.uuid}" ${busy ? 'disabled' : ''}>Use here</button>`
+    : `<button class="btn" data-dfirst="${esc(email)}" ${busy ? 'disabled' : ''}>Use here (first time)</button>`;
+  return `<td><div class="use">${term}</div></td><td><div class="use">${desk}</div></td>`;
+}
+
+// Where an account is in use, one colored tag per login.
+function whereTags(code, desk) {
+  return (code ? '<span class="tag code sm">Claude CLI</span>' : '') + (desk ? '<span class="tag desk sm">Claude Desktop</span>' : '');
+}
+
+function usageHint(u) { return u ? ` · 5h ${u.five.u}% · week ${u.week.u}%` : ''; }
+
+// One of the two "In use now" panels; `opts` are [action, label] for its switch menu.
+function side(kind, title, sub, email, u, note, opts, busy) {
+  return `<div class="side-head"><span class="tag ${kind}">${title}</span><span class="note">${sub}</span></div>
+    <div class="email" style="margin-top:10px">${email ? '<span class="dot"></span>' + esc(email) : '<span class="note">Not signed in</span>'}</div>
+    ${u ? `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}</div></div>` : ''}
+    <div class="note" style="margin-top:8px">${note}</div>
+    ${opts.length ? `<div class="side-switch"><select aria-label="Switch ${title} to">${opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select><button class="btn" data-side ${busy ? 'disabled' : ''}>Switch</button></div>` : ''}`;
+}
+
+function renderSides() {
+  // A redraw would close the menu the user is choosing from.
+  if ($('#sides').contains(document.activeElement)) return;
+  const D = S.desktop, s = S.settings;
+  const cur = S.accounts.find(a => a.id === S.activeId);
+  const codeOpts = S.accounts.filter(a => a !== cur).map(a => [`activate:${a.id}`, a.email + usageHint(a.usage) + (a.enabled ? '' : ' · off')]);
+  $('#sideCode').innerHTML = side('code', 'Claude CLI', 'Terminal and VS Code: one shared login', cur && cur.email, cur && cur.usage,
+    s.autoSwitch ? `Auto-switch moves it to another account at ${s.threshold}%.` : 'Auto-switch is off.', codeOpts, false);
+  if (!D.found || S.demo) {
+    $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', null, null, 'Claude Desktop was not found on this computer.', [], true);
+    return;
+  }
+  const dcur = D.accounts.find(d => d.signedIn);
+  const deskOpts = accountRows().filter(r => !(r.d && r.d.signedIn)).map(({ a, d }) => {
+    const email = (a && a.email) || (d && (d.email || d.label)) || '';
+    return d && d.hasSignIn ? [`dswitch:${d.uuid}`, email + usageHint(a ? a.usage : d.usage)] : [`dfirst:${email}`, email + ' · first time: sign in once'];
+  });
+  $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in: auto-switch never changes it', dcur && (dcur.email || dcur.label), dcur && dcur.usage,
+    D.switching ? 'Closing and opening again on the new account…' : 'Switching closes the app and opens it again (running tasks stop).', deskOpts, D.switching);
 }
 
 function renderRows() {
@@ -232,22 +292,21 @@ function renderRows() {
     const u = a ? a.usage : d.usage;
     const [icon, label] = a ? status(a) : ['<span style="color:var(--dim)">○</span>', 'Claude Desktop only'];
     const email = a ? a.email : (d.email || d.label);
-    const where = [active && 'Terminal / VS Code', inDesk && 'Claude Desktop'].filter(Boolean).join(' + ');
     const removable = a ? !active : !inDesk;
     return `<tr class="${active || inDesk ? 'active' : ''}">
       <td><div class="acct">
         ${a ? `<label class="switch" title="Auto-switch may use it"><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? 'checked' : ''}><span></span></label>` : ''}
         <div>
-          <div class="email">${where ? '<span class="dot"></span>' : ''}${esc(email)}</div>
-          <div class="meta">${a ? esc(a.plan) : 'no terminal login yet'}${where ? ' · in use: ' + where : ''}</div>
+          <div class="email">${active || inDesk ? '<span class="dot"></span>' : ''}${esc(email)}</div>
+          <div class="meta">${whereTags(active, inDesk)}${a ? esc(a.plan) : 'no Claude CLI login yet'}</div>
           <div class="row-actions">${removable ? `<button class="btn" ${a ? `data-remove="${a.id}"` : `data-dremove="${d.uuid}"`} title="Remove">✕</button>` : ''}</div>
         </div></div></td>
       <td><span class="pill">${icon} ${label}</span>${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}${a ? checkLine(a) : ''}</td>
       <td style="min-width:200px">${u ? bar(u.five) : '<span class="note">—</span>'}</td>
       <td style="min-width:220px">${u ? bar(u.week) : '<span class="note">—</span>'}</td>
-      <td>${useButtons(a, d)}</td>
+      ${useCells(a, d)}
     </tr>`;
-  }).join('') || `<tr><td colspan="5" class="note">No accounts yet. Click “+ Add account” above and sign in.</td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="note">No accounts yet. Click “+ Add account” above and sign in.</td></tr>`;
 
   const on = S.accounts.filter(a => a.enabled && a.usage);
   const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < th).length;
@@ -336,14 +395,14 @@ function renderChart(force) {
   $('#chart').innerHTML = S.accounts.map(a => {
     const c = miniChart(a, start, now);
     charts[a.id] = c;
-    const where = [a.id === S.activeId && 'Terminal / VS Code', inDesk(a.uuid) && 'Claude Desktop'].filter(Boolean).join(' + ');
+    const where = whereTags(a.id === S.activeId, inDesk(a.uuid));
     const u = a.usage;
     const sub = u ? (u.week.u >= 100 ? 'Weekly limit reached · resets ' + resetLabel(u.week.resetsAt)
       : u.five.u >= 100 ? '5-hour limit reached · resets ' + resetLabel(u.five.resetsAt)
       : u.five.resetsAt ? '5-hour resets ' + resetLabel(u.five.resetsAt) : '5-hour window not started (no use yet)') : 'Waiting for figures';
     return `<div class="mini ${where ? 'inuse' : ''}">
       <h3>${where ? '<span class="dot"></span>' : ''}${esc(a.email)}</h3>
-      <div class="meta">${where ? 'in use: ' + where + ' · ' : ''}${sub}</div>
+      <div class="meta">${where}${sub}</div>
       ${c.svg}<div class="tip"></div></div>`;
   }).join('');
 }
@@ -401,7 +460,7 @@ function renderSettings() {
     S.accounts.map(a => `${a.email}${a.id === S.activeId ? '  [ACTIVE]' : ''}\n  error: ${a.error || '-'}\n  Anthropic said: ${JSON.stringify(a.raw)}`).join('\n\n');
 }
 
-function render() { if (!S) return; renderChart(); renderRows(); renderSettings(); }
+function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
@@ -421,8 +480,17 @@ const signIn = email => api('/api/login', { method: 'POST', body: JSON.stringify
 $('#cliAdd').onclick = () => signIn('');
 $('#rows').addEventListener('click', e => {
   const t = e.target.closest('[data-activate],[data-remove],[data-signin],[data-dswitch],[data-dfirst],[data-dremove]');
-  if (!t) return;
-  const ds = t.dataset;
+  if (t) run(t.dataset);
+});
+// The panels' Switch buttons: the menu holds "action:value", the same actions as the table's.
+$('#sides').addEventListener('click', e => {
+  const b = e.target.closest('[data-side]');
+  if (!b) return;
+  const [k, v] = b.parentNode.querySelector('select').value.split(/:(.*)/);
+  run({ [k]: v });
+  b.blur();
+});
+function run(ds) {
   if (ds.activate) act(api(`/api/accounts/${ds.activate}/activate`, { method: 'POST' }));
   else if (ds.signin !== undefined) signIn(ds.signin);
   else if (ds.dswitch) {
@@ -437,7 +505,7 @@ $('#rows').addEventListener('click', e => {
   } else if (ds.dremove && confirm('Forget this account’s saved Claude Desktop sign-in?')) {
     act(api(`/api/desktop/${ds.dremove}`, { method: 'DELETE' }));
   }
-});
+}
 $('#rows').addEventListener('change', e => {
   const id = e.target.dataset.toggle;
   if (id) act(api(`/api/accounts/${id}/toggle`, { method: 'POST', body: JSON.stringify({ enabled: e.target.checked }) }));
