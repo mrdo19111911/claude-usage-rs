@@ -53,3 +53,25 @@ another module needs them.
 Pure functions get their tests written before they are moved or changed: state JSON →
 widget model, local clock text, time-left text, icon pixels, widget placement, the
 hover-hide decision, `web::asset` for every file.
+
+## The "Claude accounts" section: two lists, like "In use now"
+
+- Two columns: **Claude CLI** on the left (`#cliRows`), **Claude Desktop** on the right
+  (`#deskRows`); one column under the other on narrow screens. No shared table.
+- Claude CLI list: one row per CLI login (`S.accounts`): auto-switch toggle, email, plan,
+  status, last/next check, 5-hour and weekly bars, **Use here** or **✓ In use**, ✕ remove
+  (not on the one in use). Then accounts known only to Claude Desktop, muted, with
+  **Sign in** (adds a CLI login). The column head holds "+ Add account" (`#cliAdd`).
+- Claude Desktop list: one row per saved Desktop account (`S.desktop.accounts`): email,
+  5-hour and weekly bars (its CLI account's figures when there is one), **Use here**
+  (saved sign-in) or **✓ In use**, ✕ forget (not on the one signed in). Then CLI accounts
+  with no Desktop sign-in yet, muted, with **Use here (first time)**. The wait box
+  (`#desktopSub`) sits at the top of this column. Desktop not found, or the demo: a note
+  instead of rows. Buttons are disabled while a Desktop switch runs.
+- Buttons keep their data attributes (`data-activate`, `data-signin`, `data-remove`,
+  `data-toggle`, `data-dswitch`, `data-dfirst`, `data-dremove`); main.js listens on the
+  section (`#accts`), so `run()` is unchanged.
+- Files: `web/js/rows.js` (shared: accountRows, checkLine, usageBars, renderRows = summary
+  + both lists), `web/js/list_cli.js` (renderCli), `web/js/list_desk.js` (renderDesk).
+- Tests first (web_tests.rs): both lists in the page, CLI before Desktop, both scripts
+  served, no six-column table left.

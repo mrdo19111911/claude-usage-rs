@@ -11,6 +11,8 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
         "/style.css" => Some((include_str!("web/style.css"), CSS)),
         "/js/base.js" => Some((include_str!("web/js/base.js"), JS)),
         "/js/rows.js" => Some((include_str!("web/js/rows.js"), JS)),
+        "/js/list_cli.js" => Some((include_str!("web/js/list_cli.js"), JS)),
+        "/js/list_desk.js" => Some((include_str!("web/js/list_desk.js"), JS)),
         "/js/sides.js" => Some((include_str!("web/js/sides.js"), JS)),
         "/js/chart.js" => Some((include_str!("web/js/chart.js"), JS)),
         "/js/settings.js" => Some((include_str!("web/js/settings.js"), JS)),

@@ -12,7 +12,7 @@ function usageHint(u) { return u ? ` · 5h ${u.five.u}% · week ${u.week.u}%` : 
 function side(kind, title, sub, email, u, note, opts, busy) {
   return `<div class="side-head"><span class="tag ${kind}">${title}</span><span class="note">${sub}</span></div>
     <div class="email" style="margin-top:10px">${email ? '<span class="dot"></span>' + esc(email) : '<span class="note">Not signed in</span>'}</div>
-    ${u ? `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}</div></div>` : ''}
+    ${u ? usageBars(u) : ''}
     <div class="note" style="margin-top:8px">${note}</div>
     ${opts.length ? `<div class="side-switch"><select aria-label="Switch ${title} to">${opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select><button class="btn" data-side ${busy ? 'disabled' : ''}>Switch</button></div>` : ''}`;
 }

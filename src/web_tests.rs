@@ -50,3 +50,16 @@ fn the_page_has_no_inline_style_or_script() {
     assert!(!page.contains("<style>"));
     assert!(!page.contains("<script>"));
 }
+
+#[test]
+fn the_accounts_are_two_lists_cli_left_desktop_right() {
+    let page = asset("/").unwrap().0;
+    let cli = page.find("id=\"cliRows\"").expect("a Claude CLI list");
+    let desk = page.find("id=\"deskRows\"").expect("a Claude Desktop list");
+    assert!(cli < desk, "Claude CLI comes first (left)");
+    assert!(page.contains("id=\"accts\""), "one section holds both lists");
+    assert!(!page.contains("<th>Claude Desktop</th>"), "the shared six-column table is gone");
+    for js in ["js/list_cli.js", "js/list_desk.js"] {
+        assert!(page.contains(&format!("src=\"{js}\"")), "{js} loaded");
+    }
+}

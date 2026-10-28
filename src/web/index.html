@@ -44,14 +44,17 @@
         <h2 style="padding-top:4px">Claude accounts</h2>
         <div class="sub note" id="summary"></div>
       </div>
-      <button class="btn" id="cliAdd">+ Add account</button>
     </div>
-    <div class="sub" id="desktopSub" style="display:none"></div>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>Account</th><th>Status</th><th>5-hour session</th><th>Weekly</th><th>Claude CLI</th><th>Claude Desktop</th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
+    <div class="sides" id="accts">
+      <div class="side code">
+        <div class="side-head"><span class="tag code">Claude CLI</span><span class="note">Terminal and VS Code</span><button class="btn add" id="cliAdd">+ Add account</button></div>
+        <div id="cliRows"></div>
+      </div>
+      <div class="side desk">
+        <div class="side-head"><span class="tag desk">Claude Desktop</span><span class="note">Its own sign-in</span></div>
+        <div class="sub" id="desktopSub" style="display:none"></div>
+        <div id="deskRows"></div>
+      </div>
     </div>
     <p class="note"><b>Claude CLI</b> (terminal and VS Code share one login) switches at once; auto-switch moves only this one. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
   </section>
@@ -78,6 +81,8 @@
 
 <script src="js/base.js"></script>
 <script src="js/rows.js"></script>
+<script src="js/list_cli.js"></script>
+<script src="js/list_desk.js"></script>
 <script src="js/sides.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/settings.js"></script>

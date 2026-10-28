@@ -1,7 +1,7 @@
 // Loaded last: drawing, buttons and the load loop.
 // Parts: render, setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
 // autoSwitch/threshold/pollSeconds onchange; loginUrl, signIn, #cliAdd onclick;
-// #rows click, #sides click, run, #rows change; load() and the two timers.
+// #accts click, #sides click, run, #accts change; load() and the two timers.
 
 function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
@@ -27,7 +27,7 @@ let loginUrl = '';
 const signIn = email => api('/api/login', { method: 'POST', body: JSON.stringify({ email }) })
   .then(r => { loginUrl = r.url; return api('/api/state'); }).then(setState).catch(e => alert(e.message));
 $('#cliAdd').onclick = () => signIn('');
-$('#rows').addEventListener('click', e => {
+$('#accts').addEventListener('click', e => {
   const t = e.target.closest('[data-activate],[data-remove],[data-signin],[data-dswitch],[data-dfirst],[data-dremove]');
   if (t) run(t.dataset);
 });
@@ -55,7 +55,7 @@ function run(ds) {
     act(api(`/api/desktop/${ds.dremove}`, { method: 'DELETE' }));
   }
 }
-$('#rows').addEventListener('change', e => {
+$('#accts').addEventListener('change', e => {
   const id = e.target.dataset.toggle;
   if (id) act(api(`/api/accounts/${id}/toggle`, { method: 'POST', body: JSON.stringify({ enabled: e.target.checked }) }));
 });
