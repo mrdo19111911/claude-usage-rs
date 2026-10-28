@@ -71,6 +71,13 @@ pub(super) fn hit_at(pinned: bool, x: i32, y: i32) -> Option<Pick> {
     HITS.with(|h| hit(&h.borrow()[pinned as usize], x, y))
 }
 
+// The pointer is over `r` in that widget (hover state: filled instead of outlined).
+// widget.rs keeps the pointer's place (WM_MOUSEMOVE, WM_MOUSELEAVE).
+pub(super) fn hot(pinned: bool, r: &RECT) -> bool {
+    let _ = (pinned, r);
+    false
+}
+
 pub(super) unsafe fn draw_buttons(p: &Painter, b: &[(RECT, Pick)]) {
     for (r, k) in b {
         let (label, c) = match k {

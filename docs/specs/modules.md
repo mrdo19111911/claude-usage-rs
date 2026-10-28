@@ -75,3 +75,30 @@ hover-hide decision, `web::asset` for every file.
   + both lists), `web/js/list_cli.js` (renderCli), `web/js/list_desk.js` (renderDesk).
 - Tests first (web_tests.rs): both lists in the page, CLI before Desktop, both scripts
   served, no six-column table left.
+
+## Widget v2 (tray/): smaller, no repeats, most useful first
+
+What the user saw as wrong in v1: CLI and Desktop on one account drew the same email and
+bars twice; 360 px wide; the only usable account sat 4th among long red "week full"
+lines; flat coloured buttons with no hover, ragged columns, buttons even on full
+accounts; square corners; "✕" unclear; a hint line always on.
+
+- 300 px wide (logical), rounded window corners (region, radius 10), 1 px border.
+- Header: "Claude usage", "· N min ago" (newest figures, `Model.checked`), pin icon at
+  the right (Segoe MDL2 Assets: pin U+E718 on the hover widget, unpin U+E77A pinned).
+- "In use" card (darker fill, radius 8): one card when Claude CLI and Claude Desktop are on
+  the same account (`same_account`), with both chips (CLI teal, Desktop violet, outlined);
+  otherwise one card per side with its chip. Email without the domain when it fits.
+  Each window: label ("5-hour"/"Weekly"), bold %, time left · clock at the right, then a
+  6 px rounded bar under it with a pace tick (`pace`: share of the window gone; light
+  line). No figures: "No figures yet". Desktop missing: no Desktop card or chip.
+- "SWITCH TO": usable accounts (`split_others().0`: not full), most room first; name, two
+  small stacked bars (5h over week), "26 · 74%", and outlined CLI / Desktop buttons in
+  fixed columns (a missing one leaves its slot empty). Hovered button: filled.
+- "FULL · FREE AGAIN": full accounts (`split_others().1`), soonest free first; muted
+  name and the free-again clock; no buttons.
+- Footer: "Open dashboard" + external-link glyph (U+E8A7); click opens the dashboard.
+  The hover widget still opens it on any click outside buttons; the pinned one drags.
+- Tests first: pace, full_until, split_others order, same_account, `checked`; button
+  slots and hit test; the layout leaves the DC font in place; a preview test
+  (`cargo test preview -- --ignored`) renders presets to target/widget-preview/*.bmp.

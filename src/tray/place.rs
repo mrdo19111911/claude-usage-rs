@@ -24,7 +24,7 @@ pub(super) unsafe fn work_area(x: i32, y: i32) -> RECT {
 }
 
 pub(super) fn width(s: f32) -> i32 {
-    (360.0 * s) as i32
+    (300.0 * s) as i32
 }
 
 // Keeps the widget's top-left corner, sized to what it shows now.

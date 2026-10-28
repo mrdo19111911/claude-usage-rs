@@ -46,6 +46,36 @@ pub(super) struct Model {
     // A Claude Desktop switch is running: no Desktop buttons meanwhile.
     pub(super) desk_switching: bool,
     pub(super) others: Vec<Other>,
+    // When the newest figures were fetched (any account): "· 2 min ago" in the header.
+    pub(super) checked: Option<i64>,
+}
+
+pub(super) const FIVE_MS: i64 = 5 * 3_600_000;
+pub(super) const WEEK_MS: i64 = 7 * 86_400_000;
+
+// Share of a `len`-long window gone by `now`, 0..=1, from its reset; None without one.
+pub(super) fn pace(reset: Option<i64>, now: i64, len: i64) -> Option<f32> {
+    let _ = (reset, now, len);
+    None
+}
+
+// A full account (a window at 100%): when it is usable again (the latest reset among its
+// full windows; i64::MAX when one is unknown). None: not full.
+pub(super) fn full_until(u: &Use) -> Option<i64> {
+    let _ = u;
+    None
+}
+
+// The "Switch to" rows (not full; most room first, no figures last) and the "Full · free
+// again" rows (soonest free first, with that time).
+pub(super) fn split_others(m: &Model) -> (Vec<&Other>, Vec<(&Other, i64)>) {
+    (m.others.iter().collect(), vec![])
+}
+
+// Claude CLI and Claude Desktop are on one account: one in-use card.
+pub(super) fn same_account(m: &Model) -> bool {
+    let _ = m;
+    false
 }
 
 pub(super) fn usage(v: &Value) -> Option<Use> {
