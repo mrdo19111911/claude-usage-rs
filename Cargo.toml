@@ -7,7 +7,17 @@ edition = "2021"
 tiny_http = "0.12"
 ureq = { version = "2.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# preserve_order: Claude's own JSON files are rewritten with their keys in the order they had.
+serde_json = { version = "1", features = ["preserve_order"] }
+
+# Closing and finding Claude Desktop for a desktop switch.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 # Windows/Linux: also trust the OS certificate store (company proxies). macOS uses the bundled roots.
 [target.'cfg(not(target_os = "macos"))'.dependencies]

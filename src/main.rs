@@ -1,6 +1,9 @@
 // Claude usage dashboard: theo dõi % usage 5 giờ / tuần của nhiều tài khoản Claude
 // và tự chuyển login của Claude Code sang tài khoản còn dư khi chạm ngưỡng.
 // Chạy file là xong: tự mở trình duyệt, tự nhận tài khoản mỗi lần bạn /login.
+// Claude Desktop (Windows) giữ đăng nhập riêng: desktop.rs đổi nó khi bạn bấm chuyển.
+
+mod desktop;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -18,6 +21,9 @@ const TOKEN_URLS: [&str; 2] = [
     "https://console.anthropic.com/v1/oauth/token",
 ];
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
+// Whose a token is: ~/.claude.json's oauthAccount can name another account than the
+// token in .credentials.json (seen on 2026-10-28), so identity comes from here.
+const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
 const HOUR: i64 = 3_600_000;
 const INDEX: &str = include_str!("index.html");
@@ -54,6 +60,10 @@ struct Usage {
 #[serde(rename_all = "camelCase")]
 struct Account {
     id: String,
+    // The account the token belongs to, as Anthropic's profile endpoint says; None
+    // until checked (states written by older versions).
+    #[serde(default)]
+    account_uuid: Option<String>,
     email: String,
     plan: String,
     enabled: bool,
@@ -74,6 +84,15 @@ struct Event {
     msg: String,
 }
 
+// An account Claude Desktop has been signed in to. Its sign-in is saved by desktop.rs
+// under `uuid`; its usage is the terminal account's with the same uuid, if any.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DesktopAccount {
+    uuid: String,
+    label: String,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
@@ -82,6 +101,8 @@ struct State {
     active_id: Option<String>,
     #[serde(default)]
     events: Vec<Event>,
+    #[serde(default)]
+    desktop: Vec<DesktopAccount>,
 }
 
 impl Default for State {
@@ -91,6 +112,7 @@ impl Default for State {
             accounts: vec![],
             active_id: None,
             events: vec![],
+            desktop: vec![],
         }
     }
 }
@@ -106,6 +128,10 @@ struct App {
     polling: AtomicBool,
     last_poll: AtomicI64,
     seq: AtomicU64,
+    port: u16,
+    desktop_dir: Option<PathBuf>,
+    desktop_store: desktop::Store,
+    switching: AtomicBool,
 }
 
 impl App {
@@ -182,8 +208,11 @@ impl App {
             .unwrap_or(Value::Null)
     }
 
-    fn write_oauth_account(&self, oa: &Value) {
-        if oa.is_null() {
+    // Claude Code shows the account named here. Written only when it is known to be
+    // the account's own (keep_oauth_account), never another's.
+    fn write_oauth_account(&self, acc: &Account) {
+        let oa = &acc.oauth_account;
+        if oa.is_null() || acc.account_uuid.is_none() || oa.get("accountUuid").and_then(Value::as_str) != acc.account_uuid.as_deref() {
             return;
         }
         let Some(mut obj) = fs::read_to_string(&self.claude_json)
@@ -197,58 +226,141 @@ impl App {
         let _ = write_private(&self.claude_json, &serde_json::to_string_pretty(&obj).unwrap());
     }
 
-    // Work out which stored account Claude Code uses now. Picks up tokens Claude Code
-    // refreshed on its own, and adds a login we have not seen yet as a new account.
-    fn sync_active(&self, st: &mut State) {
+    // Takes the stored account whose refresh token Claude Code holds now as the active
+    // one, with the live tokens (Claude Code may have refreshed them). False when the
+    // live login is none we know by its refresh token.
+    fn note_live(&self, st: &mut State, live: &Value) -> bool {
+        let oa = self.read_oauth_account();
+        let rt = live.get("refreshToken").filter(|v| v.is_string());
+        let Some(a) = st.accounts.iter_mut().find(|a| rt.is_some() && a.creds.get("refreshToken") == rt) else { return false };
+        if a.creds.get("accessToken") != live.get("accessToken") {
+            a.creds = live.clone();
+            a.error = None;
+        }
+        keep_oauth_account(a, oa);
+        st.active_id = Some(a.id.clone());
+        true
+    }
+
+    // Work out which stored account Claude Code uses now. A login we do not know by its
+    // refresh token is looked up at Anthropic: a new token of a stored account (Claude
+    // Code refreshed it, or you signed in to it again) or a new account. Takes the lock.
+    fn sync_active(&self) {
         if self.demo {
             return;
         }
-        let Some(live) = self.read_live() else {
-            st.active_id = None;
-            return;
-        };
+        let live = self.read_live();
+        {
+            let mut st = self.st.lock().unwrap();
+            match &live {
+                None => {
+                    st.active_id = None;
+                    return;
+                }
+                Some(l) if self.note_live(&mut st, l) => return,
+                _ => {}
+            }
+        }
+        let live = live.unwrap();
+        // Outside the lock: a network call.
+        let who = self.get_profile(&live);
         let oa = self.read_oauth_account();
-        let uuid = oa.get("accountUuid").and_then(Value::as_str).unwrap_or("");
-        let email = oa.get("emailAddress").and_then(Value::as_str).unwrap_or("");
-        let found = st.accounts.iter().position(|a| a.creds.get("refreshToken") == live.get("refreshToken"))
-            .or_else(|| st.accounts.iter().position(|a| !uuid.is_empty() && a.oauth_account.get("accountUuid").and_then(Value::as_str) == Some(uuid)))
-            .or_else(|| st.accounts.iter().position(|a| !email.is_empty() && a.email == email));
-        match found {
-            Some(i) => {
-                let a = &mut st.accounts[i];
-                if a.creds.get("accessToken") != live.get("accessToken") {
-                    a.creds = live.clone();
-                    a.error = None;
-                }
-                if !oa.is_null() {
-                    a.oauth_account = oa;
-                }
-                st.active_id = Some(a.id.clone());
+        let mut st = self.st.lock().unwrap();
+        if self.note_live(&mut st, &live) {
+            return;
+        }
+        let (uuid, email) = match who {
+            Ok(w) => w,
+            Err(e) => {
+                // Unknown whose it is: no account counts as active until it is known.
+                st.active_id = None;
+                println!("Could not identify Claude Code's login: {e}");
+                return;
             }
-            None => {
-                let email = if email.is_empty() {
-                    let rt = live.get("refreshToken").and_then(Value::as_str).unwrap_or("");
-                    format!("account-{}", &rt[rt.len().saturating_sub(6)..])
-                } else {
-                    email.to_string()
+        };
+        if let Some(a) = st.accounts.iter_mut().find(|a| a.account_uuid.as_deref() == Some(uuid.as_str())) {
+            a.creds = live;
+            a.email = email;
+            a.error = None;
+            keep_oauth_account(a, oa);
+            st.active_id = Some(a.id.clone());
+        } else {
+            let id = self.new_id();
+            let mut a = Account {
+                id: id.clone(),
+                account_uuid: Some(uuid),
+                email: email.clone(),
+                plan: plan_label(&live),
+                enabled: true,
+                creds: live,
+                oauth_account: Value::Null,
+                usage: None,
+                history: vec![],
+                error: None,
+                raw: Value::Null,
+            };
+            keep_oauth_account(&mut a, oa);
+            st.accounts.push(a);
+            st.active_id = Some(id);
+            self.log(&mut st, format!("Added {email} (new Claude Code login)"));
+        }
+        self.save(&st);
+    }
+
+    // ----- Claude Desktop -----
+    // Gives the account Claude Desktop is signed in to now an entry, if it has none.
+    fn sync_desktop(&self, st: &mut State) {
+        let Some(dir) = &self.desktop_dir else { return };
+        let Some(uuid) = desktop::signed_in(dir) else { return };
+        if st.desktop.iter().any(|d| d.uuid == uuid) {
+            return;
+        }
+        let label = format!("Account {}", &uuid[..8]);
+        st.desktop.push(DesktopAccount { uuid, label: label.clone() });
+        self.log(st, format!("Claude Desktop: added {label} (signed in now)"));
+        self.save(st);
+    }
+
+    // Runs a desktop switch in the background: it closes and restarts Claude Desktop,
+    // which takes up to a minute. `target` None leaves it signed out, to add an account.
+    fn start_desktop_switch(self: &Arc<Self>, target: Option<String>) -> Result<(), String> {
+        let dir = self.desktop_dir.clone().ok_or("Claude Desktop's data folder was not found")?;
+        if let Some(t) = &target {
+            if !self.desktop_store.has_sign_in(t) {
+                return Err("No sign-in is saved for this account yet. Sign in to it in Claude Desktop once (Add account).".into());
+            }
+            if desktop::signed_in(&dir).as_deref() == Some(t.as_str()) {
+                return Err("Claude Desktop is signed in to this account already.".into());
+            }
+        }
+        #[cfg(windows)]
+        let real = desktop::RealApp { data_dir: dir.clone() };
+        #[cfg(windows)]
+        if real.inside_claude() {
+            return Err("This dashboard was started from inside Claude, so closing Claude would stop it half-way. Start it from Explorer or the Start menu.".into());
+        }
+        #[cfg(not(windows))]
+        return Err("Switching Claude Desktop works on Windows only.".into());
+        #[cfg(windows)]
+        {
+            if self.switching.swap(true, Ordering::SeqCst) {
+                return Err("A switch is running already.".into());
+            }
+            let app = self.clone();
+            thread::spawn(move || {
+                let res = desktop::switch(&dir, &app.desktop_store, target.as_deref(), &real, now());
+                let mut st = app.st.lock().unwrap();
+                let name = |st: &State, u: &str| st.desktop.iter().find(|d| d.uuid == u).map(|d| d.label.clone()).unwrap_or_else(|| u[..8].to_string());
+                let msg = match (&res, &target) {
+                    (Ok(_), Some(t)) => format!("Claude Desktop: switched to {}", name(&st, t)),
+                    (Ok(_), None) => "Claude Desktop: signed out here; sign in to the account to add".to_string(),
+                    (Err(e), _) => format!("Claude Desktop switch failed: {e}"),
                 };
-                let id = self.new_id();
-                st.accounts.push(Account {
-                    id: id.clone(),
-                    email: email.clone(),
-                    plan: plan_label(&live),
-                    enabled: true,
-                    creds: live,
-                    oauth_account: oa,
-                    usage: None,
-                    history: vec![],
-                    error: None,
-                    raw: Value::Null,
-                });
-                st.active_id = Some(id);
-                self.log(st, format!("Added {email} (new Claude Code login)"));
-                self.save(st);
-            }
+                app.log(&mut st, msg);
+                app.save(&st);
+                app.switching.store(false, Ordering::SeqCst);
+            });
+            Ok(())
         }
     }
 
@@ -295,16 +407,40 @@ impl App {
             .map_err(|e| ureq::Error::from(e))
     }
 
-    // Returns the usage JSON and, if tokens were refreshed, the new creds.
-    fn fetch_usage(&self, creds: &Value) -> Result<(Value, Option<Value>), String> {
+    // The account a token belongs to: (uuid, email).
+    fn get_profile(&self, creds: &Value) -> Result<(String, String), String> {
+        let tok = creds.get("accessToken").and_then(Value::as_str).unwrap_or("");
+        let j: Value = self.http
+            .get(PROFILE_URL)
+            .set("Authorization", &format!("Bearer {tok}"))
+            .set("anthropic-beta", "oauth-2025-04-20")
+            .set("User-Agent", "claude-usage-dashboard/1.0")
+            .call()
+            .map_err(|e| e.to_string())?
+            .into_json()
+            .map_err(|e| e.to_string())?;
+        let uuid = j["account"]["uuid"].as_str().ok_or("profile without account")?;
+        Ok((uuid.to_string(), j["account"]["email"].as_str().unwrap_or("").to_string()))
+    }
+
+    // Returns the usage JSON and, if tokens were refreshed, the new creds. Refresh
+    // tokens are single-use: the live login's belongs to Claude Code alone (a refresh
+    // here would leave a running Claude Code holding a dead one), so for it
+    // `may_refresh` is false and an expired token waits until Claude Code refreshes it.
+    fn fetch_usage(&self, creds: &Value, may_refresh: bool) -> Result<(Value, Option<Value>), String> {
         let mut c = creds.clone();
         let mut changed = false;
-        if c.get("expiresAt").and_then(Value::as_i64).unwrap_or(0) - 60_000 < now() {
+        let expired = c.get("expiresAt").and_then(Value::as_i64).unwrap_or(0) - 60_000 < now();
+        if expired && !may_refresh {
+            return Err("token expired: Claude Code renews it the next time it runs".into());
+        }
+        if expired {
             c = self.refresh(&c)?;
             changed = true;
         }
         let j = match self.get_usage(&c) {
             Ok(j) => j,
+            Err(ureq::Error::Status(401, _)) if !changed && !may_refresh => return Err("usage HTTP 401: Claude Code renews the token the next time it runs".into()),
             Err(ureq::Error::Status(401, _)) if !changed => {
                 c = self.refresh(&c)?;
                 changed = true;
@@ -317,24 +453,39 @@ impl App {
     }
 
     fn poll_account(&self, id: &str) {
-        let creds = {
+        let (creds, is_active, known) = {
             let st = self.st.lock().unwrap();
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) => a.creds.clone(),
+                Some(a) => (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some()),
                 None => return,
             }
         };
-        let res = self.fetch_usage(&creds);
+        // Also the live login when it is not identified yet (active_id is then None).
+        let rt = creds.get("refreshToken").filter(|v| v.is_string());
+        let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
+        let res = self.fetch_usage(&creds, !is_live);
+        // Accounts saved by older versions were named after ~/.claude.json, which can
+        // be another account's: ask once whose the token is.
+        let who = match (&res, known) {
+            (Ok((_, c)), false) => self.get_profile(c.as_ref().unwrap_or(&creds)).ok(),
+            _ => None,
+        };
         let mut st = self.st.lock().unwrap();
-        let is_active = st.active_id.as_deref() == Some(id);
         let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) else { return };
+        if let Some((uuid, email)) = who {
+            if a.email != email {
+                println!("{} is {email}'s login; renamed", a.email);
+            }
+            a.account_uuid = Some(uuid);
+            a.email = email;
+            if a.oauth_account.get("accountUuid").and_then(Value::as_str) != a.account_uuid.as_deref() {
+                a.oauth_account = Value::Null;
+            }
+        }
         match res {
             Ok((j, new_creds)) => {
                 if let Some(c) = new_creds {
-                    // The active account's token also lives in Claude Code: keep both in step.
-                    if is_active {
-                        let _ = self.write_live(&c);
-                    }
+                    // Only a parked account is refreshed here (see fetch_usage).
                     a.creds = c;
                 }
                 let five = to_win(&j["five_hour"]);
@@ -348,16 +499,16 @@ impl App {
             }
             Err(e) => a.error = Some(e),
         }
-        self.save(&st);
     }
 
     fn poll_all(&self) {
         if self.demo || self.polling.swap(true, Ordering::SeqCst) {
             return;
         }
+        self.sync_active();
         let ids: Vec<String> = {
             let mut st = self.st.lock().unwrap();
-            self.sync_active(&mut st);
+            self.sync_desktop(&mut st);
             st.accounts.iter().map(|a| a.id.clone()).collect()
         };
         for id in ids {
@@ -372,11 +523,17 @@ impl App {
 
     // ----- switching -----
     fn activate(&self, st: &mut State, id: &str, reason: &str) -> Result<(), String> {
-        self.sync_active(st); // save fresh tokens of the outgoing account first
         let acc = st.accounts.iter().find(|a| a.id == id).ok_or("not found")?.clone();
         if !self.demo {
+            // Keep the outgoing account's newest tokens first: once the file is
+            // overwritten they are gone, and its stored refresh token may be spent.
+            if let Some(live) = self.read_live() {
+                if !self.note_live(st, &live) {
+                    return Err("Claude Code's current login is not identified yet; try again in a few seconds".into());
+                }
+            }
             self.write_live(&acc.creds)?;
-            self.write_oauth_account(&acc.oauth_account);
+            self.write_oauth_account(&acc);
         }
         let from = st.active_id.as_ref().and_then(|f| st.accounts.iter().find(|a| &a.id == f)).map(|a| a.email.clone());
         st.active_id = Some(acc.id.clone());
@@ -425,7 +582,25 @@ impl App {
             "usage": a.usage, "error": a.error, "raw": a.raw,
             "history": a.history.iter().filter(|p| p.0 > t - 6 * HOUR).collect::<Vec<_>>(),
         })).collect();
+        let desktop_now = self.desktop_dir.as_deref().and_then(desktop::signed_in);
+        let desktop: Vec<Value> = st.desktop.iter().map(|d| {
+            // Usage is per account: the terminal login of the same account shows it.
+            let cli = st.accounts.iter().find(|a| a.account_uuid.as_deref() == Some(d.uuid.as_str()));
+            json!({
+                "uuid": d.uuid, "label": d.label,
+                "email": cli.map(|a| a.email.clone()),
+                "usage": cli.and_then(|a| a.usage.clone()),
+                "hasSignIn": self.desktop_store.has_sign_in(&d.uuid),
+                "signedIn": desktop_now.as_deref() == Some(d.uuid.as_str()),
+            })
+        }).collect();
         json!({
+            "desktop": {
+                "found": self.desktop_dir.is_some(),
+                "dir": self.desktop_dir.as_ref().map(|d| d.display().to_string()),
+                "switching": self.switching.load(Ordering::Relaxed),
+                "accounts": desktop,
+            },
             "now": t,
             "lastPollAt": self.last_poll.load(Ordering::Relaxed),
             "polling": self.polling.load(Ordering::Relaxed),
@@ -458,6 +633,13 @@ fn write_private(path: &Path, data: &str) -> std::io::Result<()> {
         o.open(&tmp)?.write_all(data.as_bytes())?;
     }
     fs::rename(&tmp, path)
+}
+
+// Keeps ~/.claude.json's oauthAccount for `a` only when it names a's own account.
+fn keep_oauth_account(a: &mut Account, oa: Value) {
+    if a.account_uuid.is_some() && oa.get("accountUuid").and_then(Value::as_str) == a.account_uuid.as_deref() {
+        a.oauth_account = oa;
+    }
 }
 
 fn plan_label(c: &Value) -> String {
@@ -532,6 +714,7 @@ fn demo_state(app: &App) -> State {
     let t = now();
     let mk = |email: &str, five: i64, week: i64, week_reset_h: i64, five_reset: Option<i64>, hist: Vec<(i64, i64, i64)>| Account {
         id: app.new_id(),
+        account_uuid: None,
         email: email.into(),
         plan: "Max 20x".into(),
         enabled: true,
@@ -560,15 +743,24 @@ fn demo_state(app: &App) -> State {
 }
 
 // ---------- HTTP ----------
-fn handle(app: &App, mut rq: tiny_http::Request) {
+fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
     let method = rq.method().as_str().to_string();
     let path = rq.url().split('?').next().unwrap_or("").to_string();
     let mut body = String::new();
     let _ = rq.as_reader().read_to_string(&mut body);
     let body: Value = serde_json::from_str(&body).unwrap_or(json!({}));
     let from_page = rq.headers().iter().any(|h| h.field.equiv("X-CUD") && h.value.as_str() == "1");
+    // Only this machine's own names: a page that points its own domain at 127.0.0.1
+    // (DNS rebinding) would otherwise count as the page itself.
+    let host_ok = rq.headers().iter().find(|h| h.field.equiv("Host")).is_some_and(|h| {
+        let host = h.value.as_str();
+        host == format!("127.0.0.1:{}", app.port) || host == format!("localhost:{}", app.port)
+    });
 
     let result: Result<(u16, String, &str), String> = (|| {
+        if !host_ok {
+            return Ok((403, r#"{"error":"forbidden host"}"#.into(), "application/json"));
+        }
         if method == "GET" && (path == "/" || path == "/index.html") {
             return Ok((200, INDEX.to_string(), "text/html; charset=utf-8"));
         }
@@ -596,6 +788,35 @@ fn handle(app: &App, mut rq: tiny_http::Request) {
                 }
                 app.save(&st);
             }
+            ("POST", "/api/desktop/add") => app.start_desktop_switch(None)?,
+            _ if path.starts_with("/api/desktop/") => {
+                let parts: Vec<&str> = path.trim_start_matches("/api/desktop/").split('/').collect();
+                let uuid = parts[0];
+                if !desktop::valid_account_id(uuid) {
+                    return Ok((404, r#"{"error":"not found"}"#.into(), "application/json"));
+                }
+                match (method.as_str(), parts.get(1).copied()) {
+                    ("POST", Some("switch")) => app.start_desktop_switch(Some(uuid.to_string()))?,
+                    ("POST", Some("rename")) => {
+                        let label = body["label"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or("name required")?;
+                        let mut st = app.st.lock().unwrap();
+                        let d = st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or("not found")?;
+                        d.label = label.chars().take(60).collect();
+                        app.save(&st);
+                    }
+                    ("DELETE", None) => {
+                        if app.desktop_dir.as_deref().and_then(desktop::signed_in).as_deref() == Some(uuid) {
+                            return Err("Claude Desktop is signed in to this account now; switch away first".into());
+                        }
+                        app.desktop_store.forget(uuid)?;
+                        let mut st = app.st.lock().unwrap();
+                        st.desktop.retain(|d| d.uuid != uuid);
+                        app.log(&mut st, "Claude Desktop: removed a saved account".into());
+                        app.save(&st);
+                    }
+                    _ => return Ok((404, r#"{"error":"not found"}"#.into(), "application/json")),
+                }
+            }
             _ => {
                 let parts: Vec<&str> = path.trim_start_matches("/api/accounts/").split('/').collect();
                 if !path.starts_with("/api/accounts/") || parts.is_empty() {
@@ -611,10 +832,11 @@ fn handle(app: &App, mut rq: tiny_http::Request) {
                     }
                     ("POST", Some("activate")) => app.activate(&mut st, id, "manual")?,
                     ("DELETE", None) => {
-                        let a = st.accounts.remove(idx);
+                        // Claude Code still holds it: it would come straight back as new.
                         if st.active_id.as_deref() == Some(id) {
-                            st.active_id = None;
+                            return Err("Claude Code is signed in to this account now; switch to another first".into());
                         }
+                        let a = st.accounts.remove(idx);
                         app.log(&mut st, format!("Removed {}", a.email));
                         app.save(&st);
                     }
@@ -657,6 +879,10 @@ fn main() {
         polling: AtomicBool::new(false),
         last_poll: AtomicI64::new(0),
         seq: AtomicU64::new(0),
+        port,
+        desktop_dir: if demo { None } else { desktop::find_data_dir() },
+        desktop_store: desktop::Store { root: data_dir.join("desktop") },
+        switching: AtomicBool::new(false),
     });
 
     {
@@ -684,6 +910,7 @@ fn main() {
     if !demo {
         println!("Data: {}", app.data_file.display());
         println!("Claude Code login: {}", if app.keychain { "macOS Keychain".into() } else { app.creds_file.display().to_string() });
+        println!("Claude Desktop data: {}", app.desktop_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_else(|| "not found".into()));
     }
     println!("Keep this window open. Ctrl+C to stop.");
     if !no_open {
@@ -694,17 +921,20 @@ fn main() {
     thread::spawn(move || loop {
         poller.poll_all();
         let start = now();
+        let mut last_sync = start;
         loop {
             thread::sleep(Duration::from_secs(1));
             let secs = poller.st.lock().unwrap().settings.poll_seconds as i64;
             if now() - start >= secs * 1000 {
                 break;
             }
-            // Notice a fresh /login quickly instead of waiting a whole poll cycle.
-            if !poller.demo && (now() - start) % 10_000 < 1000 {
+            // Notice a fresh /login (or Desktop sign-in) quickly instead of waiting a whole poll cycle.
+            if !poller.demo && now() - last_sync >= 10_000 {
+                last_sync = now();
+                let before = poller.st.lock().unwrap().accounts.len();
+                poller.sync_active();
                 let mut st = poller.st.lock().unwrap();
-                let before = st.accounts.len();
-                poller.sync_active(&mut st);
+                poller.sync_desktop(&mut st);
                 if st.accounts.len() != before {
                     break;
                 }

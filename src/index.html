@@ -88,6 +88,23 @@
     </div>
   </section>
 
+  <section class="card" id="desktopCard">
+    <div class="head">
+      <div>
+        <h2>Claude Desktop</h2>
+        <div class="sub note" id="desktopSub"></div>
+      </div>
+      <button class="btn" id="desktopAdd">+ Add account</button>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Account</th><th>5-hour session</th><th>Weekly</th><th></th></tr></thead>
+        <tbody id="desktopRows"></tbody>
+      </table>
+    </div>
+    <p class="note">Claude Desktop keeps its own sign-in, apart from <code>claude</code> in a terminal or VS Code. A switch <b>closes Claude Desktop and opens it again</b> on the other account: running tasks stop. Usage shows for an account once it is also signed in with <code>/login</code> in a terminal.</p>
+  </section>
+
   <section class="card">
     <div class="head">
       <h2>Settings</h2>
@@ -165,8 +182,8 @@ function renderRows() {
           <div class="email">${active ? '<span class="dot"></span>' : ''}${esc(a.email)}</div>
           <div class="meta">${esc(a.plan)}${active ? ' · signed in: your Claude Code' : ''}</div>
           <div class="row-actions">
-            ${active ? '' : `<button class="btn" data-activate="${a.id}">Use now</button>`}
-            <button class="btn" data-remove="${a.id}" title="Remove">✕</button>
+            ${active ? '' : `<button class="btn" data-activate="${a.id}">Use now</button>
+            <button class="btn" data-remove="${a.id}" title="Remove">✕</button>`}
           </div>
         </div></div></td>
       <td><span class="pill">${icon} ${label}</span>${a.error ? `<div class="err">${esc(a.error)}</div>` : ''}</td>
@@ -174,7 +191,7 @@ function renderRows() {
       <td style="min-width:220px">${u ? bar(u.week) : ''}</td>
       <td>${u ? `<span data-ago="${u.fetchedAt}">${ago(u.fetchedAt)}</span><div class="meta">official ${hhmm(u.fetchedAt)} · Anthropic</div>` : ''}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="5" class="note">No accounts yet. Click “Import current Claude Code login” below.</td></tr>`;
+  }).join('') || `<tr><td colspan="5" class="note">No accounts yet. Sign in with /login in claude (terminal or VS Code), then click “Check for new login” below.</td></tr>`;
 
   const on = S.accounts.filter(a => a.enabled && a.usage);
   const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < th).length;
@@ -246,7 +263,32 @@ function renderSettings() {
     S.accounts.map(a => `${a.email}${a.id === S.activeId ? '  [ACTIVE]' : ''}\n  error: ${a.error || '-'}\n  Anthropic said: ${JSON.stringify(a.raw)}`).join('\n\n');
 }
 
-function render() { if (!S) return; renderChart(); renderRows(); renderSettings(); }
+function renderDesktop() {
+  const D = S.desktop;
+  $('#desktopCard').style.display = S.demo ? 'none' : '';
+  $('#desktopAdd').disabled = !D.found || D.switching;
+  $('#desktopSub').textContent = !D.found ? 'Claude Desktop’s data folder was not found on this computer.'
+    : D.switching ? 'Switching… Claude Desktop is closing and will open again (up to a minute).'
+    : `Data: ${D.dir}`;
+  $('#desktopRows').innerHTML = D.accounts.map(d => {
+    const u = d.usage;
+    const name = d.email || d.label;
+    return `<tr class="${d.signedIn ? 'active' : ''}">
+      <td><div class="email">${d.signedIn ? '<span class="dot"></span>' : ''}${esc(name)}</div>
+        <div class="meta">${d.email ? esc(d.label) + ' · ' : ''}${d.signedIn ? 'signed in to Claude Desktop now' : d.hasSignIn ? 'sign-in saved' : 'no sign-in saved yet'}</div>
+        <div class="row-actions">
+          ${d.signedIn ? '' : `<button class="btn" data-dswitch="${d.uuid}" ${d.hasSignIn && !D.switching ? '' : 'disabled'}>Switch to</button>`}
+          <button class="btn" data-drename="${d.uuid}">Rename</button>
+          ${d.signedIn ? '' : `<button class="btn" data-dremove="${d.uuid}" title="Remove">✕</button>`}
+        </div></td>
+      <td style="min-width:200px">${u ? bar(u.five) : '<span class="note">—</span>'}</td>
+      <td style="min-width:220px">${u ? bar(u.week) : '<span class="note">—</span>'}</td>
+      <td></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="4" class="note">${D.found ? 'No account seen yet. It appears here once Claude Desktop is signed in.' : ''}</td></tr>`;
+}
+
+function render() { if (!S) return; renderChart(); renderRows(); renderDesktop(); renderSettings(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
@@ -263,6 +305,24 @@ $('#rows').addEventListener('click', e => {
   if (!t) return;
   if (t.dataset.activate) act(api(`/api/accounts/${t.dataset.activate}/activate`, { method: 'POST' }));
   else if (confirm('Remove this account from the dashboard?')) act(api(`/api/accounts/${t.dataset.remove}`, { method: 'DELETE' }));
+});
+$('#desktopAdd').onclick = () => {
+  if (confirm('Claude Desktop will close and open signed out. Sign in there to the account to add; the account it is signed in to now is saved first. Running tasks stop. Go on?'))
+    act(api('/api/desktop/add', { method: 'POST' }));
+};
+$('#desktopRows').addEventListener('click', e => {
+  const t = e.target.closest('[data-dswitch],[data-drename],[data-dremove]');
+  if (!t) return;
+  const d = S.desktop.accounts.find(x => x.uuid === (t.dataset.dswitch || t.dataset.drename || t.dataset.dremove));
+  if (t.dataset.dswitch) {
+    if (confirm(`Claude Desktop will close and open again signed in to ${d.email || d.label}. Running tasks stop. Go on?`))
+      act(api(`/api/desktop/${d.uuid}/switch`, { method: 'POST' }));
+  } else if (t.dataset.drename) {
+    const label = prompt('Name for this account', d.label);
+    if (label) act(api(`/api/desktop/${d.uuid}/rename`, { method: 'POST', body: JSON.stringify({ label }) }));
+  } else if (confirm('Forget this account’s saved Claude Desktop sign-in?')) {
+    act(api(`/api/desktop/${d.uuid}`, { method: 'DELETE' }));
+  }
 });
 $('#rows').addEventListener('change', e => {
   const id = e.target.dataset.toggle;
