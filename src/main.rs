@@ -465,10 +465,13 @@ impl App {
         let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
         let res = self.fetch_usage(&creds, !is_live);
         // Accounts saved by older versions were named after ~/.claude.json, which can
-        // be another account's: ask once whose the token is.
-        let who = match (&res, known) {
-            (Ok((_, c)), false) => self.get_profile(c.as_ref().unwrap_or(&creds)).ok(),
-            _ => None,
+        // be another account's: ask once whose the token is. Not tied to the usage
+        // answer: the usage endpoint can be rate-limited (429) while this one answers.
+        let who = if known {
+            None
+        } else {
+            let fresh = res.as_ref().ok().and_then(|(_, c)| c.as_ref());
+            self.get_profile(fresh.unwrap_or(&creds)).ok()
         };
         let mut st = self.st.lock().unwrap();
         let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) else { return };
