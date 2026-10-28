@@ -147,7 +147,14 @@ fn main() {
     {
         println!("Running in the tray: hover its icon for the figures, right-click it to quit.");
         // Let go of the terminal: closing it or Ctrl+C there would kill us, icon left behind.
-        unsafe { windows_sys::Win32::System::Console::FreeConsole() };
+        // Its stdio handles die with it: cleared, or every spawn (browser, PowerShell) fails.
+        unsafe {
+            use windows_sys::Win32::System::Console::*;
+            FreeConsole();
+            for h in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+                SetStdHandle(h, std::ptr::null_mut());
+            }
+        }
         let st = app.clone();
         tray::start(Arc::new(move || st.public_state()), url.clone(), data_dir.clone());
     }
