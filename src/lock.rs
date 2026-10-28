@@ -154,7 +154,7 @@ mod tests {
         let d = dir("stale");
         let l = d.join("x.lock");
         fs::create_dir(&l).unwrap();
-        assert!(DirLock::acquire(&[l.clone()], 60_000, 1, Duration::ZERO).is_none(), "fresh: someone holds it");
+        assert!(DirLock::acquire(std::slice::from_ref(&l), 60_000, 1, Duration::ZERO).is_none(), "fresh: someone holds it");
         touch_at(&l, SystemTime::now() - Duration::from_secs(120));
         assert!(DirLock::acquire(&[l], 60_000, 1, Duration::ZERO).is_some(), "two minutes old: abandoned");
     }
@@ -163,7 +163,7 @@ mod tests {
     fn keeps_its_lock_fresh_while_held() {
         let d = dir("touch");
         let l = d.join("y.lock");
-        let held = DirLock::acquire(&[l.clone()], 3_000, 1, Duration::ZERO).unwrap();
+        let held = DirLock::acquire(std::slice::from_ref(&l), 3_000, 1, Duration::ZERO).unwrap();
         touch_at(&l, SystemTime::now() - Duration::from_secs(60));
         thread::sleep(Duration::from_millis(2600));
         let age = SystemTime::now().duration_since(fs::metadata(&l).unwrap().modified().unwrap()).unwrap();
