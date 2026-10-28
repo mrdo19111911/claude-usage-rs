@@ -84,6 +84,9 @@ struct Account {
     slow_until: i64,
     #[serde(default)]
     slow_strikes: u32,
+    // When to ask for this account's usage next (ms): see next_check_at.
+    #[serde(default)]
+    next_check: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -316,6 +319,7 @@ impl App {
                 raw: Value::Null,
                 slow_until: 0,
                 slow_strikes: 0,
+                next_check: 0,
             };
             keep_oauth_account(&mut a, oa);
             st.accounts.push(a);
@@ -468,6 +472,7 @@ impl App {
                 raw: Value::Null,
                 slow_until: 0,
                 slow_strikes: 0,
+                next_check: 0,
             });
             format!("Added {email} (signed in in the browser)")
         };
@@ -596,12 +601,14 @@ impl App {
         Ok(c)
     }
 
-    fn poll_account(&self, id: &str) {
-        let (creds, is_active, known, slow_until) = {
+    fn poll_account(&self, id: &str, force: bool) {
+        let (creds, is_active, known, slow_until, base) = {
             let st = self.st.lock().unwrap();
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) => (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until),
-                None => return,
+                Some(a) if force || now() >= a.next_check => {
+                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until, st.settings.poll_seconds as i64 * 1000)
+                }
+                _ => return,
             }
         };
         // Anthropic asked this login to slow down: its last figures stand until then.
@@ -644,7 +651,9 @@ impl App {
                 let t = now();
                 a.history.retain(|p| p.0 > t - 8 * 24 * HOUR);
                 a.history.push((t, five.u, week.u));
-                a.usage = Some(Usage { five, week, fetched_at: t });
+                let u = Usage { five, week, fetched_at: t };
+                a.next_check = next_check_at(&u, base, t);
+                a.usage = Some(u);
                 a.error = None;
                 a.raw = j;
                 a.slow_strikes = 0;
@@ -654,13 +663,18 @@ impl App {
                 a.slow_strikes += 1;
                 let wait = backoff_ms(after, a.slow_strikes);
                 a.slow_until = now() + wait;
+                a.next_check = a.slow_until;
                 a.error = Some(format!("Anthropic asked to slow down (HTTP 429); next check in {} min", (wait + 59_999) / 60_000));
             }
-            Err(e) => a.error = Some(e.text()),
+            Err(e) => {
+                a.error = Some(e.text());
+                a.next_check = now() + base;
+            }
         }
     }
 
-    fn poll_all(&self) {
+    // `force`: every account now (Refresh now); else only those whose next check is due.
+    fn poll_all(&self, force: bool) {
         if self.demo || self.polling.swap(true, Ordering::SeqCst) {
             return;
         }
@@ -668,10 +682,15 @@ impl App {
         let ids: Vec<String> = {
             let mut st = self.st.lock().unwrap();
             self.sync_desktop(&mut st);
-            st.accounts.iter().map(|a| a.id.clone()).collect()
+            let t = now();
+            st.accounts.iter().filter(|a| force || t >= a.next_check).map(|a| a.id.clone()).collect()
         };
+        if ids.is_empty() {
+            self.polling.store(false, Ordering::SeqCst);
+            return;
+        }
         for id in ids {
-            self.poll_account(&id);
+            self.poll_account(&id, force);
         }
         let next = self.pick_auto(&mut self.st.lock().unwrap());
         // Outside the lock: activate checks the login with Anthropic first.
@@ -765,7 +784,7 @@ impl App {
         let st = self.st.lock().unwrap();
         let t = now();
         let accounts: Vec<Value> = st.accounts.iter().map(|a| json!({
-            "id": a.id, "uuid": a.account_uuid, "email": a.email, "plan": a.plan, "enabled": a.enabled,
+            "id": a.id, "uuid": a.account_uuid, "email": a.email, "plan": a.plan, "enabled": a.enabled, "nextCheck": a.next_check,
             "usage": a.usage, "error": a.error, "raw": a.raw,
             "history": a.history.iter().filter(|p| p.0 > t - 6 * HOUR).collect::<Vec<_>>(),
         })).collect();
@@ -899,6 +918,27 @@ fn backoff_ms(after: Option<i64>, strikes: u32) -> i64 {
     ms.min(MAX_WAIT_MS)
 }
 
+// When to ask for an account's usage next, after figures fetched at `t`.
+// A window at 100% cannot change until it resets: no question before then (plus a
+// minute, so Anthropic has reset it). Otherwise every `base`, more often near a limit:
+// from 70% half of it, from 85% a quarter, from 95% an eighth; never under 15 s.
+fn next_check_at(u: &Usage, base_ms: i64, t: i64) -> i64 {
+    let full: Vec<i64> = [&u.five, &u.week].iter().filter(|w| w.u >= 100).filter_map(|w| w.resets_at).collect();
+    if let Some(r) = full.into_iter().max() {
+        if r > t {
+            return r + 60_000;
+        }
+    }
+    let used = u.five.u.max(u.week.u);
+    let every = match used {
+        ..=69 => base_ms,
+        70..=84 => base_ms / 2,
+        85..=94 => base_ms / 4,
+        _ => base_ms / 8,
+    };
+    t + every.max(15_000)
+}
+
 // An access token this close to its end is renewed first (Claude Code: 5 min ahead).
 fn expires_soon(c: &Value) -> bool {
     c.get("expiresAt").and_then(Value::as_i64).unwrap_or(0) - 60_000 < now()
@@ -1008,6 +1048,7 @@ fn demo_state(app: &App) -> State {
         raw: Value::Null,
         slow_until: 0,
         slow_strikes: 0,
+        next_check: 0,
     };
     let start = t - 126 * 60_000;
     let pts = [(0, 0), (75, 2), (79, 3), (82, 3), (90, 5), (99, 7), (108, 7), (118, 7), (125, 9)]
@@ -1060,7 +1101,7 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
             };
             if ok {
                 let a = app.clone();
-                thread::spawn(move || a.poll_all());
+                thread::spawn(move || a.poll_all(false));
             }
             return Ok((200, login_page(ok, &msg, app.port), "text/html; charset=utf-8"));
         }
@@ -1070,7 +1111,7 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         }
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/refresh") | ("POST", "/api/import") => {
-                app.poll_all();
+                app.poll_all(true);
             }
             ("POST", "/api/settings") => {
                 let mut st = app.st.lock().unwrap();
@@ -1239,13 +1280,13 @@ fn main() {
 
     let poller = app.clone();
     thread::spawn(move || loop {
-        poller.poll_all();
+        poller.poll_all(false);
         let start = now();
         let mut last_sync = start;
         loop {
             thread::sleep(Duration::from_secs(1));
-            let secs = poller.st.lock().unwrap().settings.poll_seconds as i64;
-            if now() - start >= secs * 1000 {
+            // Each account has its own next check (next_check_at); look for due ones.
+            if now() - start >= 5_000 {
                 break;
             }
             // Notice a fresh /login (or Desktop sign-in) quickly instead of waiting a whole poll cycle.
@@ -1270,6 +1311,28 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn checks_less_when_far_from_a_limit_and_not_at_all_while_one_is_full() {
+        use super::{next_check_at, Usage, Win};
+        let w = |u, r| Win { u, resets_at: r };
+        let at = |five, week| Usage { five, week, fetched_at: 0 };
+        let (base, t, h) = (120_000, 1_000_000, 3_600_000);
+        // New account, little used: every base.
+        assert_eq!(next_check_at(&at(w(5, None), w(10, None)), base, t), t + 120_000);
+        // Nearer a limit (either window): more often.
+        assert_eq!(next_check_at(&at(w(72, None), w(10, None)), base, t), t + 60_000);
+        assert_eq!(next_check_at(&at(w(10, None), w(90, None)), base, t), t + 30_000);
+        assert_eq!(next_check_at(&at(w(96, None), w(10, None)), base, t), t + 15_000);
+        assert_eq!(next_check_at(&at(w(99, None), w(10, None)), 60_000, t), t + 15_000, "never under 15 s");
+        // Weekly full, resets in 3 h: nothing until then (the 5-hour figure cannot help).
+        assert_eq!(next_check_at(&at(w(0, Some(t + 2 * h)), w(100, Some(t + 3 * h))), base, t), t + 3 * h + 60_000);
+        // 5-hour full: until it resets.
+        assert_eq!(next_check_at(&at(w(100, Some(t + h)), w(40, Some(t + 50 * h))), base, t), t + h + 60_000);
+        // Full but its reset time unknown or past: ask again soon, as near a limit.
+        assert_eq!(next_check_at(&at(w(100, None), w(40, None)), base, t), t + 15_000);
+        assert_eq!(next_check_at(&at(w(100, Some(t - 1)), w(40, None)), base, t), t + 15_000);
+    }
+
     #[test]
     fn notes_desktop_session_names() {
         let d = std::env::temp_dir().join(format!("cud-names-{}", std::process::id()));

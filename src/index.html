@@ -108,9 +108,9 @@
     <div class="settings" style="margin-top:14px">
       <label><input type="checkbox" id="autoSwitch"> Auto-switch</label>
       <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
-      <label>poll every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
+      <label>check each account every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
     </div>
-    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.</p>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.<br>Checks: every account at that pace; from 70% used twice as often, from 85% four times, from 95% eight times (at most every 15 s). An account at a 100% limit is not checked again until that limit resets.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
   </section>
@@ -172,6 +172,15 @@ function accountRows() {
   return rows;
 }
 
+// When the figures are from, and when Anthropic is asked next (sooner near a limit,
+// not at all while a limit is full).
+function checkLine(a) {
+  const t = Date.now() - clockSkew, parts = [];
+  if (a.usage) parts.push(`checked <span data-ago="${a.usage.fetchedAt}">${ago(a.usage.fetchedAt)}</span>`);
+  if (a.nextCheck > t + 5e3) parts.push('next check ' + resetLabel(a.nextCheck));
+  return parts.length ? `<div class="meta" style="margin-top:6px">${parts.join(' · ')}</div>` : '';
+}
+
 function useButtons(a, d) {
   const D = S.desktop, busy = D.switching;
   const term = a && a.id === S.activeId
@@ -204,7 +213,7 @@ function renderRows() {
           <div class="meta">${a ? esc(a.plan) : 'no terminal login yet'}${where ? ' · in use: ' + where : ''}</div>
           <div class="row-actions">${removable ? `<button class="btn" ${a ? `data-remove="${a.id}"` : `data-dremove="${d.uuid}"`} title="Remove">✕</button>` : ''}</div>
         </div></div></td>
-      <td><span class="pill">${icon} ${label}</span>${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}</td>
+      <td><span class="pill">${icon} ${label}</span>${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}${a ? checkLine(a) : ''}</td>
       <td style="min-width:200px">${u ? bar(u.five) : '<span class="note">—</span>'}</td>
       <td style="min-width:220px">${u ? bar(u.week) : '<span class="note">—</span>'}</td>
       <td>${useButtons(a, d)}</td>
