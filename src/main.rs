@@ -139,6 +139,7 @@ struct App {
     desktop_dir: Option<PathBuf>,
     desktop_store: desktop::Store,
     switching: AtomicBool,
+    logging_in: AtomicBool,
 }
 
 impl App {
@@ -377,6 +378,70 @@ impl App {
                 app.log(&mut st, msg);
                 app.save(&st);
                 app.switching.store(false, Ordering::SeqCst);
+            });
+            Ok(())
+        }
+    }
+
+    // ----- Adding a Claude Code account -----
+    // Opens a console window running `claude auth login`; you sign in in the browser it
+    // opens, and the new login is picked up when the window closes. The login in use now
+    // is saved first, as signing in replaces it.
+    fn start_cli_login(self: &Arc<Self>) -> Result<(), String> {
+        if self.demo {
+            return Err("Not in demo mode.".into());
+        }
+        let exe = find_claude_cli(self.desktop_dir.as_deref())
+            .ok_or("Claude Code was not found on this computer (no claude on PATH, in Claude Desktop or in VS Code).")?;
+        if self.logging_in.swap(true, Ordering::SeqCst) {
+            return Err("A login window is open already.".into());
+        }
+        self.sync_active();
+        let mut cmd = Command::new(&exe);
+        cmd.args(["auth", "login", "--claudeai"]);
+        // A dashboard started from a Claude session must not pass that session's identity on.
+        for (k, _) in std::env::vars_os() {
+            let k = k.to_string_lossy().into_owned();
+            if k.starts_with("CLAUDE_CODE_") || k == "CLAUDECODE" {
+                cmd.env_remove(k);
+            }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0000_0010); // CREATE_NEW_CONSOLE: a window of its own
+        }
+        #[cfg(not(windows))]
+        {
+            self.logging_in.store(false, Ordering::SeqCst);
+            return Err(format!("Run `{} auth login` in a terminal.", exe.display()));
+        }
+        #[cfg(windows)]
+        {
+            let mut child = match cmd.spawn() {
+                Ok(c) => c,
+                Err(e) => {
+                    self.logging_in.store(false, Ordering::SeqCst);
+                    return Err(format!("Could not start {}: {e}", exe.display()));
+                }
+            };
+            {
+                let mut st = self.st.lock().unwrap();
+                self.log(&mut st, "Login window opened: sign in in the browser with the account to add".into());
+                self.save(&st);
+            }
+            let app = self.clone();
+            thread::spawn(move || {
+                let ok = child.wait().map(|s| s.success()).unwrap_or(false);
+                app.logging_in.store(false, Ordering::SeqCst);
+                if ok {
+                    app.sync_active();
+                    app.poll_all();
+                } else {
+                    let mut st = app.st.lock().unwrap();
+                    app.log(&mut st, "Login window closed without signing in".into());
+                    app.save(&st);
+                }
             });
             Ok(())
         }
@@ -691,6 +756,7 @@ impl App {
             "now": t,
             "lastPollAt": self.last_poll.load(Ordering::Relaxed),
             "polling": self.polling.load(Ordering::Relaxed),
+            "loggingIn": self.logging_in.load(Ordering::Relaxed),
             "demo": self.demo,
             "settings": st.settings,
             "activeId": st.active_id,
@@ -862,6 +928,34 @@ fn parse_iso(s: &str) -> Option<i64> {
     Some((days * 86_400 + h * 3600 + mi * 60 + se - off * 60) * 1000 + ms)
 }
 
+// Claude Code's own program: CUD_CLAUDE_BIN, then claude on PATH or in ~/.local/bin, then
+// the newest copy bundled with Claude Desktop or the VS Code extension.
+fn find_claude_cli(desktop_dir: Option<&Path>) -> Option<PathBuf> {
+    let name = if cfg!(windows) { "claude.exe" } else { "claude" };
+    if let Some(p) = std::env::var_os("CUD_CLAUDE_BIN").map(PathBuf::from).filter(|p| p.is_file()) {
+        return Some(p);
+    }
+    let path_dirs = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect::<Vec<_>>()).unwrap_or_default();
+    if let Some(p) = path_dirs.into_iter().chain([home().join(".local").join("bin")]).map(|d| d.join(name)).find(|p| p.is_file()) {
+        return Some(p);
+    }
+    // <desktop data>/claude-code/<version>/<hash>/claude.exe
+    // ~/.vscode/extensions/anthropic.claude-code-<version>-<platform>/resources/native-binary/claude.exe
+    let mut found: Vec<PathBuf> = vec![];
+    let subdirs = |d: &Path| fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect::<Vec<_>>();
+    if let Some(d) = desktop_dir {
+        for v in subdirs(&d.join("claude-code")) {
+            found.extend(subdirs(&v).into_iter().map(|h| h.join(name)));
+        }
+    }
+    for ext in subdirs(&home().join(".vscode").join("extensions")) {
+        if ext.file_name().is_some_and(|n| n.to_string_lossy().starts_with("anthropic.claude-code-")) {
+            found.push(ext.join("resources").join("native-binary").join(name));
+        }
+    }
+    found.into_iter().filter(|p| p.is_file()).max_by_key(|p| fs::metadata(p).and_then(|m| m.modified()).ok())
+}
+
 fn home() -> PathBuf {
     let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     std::env::var_os(var).or_else(|| std::env::var_os("HOME")).map(PathBuf::from).unwrap_or_else(|| ".".into())
@@ -957,6 +1051,7 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 }
                 app.save(&st);
             }
+            ("POST", "/api/login") => app.start_cli_login()?,
             ("POST", "/api/desktop/add") => app.start_desktop_switch(None)?,
             _ if path.starts_with("/api/desktop/") => {
                 let parts: Vec<&str> = path.trim_start_matches("/api/desktop/").split('/').collect();
@@ -1066,6 +1161,7 @@ fn main() {
         desktop_dir: if demo { None } else { desktop::find_data_dir() },
         desktop_store: desktop::Store { root: data_dir.join("desktop") },
         switching: AtomicBool::new(false),
+        logging_in: AtomicBool::new(false),
     });
 
     {
@@ -1133,6 +1229,23 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn finds_claude_code_bundled_with_claude_desktop() {
+        let d = std::env::temp_dir().join(format!("cud-cli-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let name = if cfg!(windows) { "claude.exe" } else { "claude" };
+        for v in ["2.1.300/aaa", "2.1.308/bbb"] {
+            std::fs::create_dir_all(d.join("claude-code").join(v)).unwrap();
+            std::fs::write(d.join("claude-code").join(v).join(name), "").unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(30));
+        }
+        // Only meaningful where no claude is on PATH, as on this machine.
+        let got = super::find_claude_cli(Some(&d)).unwrap();
+        if got.starts_with(&d) {
+            assert!(got.ends_with(std::path::Path::new("2.1.308/bbb").join(name)), "newest copy: {got:?}");
+        }
+    }
+
     #[test]
     fn notes_desktop_session_names() {
         let d = std::env::temp_dir().join(format!("cud-names-{}", std::process::id()));

@@ -77,8 +77,11 @@
 
   <section class="card">
     <div class="head">
-      <h2 style="padding-top:4px">All accounts</h2>
-      <div id="summary"></div>
+      <div>
+        <h2 style="padding-top:4px">All accounts</h2>
+        <div class="sub note" id="summary"></div>
+      </div>
+      <button class="btn" id="cliAdd">+ Add account</button>
     </div>
     <div class="scroll">
       <table>
@@ -118,7 +121,7 @@
       <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
       <label>poll every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
     </div>
-    <p class="note">Add an account: in <code>claude</code> type <code>/login</code> and sign in with that account. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.</p>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in in the browser (or type <code>/login</code> in <code>claude</code>). It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
   </section>
@@ -191,12 +194,14 @@ function renderRows() {
       <td style="min-width:220px">${u ? bar(u.week) : ''}</td>
       <td>${u ? `<span data-ago="${u.fetchedAt}">${ago(u.fetchedAt)}</span><div class="meta">official ${hhmm(u.fetchedAt)} · Anthropic</div>` : ''}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="5" class="note">No accounts yet. Sign in with /login in claude (terminal or VS Code), then click “Check for new login” below.</td></tr>`;
+  }).join('') || `<tr><td colspan="5" class="note">No accounts yet. Click “+ Add account” above and sign in.</td></tr>`;
 
   const on = S.accounts.filter(a => a.enabled && a.usage);
   const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < th).length;
   const head = on.reduce((s, a) => s + (100 - a.usage.week.u), 0);
-  $('#summary').textContent = `${ready} ready now · weekly headroom ${head}% (≈ ${(head / 100).toFixed(1)} accounts)`;
+  $('#summary').textContent = S.loggingIn ? 'Login window open: sign in in the browser with the account to add.'
+    : `${ready} ready now · weekly headroom ${head}% (≈ ${(head / 100).toFixed(1)} accounts)`;
+  $('#cliAdd').disabled = S.demo || S.loggingIn;
 }
 
 function renderChart() {
@@ -306,6 +311,10 @@ $('#rows').addEventListener('click', e => {
   if (t.dataset.activate) act(api(`/api/accounts/${t.dataset.activate}/activate`, { method: 'POST' }));
   else if (confirm('Remove this account from the dashboard?')) act(api(`/api/accounts/${t.dataset.remove}`, { method: 'DELETE' }));
 });
+$('#cliAdd').onclick = () => {
+  if (confirm('A login window opens and your browser asks you to sign in. Sign in with the account to add. Claude Code in terminals and VS Code then uses that account; the one in use now is saved first and stays one click away (Use now). Go on?'))
+    act(api('/api/login', { method: 'POST' }));
+};
 $('#desktopAdd').onclick = () => {
   if (confirm('Claude Desktop will close and open signed out. Sign in there to the account to add; the account it is signed in to now is saved first. Running tasks stop. Go on?'))
     act(api('/api/desktop/add', { method: 'POST' }));
