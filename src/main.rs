@@ -4,6 +4,7 @@
 // Claude Desktop (Windows) giữ đăng nhập riêng: desktop.rs đổi nó khi bạn bấm chuyển.
 
 mod desktop;
+mod lock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -76,6 +77,12 @@ struct Account {
     error: Option<String>,
     #[serde(default)]
     raw: Value,
+    // After a 429: no usage request for this login before `slow_until` (ms), and how
+    // many 429s in a row led there.
+    #[serde(default)]
+    slow_until: i64,
+    #[serde(default)]
+    slow_strikes: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -215,6 +222,11 @@ impl App {
         if oa.is_null() || acc.account_uuid.is_none() || oa.get("accountUuid").and_then(Value::as_str) != acc.account_uuid.as_deref() {
             return;
         }
+        // Under Claude Code's own lock on the file, re-read just before: only this key changes.
+        let Some(_held) = lock::config(&self.claude_json) else {
+            println!("~/.claude.json is locked by Claude Code; its shown account was left as it is");
+            return;
+        };
         let Some(mut obj) = fs::read_to_string(&self.claude_json)
             .ok()
             .and_then(|s| serde_json::from_str::<Value>(&s).ok())
@@ -274,7 +286,7 @@ impl App {
             Err(e) => {
                 // Unknown whose it is: no account counts as active until it is known.
                 st.active_id = None;
-                println!("Could not identify Claude Code's login: {e}");
+                println!("Could not identify Claude Code's login: {}", e.text());
                 return;
             }
         };
@@ -298,6 +310,8 @@ impl App {
                 history: vec![],
                 error: None,
                 raw: Value::Null,
+                slow_until: 0,
+                slow_strikes: 0,
             };
             keep_oauth_account(&mut a, oa);
             st.accounts.push(a);
@@ -365,8 +379,8 @@ impl App {
     }
 
     // ----- Anthropic API -----
-    fn refresh(&self, creds: &Value) -> Result<Value, String> {
-        let rt = creds.get("refreshToken").and_then(Value::as_str).ok_or("no refresh token")?;
+    fn refresh(&self, creds: &Value) -> Result<Value, ApiErr> {
+        let rt = creds.get("refreshToken").and_then(Value::as_str).ok_or(ApiErr::Auth("no refresh token — /login this account again".into()))?;
         let mut last = String::from("refresh failed");
         for url in TOKEN_URLS {
             let r = self.http.post(url).send_json(json!({
@@ -374,7 +388,7 @@ impl App {
             }));
             match r {
                 Ok(resp) => {
-                    let j: Value = resp.into_json().map_err(|e| e.to_string())?;
+                    let j: Value = resp.into_json().map_err(|e| ApiErr::Other(e.to_string()))?;
                     let mut c = creds.clone();
                     c["accessToken"] = j["access_token"].clone();
                     if j["refresh_token"].is_string() {
@@ -384,15 +398,18 @@ impl App {
                     return Ok(c);
                 }
                 Err(ureq::Error::Status(404, _)) => continue,
+                Err(ureq::Error::Status(429, resp)) => return Err(ApiErr::Slow(retry_after_ms(resp.header("Retry-After")))),
                 Err(ureq::Error::Status(code, resp)) => {
                     let j: Value = resp.into_json().unwrap_or(Value::Null);
                     let why = j["error_description"].as_str().or(j["error"].as_str()).unwrap_or("");
-                    return Err(format!("refresh failed ({code}): {why} — /login this account again"));
+                    let msg = format!("refresh failed ({code}): {why}");
+                    // Only a refused grant needs a new sign-in; a server error passes.
+                    return Err(if code < 500 { ApiErr::Auth(format!("{msg} — /login this account again")) } else { ApiErr::Other(msg) });
                 }
                 Err(e) => last = e.to_string(),
             }
         }
-        Err(last)
+        Err(ApiErr::Other(last))
     }
 
     fn get_usage(&self, creds: &Value) -> Result<Value, ureq::Error> {
@@ -408,7 +425,7 @@ impl App {
     }
 
     // The account a token belongs to: (uuid, email).
-    fn get_profile(&self, creds: &Value) -> Result<(String, String), String> {
+    fn get_profile(&self, creds: &Value) -> Result<(String, String), ApiErr> {
         let tok = creds.get("accessToken").and_then(Value::as_str).unwrap_or("");
         let j: Value = self.http
             .get(PROFILE_URL)
@@ -416,10 +433,10 @@ impl App {
             .set("anthropic-beta", "oauth-2025-04-20")
             .set("User-Agent", "claude-usage-dashboard/1.0")
             .call()
-            .map_err(|e| e.to_string())?
+            .map_err(|e| api_err(e, "profile"))?
             .into_json()
-            .map_err(|e| e.to_string())?;
-        let uuid = j["account"]["uuid"].as_str().ok_or("profile without account")?;
+            .map_err(|e| ApiErr::Other(e.to_string()))?;
+        let uuid = j["account"]["uuid"].as_str().ok_or(ApiErr::Other("profile without account".into()))?;
         Ok((uuid.to_string(), j["account"]["email"].as_str().unwrap_or("").to_string()))
     }
 
@@ -427,39 +444,66 @@ impl App {
     // tokens are single-use: the live login's belongs to Claude Code alone (a refresh
     // here would leave a running Claude Code holding a dead one), so for it
     // `may_refresh` is false and an expired token waits until Claude Code refreshes it.
-    fn fetch_usage(&self, creds: &Value, may_refresh: bool) -> Result<(Value, Option<Value>), String> {
+    fn fetch_usage(&self, creds: &Value, may_refresh: bool) -> Result<(Value, Option<Value>), ApiErr> {
         let mut c = creds.clone();
         let mut changed = false;
-        let expired = c.get("expiresAt").and_then(Value::as_i64).unwrap_or(0) - 60_000 < now();
+        let expired = expires_soon(&c);
         if expired && !may_refresh {
-            return Err("token expired: Claude Code renews it the next time it runs".into());
+            return Err(ApiErr::Other("token expired: Claude Code renews it the next time it runs".into()));
         }
         if expired {
             c = self.refresh(&c)?;
             changed = true;
         }
-        let j = match self.get_usage(&c) {
+        let j = match self.get_usage(&c).map_err(|e| api_err(e, "usage")) {
             Ok(j) => j,
-            Err(ureq::Error::Status(401, _)) if !changed && !may_refresh => return Err("usage HTTP 401: Claude Code renews the token the next time it runs".into()),
-            Err(ureq::Error::Status(401, _)) if !changed => {
+            Err(ApiErr::Auth(_)) if !changed && !may_refresh => return Err(ApiErr::Other("usage HTTP 401: Claude Code renews the token the next time it runs".into())),
+            Err(ApiErr::Auth(_)) if !changed => {
                 c = self.refresh(&c)?;
                 changed = true;
-                self.get_usage(&c).map_err(|e| e.to_string())?
+                self.get_usage(&c).map_err(|e| api_err(e, "usage"))?
             }
-            Err(ureq::Error::Status(code, _)) => return Err(format!("usage HTTP {code}")),
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(e),
         };
         Ok((j, changed.then_some(c)))
     }
 
+    // Checks with Anthropic that a saved login works, and is `uuid`'s, before it is
+    // handed to Claude Code; renews it first when it has expired (it is parked: only
+    // the dashboard holds it). Returns the login to hand over.
+    fn verify_login(&self, creds: &Value, uuid: Option<&str>) -> Result<Value, String> {
+        let mut c = creds.clone();
+        let mut renewed = false;
+        if expires_soon(&c) {
+            c = self.refresh(&c).map_err(|e| e.text())?;
+            renewed = true;
+        }
+        let who = match self.get_profile(&c) {
+            Err(ApiErr::Auth(_)) if !renewed => {
+                c = self.refresh(&c).map_err(|e| e.text())?;
+                self.get_profile(&c)
+            }
+            r => r,
+        }
+        .map_err(|e| format!("could not check this login with Anthropic ({}); not switched", e.text()))?;
+        if uuid.is_some_and(|u| u != who.0) {
+            return Err("this saved login belongs to another account; not switched".into());
+        }
+        Ok(c)
+    }
+
     fn poll_account(&self, id: &str) {
-        let (creds, is_active, known) = {
+        let (creds, is_active, known, slow_until) = {
             let st = self.st.lock().unwrap();
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) => (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some()),
+                Some(a) => (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until),
                 None => return,
             }
         };
+        // Anthropic asked this login to slow down: its last figures stand until then.
+        if now() < slow_until {
+            return;
+        }
         // Also the live login when it is not identified yet (active_id is then None).
         let rt = creds.get("refreshToken").filter(|v| v.is_string());
         let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
@@ -499,8 +543,16 @@ impl App {
                 a.usage = Some(Usage { five, week, fetched_at: t });
                 a.error = None;
                 a.raw = j;
+                a.slow_strikes = 0;
             }
-            Err(e) => a.error = Some(e),
+            Err(ApiErr::Slow(after)) => {
+                // Asking again at once only prolongs it (seen: 429 with Retry-After 0).
+                a.slow_strikes += 1;
+                let wait = backoff_ms(after, a.slow_strikes);
+                a.slow_until = now() + wait;
+                a.error = Some(format!("Anthropic asked to slow down (HTTP 429); next check in {} min", (wait + 59_999) / 60_000));
+            }
+            Err(e) => a.error = Some(e.text()),
         }
     }
 
@@ -517,43 +569,77 @@ impl App {
         for id in ids {
             self.poll_account(&id);
         }
-        let mut st = self.st.lock().unwrap();
-        self.auto_switch(&mut st);
-        self.save(&st);
+        let next = self.pick_auto(&mut self.st.lock().unwrap());
+        // Outside the lock: activate checks the login with Anthropic first.
+        if let Some((id, reason)) = next {
+            if let Err(e) = self.activate(&id, &reason) {
+                let mut st = self.st.lock().unwrap();
+                self.log(&mut st, format!("Auto-switch failed: {e}"));
+            }
+        }
+        self.save(&self.st.lock().unwrap());
         self.last_poll.store(now(), Ordering::Relaxed);
         self.polling.store(false, Ordering::SeqCst);
     }
 
     // ----- switching -----
-    fn activate(&self, st: &mut State, id: &str, reason: &str) -> Result<(), String> {
-        let acc = st.accounts.iter().find(|a| a.id == id).ok_or("not found")?.clone();
+    // Makes `id` the account Claude Code uses. Takes the state lock itself; call it
+    // without holding it.
+    fn activate(&self, id: &str, reason: &str) -> Result<(), String> {
+        let (creds, uuid) = {
+            let st = self.st.lock().unwrap();
+            let a = st.accounts.iter().find(|a| a.id == id).ok_or("not found")?;
+            (a.creds.clone(), a.account_uuid.clone())
+        };
+        // A login Anthropic refuses, or another account's, is never handed over.
+        let checked = if self.demo { creds } else { self.verify_login(&creds, uuid.as_deref())? };
+        let mut st = self.st.lock().unwrap();
+        let acc = {
+            let a = st.accounts.iter_mut().find(|a| a.id == id).ok_or("not found")?;
+            a.creds = checked;
+            a.error = None;
+            a.clone()
+        };
         if !self.demo {
+            // Claude Code's refresh and credential-store locks while its login is read
+            // and replaced: it can't renew or save its own in between.
+            let home = self.creds_file.parent().unwrap_or(Path::new("."));
+            let _held = if self.keychain {
+                None
+            } else {
+                let r = lock::refresh(home).ok_or("Claude Code is renewing its login right now; try again in a few seconds")?;
+                let s = lock::storage(home).ok_or("Claude Code is saving its login right now; try again in a few seconds")?;
+                Some((r, s))
+            };
             // Keep the outgoing account's newest tokens first: once the file is
             // overwritten they are gone, and its stored refresh token may be spent.
             if let Some(live) = self.read_live() {
-                if !self.note_live(st, &live) {
+                if !self.note_live(&mut st, &live) {
                     return Err("Claude Code's current login is not identified yet; try again in a few seconds".into());
                 }
             }
             self.write_live(&acc.creds)?;
+        }
+        if !self.demo {
             self.write_oauth_account(&acc);
         }
         let from = st.active_id.as_ref().and_then(|f| st.accounts.iter().find(|a| &a.id == f)).map(|a| a.email.clone());
         st.active_id = Some(acc.id.clone());
-        self.log(st, format!("Switched {} → {} ({reason})", from.unwrap_or("(none)".into()), acc.email));
-        self.save(st);
+        self.log(&mut st, format!("Switched {} → {} ({reason})", from.unwrap_or("(none)".into()), acc.email));
+        self.save(&st);
         Ok(())
     }
 
-    fn auto_switch(&self, st: &mut State) {
+    // The account automatic switching moves to, with the reason; None to stay.
+    fn pick_auto(&self, st: &mut State) -> Option<(String, String)> {
         if !st.settings.auto_switch {
-            return;
+            return None;
         }
         let th = st.settings.threshold;
-        let Some(active) = st.active_id.as_ref().and_then(|id| st.accounts.iter().find(|a| &a.id == id)).cloned() else { return };
-        let Some(u) = &active.usage else { return };
+        let active = st.active_id.as_ref().and_then(|id| st.accounts.iter().find(|a| &a.id == id)).cloned()?;
+        let u = active.usage.as_ref()?;
         if u.five.u < th && u.week.u < th {
-            return;
+            return None;
         }
         let room = |a: &Account| a.usage.as_ref().map(|u| (100 - u.five.u).min(100 - u.week.u)).unwrap_or(0);
         let next = st.accounts.iter()
@@ -562,19 +648,13 @@ impl App {
             .max_by_key(|a| room(a))
             .map(|a| a.id.clone());
         let which = if u.five.u >= th { format!("5-hour {}%", u.five.u) } else { format!("weekly {}%", u.week.u) };
-        match next {
-            Some(id) => {
-                if let Err(e) = self.activate(st, &id, &format!("auto: {which}")) {
-                    self.log(st, format!("Auto-switch failed: {e}"));
-                }
-            }
-            None => {
-                let msg = format!("{} hit {which} but no other account has room", active.email);
-                if st.events.first().map(|e| &e.msg) != Some(&msg) {
-                    self.log(st, msg);
-                }
+        if next.is_none() {
+            let msg = format!("{} hit {which} but no other account has room", active.email);
+            if st.events.first().map(|e| &e.msg) != Some(&msg) {
+                self.log(st, msg);
             }
         }
+        next.map(|id| (id, format!("auto: {which}")))
     }
 
     fn public_state(&self) -> String {
@@ -636,6 +716,56 @@ fn write_private(path: &Path, data: &str) -> std::io::Result<()> {
         o.open(&tmp)?.write_all(data.as_bytes())?;
     }
     fs::rename(&tmp, path)
+}
+
+// A failed call to Anthropic. Auth: the login was refused. Slow: a 429, with the wait
+// Retry-After named, if it did.
+enum ApiErr {
+    Auth(String),
+    Slow(Option<i64>),
+    Other(String),
+}
+
+impl ApiErr {
+    fn text(&self) -> String {
+        match self {
+            ApiErr::Auth(s) | ApiErr::Other(s) => s.clone(),
+            ApiErr::Slow(_) => "Anthropic asked to slow down (HTTP 429)".into(),
+        }
+    }
+}
+
+fn api_err(e: ureq::Error, what: &str) -> ApiErr {
+    match e {
+        ureq::Error::Status(401, _) => ApiErr::Auth(format!("{what} HTTP 401")),
+        ureq::Error::Status(429, resp) => ApiErr::Slow(retry_after_ms(resp.header("Retry-After"))),
+        ureq::Error::Status(code, _) => ApiErr::Other(format!("{what} HTTP {code}")),
+        e => ApiErr::Other(e.to_string()),
+    }
+}
+
+// Retry-After in seconds (the form Anthropic sends), as ms.
+fn retry_after_ms(v: Option<&str>) -> Option<i64> {
+    v?.trim().parse::<f64>().ok().filter(|s| s.is_finite() && *s >= 0.0).map(|s| (s * 1000.0) as i64)
+}
+
+const SLOW_DOWN_MS: i64 = 5 * 60_000; // after a 429 that names no wait, as Claude Code waits
+const MAX_WAIT_MS: i64 = 60 * 60_000;
+
+// How long to leave a login alone after its `strikes`-th 429 in a row: the wait
+// Anthropic named, else 5 min, doubling with each 429 in a row (to 40), at most an hour.
+// A Retry-After of 0 names no wait: the next poll would only be refused again.
+fn backoff_ms(after: Option<i64>, strikes: u32) -> i64 {
+    let ms = match after {
+        Some(ms) if ms > 0 => ms,
+        _ => SLOW_DOWN_MS << strikes.saturating_sub(1).min(3),
+    };
+    ms.min(MAX_WAIT_MS)
+}
+
+// An access token this close to its end is renewed first (Claude Code: 5 min ahead).
+fn expires_soon(c: &Value) -> bool {
+    c.get("expiresAt").and_then(Value::as_i64).unwrap_or(0) - 60_000 < now()
 }
 
 // Keeps ~/.claude.json's oauthAccount for `a` only when it names a's own account.
@@ -727,6 +857,8 @@ fn demo_state(app: &App) -> State {
         history: hist,
         error: None,
         raw: Value::Null,
+        slow_until: 0,
+        slow_strikes: 0,
     };
     let start = t - 126 * 60_000;
     let pts = [(0, 0), (75, 2), (79, 3), (82, 3), (90, 5), (99, 7), (108, 7), (118, 7), (125, 9)]
@@ -826,6 +958,11 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                     return Ok((404, r#"{"error":"not found"}"#.into(), "application/json"));
                 }
                 let id = parts[0];
+                // activate takes the lock itself, around a check with Anthropic.
+                if method == "POST" && parts.get(1) == Some(&"activate") {
+                    app.activate(id, "manual")?;
+                    return Ok((200, app.public_state(), "application/json"));
+                }
                 let mut st = app.st.lock().unwrap();
                 let idx = st.accounts.iter().position(|a| a.id == id).ok_or("not found")?;
                 match (method.as_str(), parts.get(1).copied()) {
@@ -833,7 +970,6 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                         st.accounts[idx].enabled = body["enabled"].as_bool().unwrap_or(true);
                         app.save(&st);
                     }
-                    ("POST", Some("activate")) => app.activate(&mut st, id, "manual")?,
                     ("DELETE", None) => {
                         // Claude Code still holds it: it would come straight back as new.
                         if st.active_id.as_deref() == Some(id) {
@@ -953,6 +1089,19 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn backs_off_after_429() {
+        use super::{backoff_ms, retry_after_ms};
+        assert_eq!(retry_after_ms(Some("0")), Some(0));
+        assert_eq!(retry_after_ms(Some("120")), Some(120_000));
+        assert_eq!(retry_after_ms(Some("Wed, 21 Oct 2026 07:28:00 GMT")), None);
+        // Retry-After 0 (what Anthropic sent on 2026-10-28) names no wait: 5 min, doubling.
+        let mins: Vec<i64> = (1..=6).map(|n| backoff_ms(Some(0), n) / 60_000).collect();
+        assert_eq!(mins, vec![5, 10, 20, 40, 40, 40]);
+        assert_eq!(backoff_ms(Some(90_000), 3), 90_000, "a named wait is kept");
+        assert_eq!(backoff_ms(Some(5 * 3_600_000), 1), 3_600_000, "at most an hour");
+    }
+
     #[test]
     fn iso() {
         assert_eq!(super::parse_iso("2025-10-28T11:40:00.123456+00:00"), Some(1761651600123));
