@@ -1,6 +1,9 @@
-// The widget window: pinning, clicks, dragging, painting.
+// The widget window: pinning, clicks, hover, dragging, painting, rounded corners.
 
 use super::*;
+
+use windows_sys::Win32::UI::Controls::WM_MOUSELEAVE;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT};
 
 pub(super) unsafe fn save_pin() {
     let (file, on, pos) = ui(|u| (u.file.clone(), u.pin_on, u.pin_pos));
@@ -58,10 +61,16 @@ pub(super) unsafe fn show_pinned() {
     InvalidateRect(w, ptr::null(), FALSE);
 }
 
-// The small button at the top right: "Pin" on the hover widget, "✕" on the pinned one.
+// The header button at the top right (pin on the hover widget, unpin on the pinned one):
+// 24 × 24, top 8, right edge 10 in.
 pub(super) fn button(s: f32, w: i32) -> RECT {
-    let p = (14.0 * s) as i32;
-    RECT { left: w - p - (44.0 * s) as i32, top: (6.0 * s) as i32, right: w - p + (6.0 * s) as i32, bottom: (30.0 * s) as i32 }
+    let px = |v: f32| (v * s).round() as i32;
+    RECT { left: w - px(34.0), top: px(8.0), right: w - px(10.0), bottom: px(32.0) }
+}
+
+// The point (or size) in an LPARAM.
+fn point(lp: LPARAM) -> POINT {
+    POINT { x: (lp & 0xffff) as i16 as i32, y: (lp >> 16 & 0xffff) as i16 as i32 }
 }
 
 pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
@@ -70,12 +79,9 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
     }
     let is_pinned = ui(|u| u.pinned == hwnd);
     let s = GetDpiForWindow(hwnd) as f32 / 96.0;
-    let in_button = |x: i32, y: i32| {
-        let mut rc: RECT = mem::zeroed();
-        GetClientRect(hwnd, &mut rc);
-        let b = button(s, rc.right);
-        x >= b.left && x < b.right && y >= b.top && y < b.bottom
-    };
+    let mut rc: RECT = mem::zeroed();
+    GetClientRect(hwnd, &mut rc);
+    let head = button(s, rc.right);
     match msg {
         WM_PAINT => {
             paint(hwnd, is_pinned);
@@ -83,15 +89,48 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
         }
         WM_ERASEBKGND => 1,
         WM_MOUSEACTIVATE => MA_NOACTIVATE as LRESULT,
-        // The pinned widget drags by any spot but its buttons.
+        // The pinned widget drags by any spot but its buttons and footer.
         WM_NCHITTEST if is_pinned => {
-            let mut p = POINT { x: (lp & 0xffff) as i16 as i32, y: (lp >> 16 & 0xffff) as i16 as i32 };
+            let mut p = point(lp);
             ScreenToClient(hwnd, &mut p);
-            if in_button(p.x, p.y) || hit_at(true, p.x, p.y).is_some() { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
+            if spot(true, p.x, p.y, &head) != Spot::None { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
+        }
+        // Hover: repaint only when what the pointer is over changes.
+        WM_MOUSEMOVE => {
+            let POINT { x, y } = point(lp);
+            let was = pointer(is_pinned);
+            if was.is_none() {
+                TrackMouseEvent(&mut TRACKMOUSEEVENT { cbSize: mem::size_of::<TRACKMOUSEEVENT>() as u32, dwFlags: TME_LEAVE, hwndTrack: hwnd, dwHoverTime: 0 });
+            }
+            set_pointer(is_pinned, Some((x, y)));
+            if was.map_or(Spot::None, |(a, b)| spot(is_pinned, a, b, &head)) != spot(is_pinned, x, y, &head) {
+                InvalidateRect(hwnd, ptr::null(), FALSE);
+            }
+            0
+        }
+        // Left, shown or hidden: no hover state (none kept for the next show).
+        WM_MOUSELEAVE | WM_SHOWWINDOW => {
+            set_pointer(is_pinned, None);
+            InvalidateRect(hwnd, ptr::null(), FALSE);
+            0
+        }
+        // A hand over what clicks: the buttons, the header button, the footer.
+        WM_SETCURSOR if (lp & 0xffff) as u32 == HTCLIENT => {
+            let mut p = POINT { x: 0, y: 0 };
+            GetCursorPos(&mut p);
+            ScreenToClient(hwnd, &mut p);
+            SetCursor(LoadCursorW(ptr::null_mut(), if spot(is_pinned, p.x, p.y, &head) == Spot::None { IDC_ARROW } else { IDC_HAND }));
+            1
+        }
+        // Rounded corners, radius 10; the system owns the region once it is set.
+        WM_SIZE => {
+            let (POINT { x: w, y: h }, r) = (point(lp), (20.0 * s).round() as i32);
+            SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w + 1, h + 1, r, r), TRUE);
+            0
         }
         WM_LBUTTONUP => {
-            let (x, y) = ((lp & 0xffff) as i16 as i32, (lp >> 16 & 0xffff) as i16 as i32);
-            if in_button(x, y) {
+            let POINT { x, y } = point(lp);
+            if spot(is_pinned, x, y, &head) == Spot::Head {
                 if is_pinned {
                     unpin();
                 } else {
@@ -101,10 +140,12 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
                     pin(Some((r.left, r.top)));
                 }
             } else if let Some(k) = hit_at(is_pinned, x, y) {
-                // A row's CLI or Desktop button.
                 switch(hwnd, k);
             } else if !is_pinned {
+                // Anywhere else on the hover widget, the footer link included.
                 hide_hover();
+                open_dashboard();
+            } else if in_footer(true, x, y) {
                 open_dashboard();
             }
             0
@@ -141,6 +182,8 @@ pub(super) unsafe fn paint(hwnd: HWND, pinned: bool) {
     let bmp = CreateCompatibleBitmap(dc, rc.right, rc.bottom);
     let old = SelectObject(mem_dc, bmp);
     let s = GetDpiForWindow(hwnd) as f32 / 96.0;
+    // draw_buttons reads which window it draws for (hover state).
+    begin_draw(pinned);
     layout(&ui(|u| u.model.clone()), s, pinned, mem_dc);
     BitBlt(dc, 0, 0, rc.right, rc.bottom, mem_dc, 0, 0, SRCCOPY);
     SelectObject(mem_dc, old);

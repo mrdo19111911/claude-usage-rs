@@ -87,3 +87,93 @@ fn time_left() {
     assert_eq!(left(51 * 3_600_000), "2d 3h");
     assert_eq!(left(30_000), "1m");
 }
+
+fn win(u: i64, reset: Option<i64>) -> Win {
+    Win { u, reset }
+}
+
+fn uses(five: Win, week: Win) -> Option<Use> {
+    Some(Use { five, week })
+}
+
+fn row(email: &str, usage: Option<Use>) -> Other {
+    Other { email: email.into(), usage, ..Default::default() }
+}
+
+#[test]
+fn pace_is_the_share_of_the_window_gone() {
+    assert_eq!(pace(Some(1000 + FIVE_MS / 2), 1000, FIVE_MS), Some(0.5));
+    assert_eq!(pace(Some(1000 + FIVE_MS * 2), 1000, FIVE_MS), Some(0.0));
+    assert!((pace(Some(1000 + FIVE_MS / 4), 1000, FIVE_MS).unwrap() - 0.75).abs() < 1e-6);
+}
+
+#[test]
+fn pace_none_without_a_future_reset() {
+    assert_eq!(pace(None, 1000, FIVE_MS), None);
+    assert_eq!(pace(Some(1000), 1000, FIVE_MS), None);
+    assert_eq!(pace(Some(999), 1000, FIVE_MS), None);
+}
+
+#[test]
+fn full_until_is_the_latest_full_reset() {
+    let u = Use { five: win(100, Some(50)), week: win(100, Some(90)) };
+    assert_eq!(full_until(&u), Some(90));
+    // Only the full window counts.
+    let u = Use { five: win(100, Some(50)), week: win(40, Some(90)) };
+    assert_eq!(full_until(&u), Some(50));
+    assert_eq!(full_until(&Use { five: win(99, Some(5)), week: win(0, None) }), None);
+}
+
+#[test]
+fn full_until_max_when_a_full_window_has_no_reset() {
+    let u = Use { five: win(100, None), week: win(100, Some(90)) };
+    assert_eq!(full_until(&u), Some(i64::MAX));
+}
+
+#[test]
+fn split_others_orders_both_lists() {
+    let m = Model {
+        others: vec![
+            row("none@x", None),
+            row("b@x", uses(win(30, None), win(45, None))),
+            row("a@x", uses(win(50, None), win(10, None))),
+            row("tie2@x", uses(win(50, None), win(40, None))),
+            row("tie1@x", uses(win(50, None), win(40, None))),
+            row("late@x", uses(win(100, Some(900)), win(5, None))),
+            row("soon@x", uses(win(2, None), win(100, Some(300)))),
+            row("same@x", uses(win(100, Some(300)), win(1, None))),
+        ],
+        ..Default::default()
+    };
+    let (open, full) = split_others(&m);
+    let names: Vec<&str> = open.iter().map(|o| o.email.as_str()).collect();
+    assert_eq!(names, ["b@x", "a@x", "tie1@x", "tie2@x", "none@x"]);
+    let f: Vec<(&str, i64)> = full.iter().map(|(o, t)| (o.email.as_str(), *t)).collect();
+    assert_eq!(f, [("same@x", 300), ("soon@x", 300), ("late@x", 900)]);
+}
+
+#[test]
+fn same_account_needs_equal_emails_ignoring_case() {
+    let side = |e: Option<&str>| Side { email: e.map(String::from), usage: None };
+    let mut m = Model { cli: side(Some("A@X.com")), desk: Some(side(Some("a@x.COM"))), ..Default::default() };
+    assert!(same_account(&m));
+    m.desk = Some(side(Some("b@x.com")));
+    assert!(!same_account(&m));
+    m.desk = Some(side(None));
+    assert!(!same_account(&m));
+    m.desk = None;
+    assert!(!same_account(&m));
+    m.cli = side(None);
+    m.desk = Some(side(None));
+    assert!(!same_account(&m));
+}
+
+#[test]
+fn checked_is_the_newest_fetch_of_any_account() {
+    let st = r#"{"now":1,"accounts":[{"id":"a","usage":{"fetchedAt":500}},{"id":"b","usage":{"fetchedAt":900}},{"id":"c","usage":null}],
+        "desktop":{"found":true,"accounts":[{"signedIn":true,"usage":{"fetchedAt":700}}]}}"#;
+    assert_eq!(model(st).checked, Some(900));
+    let st = r#"{"now":1,"accounts":[{"id":"a","usage":{"fetchedAt":500}}],"desktop":{"found":false,"accounts":[{"usage":{"fetchedAt":800}}]}}"#;
+    assert_eq!(model(st).checked, Some(800));
+    assert_eq!(model(&state("a", &[], true, false, false)).checked, None);
+}
