@@ -19,7 +19,7 @@ mod preview;
 mod sections;
 mod widget;
 pub use events::request_exit;
-pub use instance::signal_running;
+pub use instance::claim_instance;
 use buttons::*;
 use events::*;
 use icon::*;

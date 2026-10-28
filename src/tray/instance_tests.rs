@@ -22,3 +22,11 @@ fn missing_or_bad_state_is_not_demo() {
     // Only the top-level flag counts.
     assert!(!is_demo(r#"{"accounts":[{"demo":true}]}"#));
 }
+
+#[test]
+fn quit_with_none_running_is_done_at_once() {
+    // A class no window has: nothing to ask, nothing to wait for.
+    let t = std::time::Instant::now();
+    assert!(quit_class("cud-tray-test-none"));
+    assert!(t.elapsed() < std::time::Duration::from_secs(1));
+}

@@ -75,18 +75,10 @@ fn main() {
         return;
     }
 
-    // One dashboard at a time. With a random port a busy port no longer tells, so on
-    // Windows a named mutex does; it lasts as long as this process.
+    // One dashboard at a time; `--quit` (the installer) ends the running one instead.
     #[cfg(windows)]
-    unsafe {
-        let name: Vec<u16> = format!("Local\\claude-usage-dashboard{}", if demo { "-demo" } else { "" }).encode_utf16().chain(Some(0)).collect();
-        windows_sys::Win32::System::Threading::CreateMutexW(std::ptr::null(), 0, name.as_ptr());
-        if windows_sys::Win32::Foundation::GetLastError() == windows_sys::Win32::Foundation::ERROR_ALREADY_EXISTS {
-            eprintln!("The dashboard is already running: hover its icon in the tray.");
-            // A double-click shows no stderr: the running one opens its dashboard instead.
-            tray::signal_running(demo);
-            return;
-        }
+    if !tray::claim_instance(demo, args.iter().any(|a| a == "--quit")) {
+        return;
     }
 
     let server = match tiny_http::Server::http(("127.0.0.1", port)) {
