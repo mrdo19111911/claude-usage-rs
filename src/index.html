@@ -121,7 +121,7 @@
       <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
       <label>poll every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
     </div>
-    <p class="note">Add an account: click <b>+ Add account</b> above and sign in in the browser (or type <code>/login</code> in <code>claude</code>). It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.</p>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
   </section>
@@ -199,9 +199,10 @@ function renderRows() {
   const on = S.accounts.filter(a => a.enabled && a.usage);
   const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < th).length;
   const head = on.reduce((s, a) => s + (100 - a.usage.week.u), 0);
-  $('#summary').textContent = S.loggingIn ? 'Login window open: sign in in the browser with the account to add.'
-    : `${ready} ready now · weekly headroom ${head}% (≈ ${(head / 100).toFixed(1)} accounts)`;
-  $('#cliAdd').disabled = S.demo || S.loggingIn;
+  $('#summary').innerHTML = S.loggingIn && loginUrl
+    ? `Sign-in page opened in your browser: sign in with the account to add. Not there? <a href="${esc(loginUrl)}" target="_blank" rel="noopener">Open it</a>.`
+    : esc(`${ready} ready now · weekly headroom ${head}% (≈ ${(head / 100).toFixed(1)} accounts)`);
+  $('#cliAdd').disabled = S.demo;
 }
 
 function renderChart() {
@@ -311,10 +312,11 @@ $('#rows').addEventListener('click', e => {
   if (t.dataset.activate) act(api(`/api/accounts/${t.dataset.activate}/activate`, { method: 'POST' }));
   else if (confirm('Remove this account from the dashboard?')) act(api(`/api/accounts/${t.dataset.remove}`, { method: 'DELETE' }));
 });
-$('#cliAdd').onclick = () => {
-  if (confirm('A login window opens and your browser asks you to sign in. Sign in with the account to add. Claude Code in terminals and VS Code then uses that account; the one in use now is saved first and stays one click away (Use now). Go on?'))
-    act(api('/api/login', { method: 'POST' }));
-};
+// The sign-in page opens in the default browser; the account is added when it comes back.
+// Claude Code keeps the login it uses now.
+let loginUrl = '';
+$('#cliAdd').onclick = () => api('/api/login', { method: 'POST' })
+  .then(r => { loginUrl = r.url; return api('/api/state'); }).then(setState).catch(e => alert(e.message));
 $('#desktopAdd').onclick = () => {
   if (confirm('Claude Desktop will close and open signed out. Sign in there to the account to add; the account it is signed in to now is saved first. Running tasks stop. Go on?'))
     act(api('/api/desktop/add', { method: 'POST' }));

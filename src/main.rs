@@ -5,6 +5,7 @@
 
 mod desktop;
 mod lock;
+mod login;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -139,7 +140,7 @@ struct App {
     desktop_dir: Option<PathBuf>,
     desktop_store: desktop::Store,
     switching: AtomicBool,
-    logging_in: AtomicBool,
+    login: Mutex<Option<login::Pending>>,
 }
 
 impl App {
@@ -384,67 +385,88 @@ impl App {
     }
 
     // ----- Adding a Claude Code account -----
-    // Opens a console window running `claude auth login`; you sign in in the browser it
-    // opens, and the new login is picked up when the window closes. The login in use now
-    // is saved first, as signing in replaces it.
-    fn start_cli_login(self: &Arc<Self>) -> Result<(), String> {
+    // Sign-in in the browser (login.rs): the dashboard keeps the new account's tokens as
+    // its own and leaves the login Claude Code uses now as it is.
+    fn start_login(&self) -> Result<String, String> {
         if self.demo {
             return Err("Not in demo mode.".into());
         }
-        let exe = find_claude_cli(self.desktop_dir.as_deref())
-            .ok_or("Claude Code was not found on this computer (no claude on PATH, in Claude Desktop or in VS Code).")?;
-        if self.logging_in.swap(true, Ordering::SeqCst) {
-            return Err("A login window is open already.".into());
-        }
-        self.sync_active();
-        let mut cmd = Command::new(&exe);
-        cmd.args(["auth", "login", "--claudeai"]);
-        // A dashboard started from a Claude session must not pass that session's identity on.
-        for (k, _) in std::env::vars_os() {
-            let k = k.to_string_lossy().into_owned();
-            if k.starts_with("CLAUDE_CODE_") || k == "CLAUDECODE" {
-                cmd.env_remove(k);
+        let p = login::start(now());
+        let url = login::authorize_url(&p, CLIENT_ID, self.port);
+        *self.login.lock().unwrap() = Some(p);
+        open_browser(&url);
+        Ok(url)
+    }
+
+    // The browser's return from the sign-in page; the reply is the page it shows.
+    fn finish_login(&self, query: &str) -> Result<String, String> {
+        let p = {
+            let mut l = self.login.lock().unwrap();
+            let fresh = l.as_ref().is_some_and(|p| now() - p.started < login::PENDING_MS);
+            let ours = l.as_ref().is_some_and(|p| login::param(query, "state").as_deref() == Some(p.state.as_str()));
+            if !fresh || !ours {
+                return Err("This sign-in is not one the dashboard started, or it is older than 15 minutes. Click + Add account again.".into());
             }
+            l.take().unwrap()
+        };
+        if let Some(e) = login::param(query, "error") {
+            let why = login::param(query, "error_description").unwrap_or(e);
+            return Err(format!("Sign-in was not completed: {why}"));
         }
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0000_0010); // CREATE_NEW_CONSOLE: a window of its own
-        }
-        #[cfg(not(windows))]
-        {
-            self.logging_in.store(false, Ordering::SeqCst);
-            return Err(format!("Run `{} auth login` in a terminal.", exe.display()));
-        }
-        #[cfg(windows)]
-        {
-            let mut child = match cmd.spawn() {
-                Ok(c) => c,
-                Err(e) => {
-                    self.logging_in.store(false, Ordering::SeqCst);
-                    return Err(format!("Could not start {}: {e}", exe.display()));
-                }
-            };
-            {
-                let mut st = self.st.lock().unwrap();
-                self.log(&mut st, "Login window opened: sign in in the browser with the account to add".into());
-                self.save(&st);
+        let code = login::param(query, "code").ok_or("The sign-in page sent no code back.")?;
+        let token: Value = self.http
+            .post(TOKEN_URLS[0])
+            .send_json(login::exchange_body(&p, &code, CLIENT_ID, self.port))
+            .map_err(|e| match e {
+                ureq::Error::Status(c, r) => format!("Anthropic refused the sign-in ({c}): {}", r.into_string().unwrap_or_default().chars().take(200).collect::<String>()),
+                e => e.to_string(),
+            })?
+            .into_json()
+            .map_err(|e| e.to_string())?;
+        let mut c = json!({"accessToken": token["access_token"]});
+        let profile = self.get_profile_json(&c).map_err(|e| e.text())?;
+        c = login::creds(&token, &profile, now());
+        let uuid = profile["account"]["uuid"].as_str().ok_or("Anthropic's profile names no account.")?.to_string();
+        let email = profile["account"]["email"].as_str().unwrap_or("").to_string();
+        let mut st = self.st.lock().unwrap();
+        let active = st.active_id.clone();
+        let msg = if let Some(a) = st.accounts.iter_mut().find(|a| a.account_uuid.as_deref() == Some(uuid.as_str())) {
+            if active.as_deref() == Some(a.id.as_str()) {
+                // Its tokens are Claude Code's; keeping a second set would make it look new.
+                format!("{email} is the account Claude Code uses now; it is here already.")
+            } else {
+                a.creds = c;
+                a.email = email.clone();
+                a.plan = plan_label(&a.creds);
+                a.oauth_account = login::oauth_account(&profile);
+                a.error = None;
+                a.enabled = true;
+                format!("Signed in again to {email}")
             }
-            let app = self.clone();
-            thread::spawn(move || {
-                let ok = child.wait().map(|s| s.success()).unwrap_or(false);
-                app.logging_in.store(false, Ordering::SeqCst);
-                if ok {
-                    app.sync_active();
-                    app.poll_all();
-                } else {
-                    let mut st = app.st.lock().unwrap();
-                    app.log(&mut st, "Login window closed without signing in".into());
-                    app.save(&st);
-                }
+        } else {
+            let id = self.new_id();
+            st.accounts.push(Account {
+                id,
+                account_uuid: Some(uuid),
+                email: email.clone(),
+                plan: plan_label(&c),
+                enabled: true,
+                creds: c,
+                oauth_account: login::oauth_account(&profile),
+                usage: None,
+                history: vec![],
+                error: None,
+                raw: Value::Null,
+                slow_until: 0,
+                slow_strikes: 0,
             });
-            Ok(())
+            format!("Added {email} (signed in in the browser)")
+        };
+        if !msg.ends_with("it is here already.") {
+            self.log(&mut st, msg.clone());
         }
+        self.save(&st);
+        Ok(msg)
     }
 
     // ----- Anthropic API -----
@@ -495,8 +517,14 @@ impl App {
 
     // The account a token belongs to: (uuid, email).
     fn get_profile(&self, creds: &Value) -> Result<(String, String), ApiErr> {
+        let j = self.get_profile_json(creds)?;
+        let uuid = j["account"]["uuid"].as_str().ok_or(ApiErr::Other("profile without account".into()))?;
+        Ok((uuid.to_string(), j["account"]["email"].as_str().unwrap_or("").to_string()))
+    }
+
+    fn get_profile_json(&self, creds: &Value) -> Result<Value, ApiErr> {
         let tok = creds.get("accessToken").and_then(Value::as_str).unwrap_or("");
-        let j: Value = self.http
+        self.http
             .get(PROFILE_URL)
             .set("Authorization", &format!("Bearer {tok}"))
             .set("anthropic-beta", "oauth-2025-04-20")
@@ -504,9 +532,7 @@ impl App {
             .call()
             .map_err(|e| api_err(e, "profile"))?
             .into_json()
-            .map_err(|e| ApiErr::Other(e.to_string()))?;
-        let uuid = j["account"]["uuid"].as_str().ok_or(ApiErr::Other("profile without account".into()))?;
-        Ok((uuid.to_string(), j["account"]["email"].as_str().unwrap_or("").to_string()))
+            .map_err(|e| ApiErr::Other(e.to_string()))
     }
 
     // Returns the usage JSON and, if tokens were refreshed, the new creds. Refresh
@@ -756,7 +782,7 @@ impl App {
             "now": t,
             "lastPollAt": self.last_poll.load(Ordering::Relaxed),
             "polling": self.polling.load(Ordering::Relaxed),
-            "loggingIn": self.logging_in.load(Ordering::Relaxed),
+            "loggingIn": self.login.lock().unwrap().as_ref().is_some_and(|p| t - p.started < login::PENDING_MS),
             "demo": self.demo,
             "settings": st.settings,
             "activeId": st.active_id,
@@ -928,42 +954,27 @@ fn parse_iso(s: &str) -> Option<i64> {
     Some((days * 86_400 + h * 3600 + mi * 60 + se - off * 60) * 1000 + ms)
 }
 
-// Claude Code's own program: CUD_CLAUDE_BIN, then claude on PATH or in ~/.local/bin, then
-// the newest copy bundled with Claude Desktop or the VS Code extension.
-fn find_claude_cli(desktop_dir: Option<&Path>) -> Option<PathBuf> {
-    let name = if cfg!(windows) { "claude.exe" } else { "claude" };
-    if let Some(p) = std::env::var_os("CUD_CLAUDE_BIN").map(PathBuf::from).filter(|p| p.is_file()) {
-        return Some(p);
-    }
-    let path_dirs = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect::<Vec<_>>()).unwrap_or_default();
-    if let Some(p) = path_dirs.into_iter().chain([home().join(".local").join("bin")]).map(|d| d.join(name)).find(|p| p.is_file()) {
-        return Some(p);
-    }
-    // <desktop data>/claude-code/<version>/<hash>/claude.exe
-    // ~/.vscode/extensions/anthropic.claude-code-<version>-<platform>/resources/native-binary/claude.exe
-    let mut found: Vec<PathBuf> = vec![];
-    let subdirs = |d: &Path| fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect::<Vec<_>>();
-    if let Some(d) = desktop_dir {
-        for v in subdirs(&d.join("claude-code")) {
-            found.extend(subdirs(&v).into_iter().map(|h| h.join(name)));
-        }
-    }
-    for ext in subdirs(&home().join(".vscode").join("extensions")) {
-        if ext.file_name().is_some_and(|n| n.to_string_lossy().starts_with("anthropic.claude-code-")) {
-            found.push(ext.join("resources").join("native-binary").join(name));
-        }
-    }
-    found.into_iter().filter(|p| p.is_file()).max_by_key(|p| fs::metadata(p).and_then(|m| m.modified()).ok())
-}
-
 fn home() -> PathBuf {
     let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     std::env::var_os(var).or_else(|| std::env::var_os("HOME")).map(PathBuf::from).unwrap_or_else(|| ".".into())
 }
 
+// What the browser shows after signing in.
+fn login_page(ok: bool, msg: &str, port: u16) -> String {
+    let esc = msg.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    let (title, color) = if ok { ("Account added", "#3fb950") } else { ("Sign-in not completed", "#f85149") };
+    format!(
+        r#"<!doctype html><meta charset="utf-8"><title>{title}</title>
+<body style="font:16px system-ui;background:#0d1117;color:#e6edf3;display:grid;place-items:center;height:100vh;margin:0">
+<div style="text-align:center;max-width:520px;padding:16px"><h1 style="color:{color};font-size:22px">{title}</h1><p>{esc}</p>
+<p><a style="color:#58a6ff" href="http://127.0.0.1:{port}/">Back to the dashboard</a></p></div>"#
+    )
+}
+
 fn open_browser(url: &str) {
     let _ = if cfg!(windows) {
-        Command::new("cmd").args(["/C", "start", "", url]).spawn()
+        // Not `cmd /C start`: cmd would cut the URL at its first '&'.
+        Command::new("rundll32").args(["url.dll,FileProtocolHandler", url]).spawn()
     } else if cfg!(target_os = "macos") {
         Command::new("open").arg(url).spawn()
     } else {
@@ -1008,7 +1019,8 @@ fn demo_state(app: &App) -> State {
 // ---------- HTTP ----------
 fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
     let method = rq.method().as_str().to_string();
-    let path = rq.url().split('?').next().unwrap_or("").to_string();
+    let url = rq.url().to_string();
+    let path = url.split('?').next().unwrap_or("").to_string();
     let mut body = String::new();
     let _ = rq.as_reader().read_to_string(&mut body);
     let body: Value = serde_json::from_str(&body).unwrap_or(json!({}));
@@ -1029,6 +1041,18 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         }
         if method == "GET" && path == "/api/state" {
             return Ok((200, app.public_state(), "application/json"));
+        }
+        // The sign-in page sends the browser back here; the state it carries is the check.
+        if method == "GET" && path == "/callback" {
+            let (ok, msg) = match app.finish_login(&url) {
+                Ok(m) => (true, m),
+                Err(e) => (false, e),
+            };
+            if ok {
+                let a = app.clone();
+                thread::spawn(move || a.poll_all());
+            }
+            return Ok((200, login_page(ok, &msg, app.port), "text/html; charset=utf-8"));
         }
         // Only accept writes from the page itself (blocks cross-site form posts).
         if method != "GET" && !from_page {
@@ -1051,7 +1075,10 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 }
                 app.save(&st);
             }
-            ("POST", "/api/login") => app.start_cli_login()?,
+            ("POST", "/api/login") => {
+                let url = app.start_login()?;
+                return Ok((200, json!({ "url": url }).to_string(), "application/json"));
+            }
             ("POST", "/api/desktop/add") => app.start_desktop_switch(None)?,
             _ if path.starts_with("/api/desktop/") => {
                 let parts: Vec<&str> = path.trim_start_matches("/api/desktop/").split('/').collect();
@@ -1161,7 +1188,7 @@ fn main() {
         desktop_dir: if demo { None } else { desktop::find_data_dir() },
         desktop_store: desktop::Store { root: data_dir.join("desktop") },
         switching: AtomicBool::new(false),
-        logging_in: AtomicBool::new(false),
+        login: Mutex::new(None),
     });
 
     {
@@ -1229,23 +1256,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn finds_claude_code_bundled_with_claude_desktop() {
-        let d = std::env::temp_dir().join(format!("cud-cli-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        let name = if cfg!(windows) { "claude.exe" } else { "claude" };
-        for v in ["2.1.300/aaa", "2.1.308/bbb"] {
-            std::fs::create_dir_all(d.join("claude-code").join(v)).unwrap();
-            std::fs::write(d.join("claude-code").join(v).join(name), "").unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(30));
-        }
-        // Only meaningful where no claude is on PATH, as on this machine.
-        let got = super::find_claude_cli(Some(&d)).unwrap();
-        if got.starts_with(&d) {
-            assert!(got.ends_with(std::path::Path::new("2.1.308/bbb").join(name)), "newest copy: {got:?}");
-        }
-    }
-
     #[test]
     fn notes_desktop_session_names() {
         let d = std::env::temp_dir().join(format!("cud-names-{}", std::process::id()));

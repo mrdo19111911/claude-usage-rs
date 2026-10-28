@@ -9,6 +9,10 @@ ureq = { version = "2.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 # preserve_order: Claude's own JSON files are rewritten with their keys in the order they had.
 serde_json = { version = "1", features = ["preserve_order"] }
+# Browser sign-in (OAuth PKCE): random state and verifier, SHA-256 challenge.
+getrandom = "0.2"
+sha2 = "0.10"
+base64 = "0.22"
 
 # Closing and finding Claude Desktop for a desktop switch.
 [target.'cfg(windows)'.dependencies]
