@@ -30,6 +30,22 @@ another module needs them.
 - Pinned widget: always on top, drags anywhere, ✕ unpins; place kept in `widget.json`.
 - Exit (menu or dashboard button): icon removed from the tray, then the program ends.
 
+## Switching from the widget
+
+- Each row under "Other accounts" has two small buttons on its right: **CLI** and
+  **Desktop**. CLI is missing when that account is Claude CLI's now; Desktop is missing
+  when it is Claude Desktop's now, when it has no saved Desktop sign-in (first time goes
+  through the dashboard), when Claude Desktop is not on this computer, and while a Desktop
+  switch runs.
+- CLI switches at once (`Act::Cli(id)`, same as the dashboard's "Use here").
+- Desktop asks first (Yes/No box: the app closes and opens again, running tasks stop),
+  then `Act::Desktop(uuid)`.
+- The switch runs off the tray thread (it calls Anthropic); the widget redraws when it
+  ends; a failure shows its message in a box. A click outside the buttons still opens the
+  dashboard (hover widget) as before.
+- Tests first: the model fills `Other` from the state JSON; the button rectangles and the
+  hit test are pure functions.
+
 ## Test-first parts
 
 Pure functions get their tests written before they are moved or changed: state JSON →

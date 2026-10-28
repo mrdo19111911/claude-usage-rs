@@ -6,6 +6,7 @@
 // Plain Win32 through windows-sys, drawn with GDI: SO_SANH_KHAY_WIDGET.md says why.
 // One concern per file (docs/specs/modules.md); each starts with `use super::*;`.
 
+mod buttons;
 mod events;
 mod icon;
 mod model;
@@ -13,6 +14,7 @@ mod paint;
 mod place;
 mod widget;
 pub use events::{request_exit, signal_running};
+use buttons::*;
 use events::*;
 use icon::*;
 use model::*;
@@ -35,6 +37,13 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 // The dashboard's state as /api/state serves it.
 pub type StateFn = Arc<dyn Fn() -> String + Send + Sync>;
+// What a widget button asks for: Claude CLI on an account (its id), or Claude Desktop on
+// an account's saved sign-in (its uuid). Blocking: call it off the tray thread.
+pub enum Act {
+    Cli(String),
+    Desktop(String),
+}
+pub type ActFn = Arc<dyn Fn(Act) -> Result<(), String> + Send + Sync>;
 
 const WM_TRAY: u32 = WM_APP + 1;
 // Exit asked from another thread (the dashboard's Exit button): see request_exit.
@@ -80,6 +89,7 @@ fn wide(s: &str) -> Vec<u16> {
 
 struct Ui {
     state: StateFn,
+    act: ActFn,
     url: String,
     file: PathBuf,
     msg: HWND,
@@ -104,11 +114,11 @@ fn ui<R>(f: impl FnOnce(&mut Ui) -> R) -> R {
     UI.with(|u| f(u.borrow_mut().as_mut().expect("tray not started")))
 }
 
-pub fn start(state: StateFn, url: String, data_dir: PathBuf) {
-    thread::spawn(move || unsafe { run(state, url, data_dir.join("widget.json")) });
+pub fn start(state: StateFn, act: ActFn, url: String, data_dir: PathBuf) {
+    thread::spawn(move || unsafe { run(state, act, url, data_dir.join("widget.json")) });
 }
 
-unsafe fn run(state: StateFn, url: String, file: PathBuf) {
+unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {
     // Per thread: covers every window made here, unlike the process-wide call.
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     let inst = GetModuleHandleW(ptr::null());
@@ -136,7 +146,7 @@ unsafe fn run(state: StateFn, url: String, file: PathBuf) {
     let model = model(&state());
     UI.with(|u| {
         *u.borrow_mut() = Some(Ui {
-            state, url, file, msg, hover, pinned,
+            state, act, url, file, msg, hover, pinned,
             pin_on: saved["pinned"].as_bool() == Some(true),
             pin_pos,
             icon: ptr::null_mut(),

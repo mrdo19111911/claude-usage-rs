@@ -3,6 +3,18 @@
 use crate::*;
 
 impl App {
+    // The tray's two hooks: the state its widget shows, and the switches its buttons ask
+    // for (the same calls as the dashboard's buttons).
+    #[cfg(windows)]
+    pub(crate) fn tray_hooks(self: &Arc<Self>) -> (tray::StateFn, tray::ActFn) {
+        let (a, b) = (self.clone(), self.clone());
+        let act = move |act: tray::Act| match act {
+            tray::Act::Cli(id) => b.activate(&id, "manual"),
+            tray::Act::Desktop(uuid) => b.start_desktop_switch(Some(uuid)),
+        };
+        (Arc::new(move || a.public_state()), Arc::new(act))
+    }
+
     // Runs a desktop switch in the background: it closes and restarts Claude Desktop,
     // which takes up to a minute. `target` None leaves it signed out, to add an account.
     pub(crate) fn start_desktop_switch(self: &Arc<Self>, target: Option<String>) -> Result<(), String> {

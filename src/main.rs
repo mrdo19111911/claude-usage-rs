@@ -155,8 +155,8 @@ fn main() {
                 SetStdHandle(h, std::ptr::null_mut());
             }
         }
-        let st = app.clone();
-        tray::start(Arc::new(move || st.public_state()), url.clone(), data_dir.clone());
+        let (state, act) = app.tray_hooks();
+        tray::start(state, act, url.clone(), data_dir.clone());
     }
     #[cfg(not(windows))]
     println!("Keep this window open. Ctrl+C to stop.");

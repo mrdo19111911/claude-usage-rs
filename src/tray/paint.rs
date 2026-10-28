@@ -111,13 +111,18 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
         side(&mut y, "Claude Desktop", "own sign-in", DESK, d);
     }
 
+    let mut hits = vec![];
     if !m.others.is_empty() {
         if draw {
             p.fill(pad, y - p.px(4.0), w - pad, y - p.px(3.0), BORDER);
             p.text(pad, y + p.px(2.0), "OTHER ACCOUNTS", MUTED, SMALL);
         }
         y += p.px(24.0);
-        for (email, u) in &m.others {
+        for o in &m.others {
+            let (email, u) = (&o.email, &o.usage);
+            // The switch buttons at the right; the text ends left of them.
+            let bs = row_buttons(m, o, w, s, y);
+            let right = text_right(w, s);
             if draw {
                 let (figs, c) = match u {
                     Some(u) if u.week.u >= 100 => (format!("week full until {}", u.week.reset.map_or("?".into(), |t| clock(t, m.now))), RED),
@@ -127,15 +132,18 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
                 };
                 let fw = p.width_of(&figs, SMALL);
                 let name = email.split('@').next().unwrap_or(email);
-                p.text(pad, y, &p.fitted(name, NORMAL, w - 2 * pad - fw - p.px(10.0)), TEXT, NORMAL);
-                p.text_right(w - pad, y + p.px(1.5), &figs, c, SMALL);
+                p.text(pad, y, &p.fitted(name, NORMAL, right - pad - fw - p.px(10.0)), TEXT, NORMAL);
+                p.text_right(right, y + p.px(1.5), &figs, c, SMALL);
+                draw_buttons(&p, &bs);
+                hits.extend(bs);
             }
-            y += p.px(19.0);
+            y += p.px(22.0);
         }
         y += p.px(6.0);
     }
-
     if draw {
+        // Where the widget finds the buttons on a click.
+        set_hits(pinned, hits);
         let hint = if pinned { "Drag to move · double-click: dashboard" } else { "Click: dashboard · right-click the icon: menu" };
         p.text(pad, y, hint, MUTED, SMALL);
     }
@@ -165,7 +173,8 @@ mod tests {
             let mut m = Model::default();
             m.cli.email = Some("a@x.com".into());
             m.cli.usage = Some(Use::default());
-            m.others.push(("b@x.com".into(), None));
+            m.desk = Some(Side::default());
+            m.others.push(Other { email: "b@x.com".into(), desk_uuid: Some("u".into()), ..Default::default() });
             assert!(layout(&m, 1.0, false, dc) > 0);
             assert_eq!(GetCurrentObject(dc, OBJ_FONT as u32), before);
             DeleteDC(dc);

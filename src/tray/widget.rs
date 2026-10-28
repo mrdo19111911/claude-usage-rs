@@ -83,11 +83,11 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
         }
         WM_ERASEBKGND => 1,
         WM_MOUSEACTIVATE => MA_NOACTIVATE as LRESULT,
-        // The pinned widget drags by any spot but its button.
+        // The pinned widget drags by any spot but its buttons.
         WM_NCHITTEST if is_pinned => {
             let mut p = POINT { x: (lp & 0xffff) as i16 as i32, y: (lp >> 16 & 0xffff) as i16 as i32 };
             ScreenToClient(hwnd, &mut p);
-            if in_button(p.x, p.y) { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
+            if in_button(p.x, p.y) || hit_at(true, p.x, p.y).is_some() { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
         }
         WM_LBUTTONUP => {
             let (x, y) = ((lp & 0xffff) as i16 as i32, (lp >> 16 & 0xffff) as i16 as i32);
@@ -100,6 +100,9 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
                     hide_hover();
                     pin(Some((r.left, r.top)));
                 }
+            } else if let Some(k) = hit_at(is_pinned, x, y) {
+                // A row's CLI or Desktop button.
+                switch(hwnd, k);
             } else if !is_pinned {
                 hide_hover();
                 open_dashboard();

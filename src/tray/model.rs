@@ -22,6 +22,20 @@ pub(super) struct Side {
     pub(super) usage: Option<Use>,
 }
 
+// A row under "Other accounts", with what its switch buttons need.
+#[derive(Clone, Default)]
+pub(super) struct Other {
+    pub(super) email: String,
+    pub(super) usage: Option<Use>,
+    // Its Claude CLI login (Act::Cli).
+    pub(super) id: String,
+    // Its saved Claude Desktop sign-in (Act::Desktop); None: never signed in to Desktop here.
+    pub(super) desk_uuid: Option<String>,
+    // In use there now: that side gets no button.
+    pub(super) in_cli: bool,
+    pub(super) in_desk: bool,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct Model {
     pub(super) now: i64,
@@ -29,7 +43,9 @@ pub(super) struct Model {
     pub(super) cli: Side,
     // None: no Claude Desktop on this computer.
     pub(super) desk: Option<Side>,
-    pub(super) others: Vec<(String, Option<Use>)>,
+    // A Claude Desktop switch is running: no Desktop buttons meanwhile.
+    pub(super) desk_switching: bool,
+    pub(super) others: Vec<Other>,
 }
 
 pub(super) fn usage(v: &Value) -> Option<Use> {
@@ -40,18 +56,31 @@ pub(super) fn usage(v: &Value) -> Option<Use> {
 pub(super) fn model(state: &str) -> Model {
     let v: Value = serde_json::from_str(state).unwrap_or_default();
     let mut m = Model { now: v["now"].as_i64().unwrap_or(0), threshold: v["settings"]["threshold"].as_i64().unwrap_or(95), ..Default::default() };
+    // Claude Desktop's accounts; none when it is not here or in demo.
+    let d = &v["desktop"];
+    let found = d["found"].as_bool() == Some(true) && v["demo"].as_bool() != Some(true);
+    let desk: &[Value] = if found { d["accounts"].as_array().map_or(&[], |l| l.as_slice()) } else { &[] };
     let active = v["activeId"].as_str();
     for a in v["accounts"].as_array().into_iter().flatten() {
         let email = a["email"].as_str().unwrap_or("?").to_string();
-        if active.is_some() && a["id"].as_str() == active {
-            m.cli = Side { email: Some(email), usage: usage(&a["usage"]) };
-        } else {
-            m.others.push((email, usage(&a["usage"])));
+        let uuid = a["uuid"].as_str();
+        let entry = uuid.and_then(|u| desk.iter().find(|e| e["uuid"].as_str() == Some(u)));
+        let desk_uuid = entry.filter(|e| e["hasSignIn"].as_bool() == Some(true)).and(uuid).map(String::from);
+        let in_desk = entry.is_some_and(|e| e["signedIn"].as_bool() == Some(true));
+        let in_cli = active.is_some() && a["id"].as_str() == active;
+        if in_cli {
+            m.cli = Side { email: Some(email.clone()), usage: usage(&a["usage"]) };
+            // Also a row when Desktop could switch to it.
+            if in_desk || desk_uuid.is_none() {
+                continue;
+            }
         }
+        let id = a["id"].as_str().unwrap_or("").to_string();
+        m.others.push(Other { email, usage: usage(&a["usage"]), id, desk_uuid, in_cli, in_desk });
     }
-    let d = &v["desktop"];
-    if d["found"].as_bool() == Some(true) && v["demo"].as_bool() != Some(true) {
-        let on = d["accounts"].as_array().and_then(|l| l.iter().find(|a| a["signedIn"].as_bool() == Some(true)));
+    if found {
+        m.desk_switching = d["switching"].as_bool() == Some(true);
+        let on = desk.iter().find(|a| a["signedIn"].as_bool() == Some(true));
         m.desk = Some(on.map_or_else(Side::default, |a| Side {
             email: a["email"].as_str().or(a["label"].as_str()).map(String::from),
             usage: usage(&a["usage"]),
@@ -86,25 +115,5 @@ pub(super) fn left(ms: i64) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn reads_both_sides_from_the_state() {
-        let st = r#"{"now":1000,"settings":{"threshold":94},"activeId":"b","demo":false,
-            "accounts":[{"id":"a","email":"a@x.com","usage":{"five":{"u":10,"resetsAt":2000},"week":{"u":100,"resetsAt":9000}}},
-                        {"id":"b","email":"b@x.com","usage":null}],
-            "desktop":{"found":true,"accounts":[{"label":"Account 1","email":null,"signedIn":true,"usage":null}]}}"#;
-        let m = super::model(st);
-        assert_eq!(m.cli.email.as_deref(), Some("b@x.com"));
-        assert!(m.cli.usage.is_none());
-        assert_eq!(m.desk.unwrap().email.as_deref(), Some("Account 1"));
-        assert_eq!(m.others.len(), 1);
-        assert_eq!(m.others[0].1.as_ref().unwrap().week.u, 100);
-    }
-
-    #[test]
-    fn time_left() {
-        assert_eq!(super::left(4 * 3_600_000 + 39 * 60_000), "4h39m");
-        assert_eq!(super::left(51 * 3_600_000), "2d 3h");
-        assert_eq!(super::left(30_000), "1m");
-    }
-}
+#[path = "model_tests.rs"]
+mod tests;
