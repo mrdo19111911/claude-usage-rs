@@ -154,6 +154,7 @@
       <div style="display:flex;gap:8px">
         <button class="btn" id="refresh">Refresh now</button>
         <button class="btn primary" id="import">Check for new login</button>
+        <button class="btn" id="exit" title="Stop the dashboard and take its icon out of the tray">Exit</button>
       </div>
     </div>
     <div class="settings" style="margin-top:14px">
@@ -468,6 +469,12 @@ const act = p => p.then(setState).catch(e => alert(e.message));
 $('#viewToggle').onclick = () => { tableView = !tableView; $('#viewToggle').textContent = tableView ? 'Chart view' : 'Table view'; render(); };
 $('#refresh').onclick = () => act(api('/api/refresh', { method: 'POST' }));
 $('#import').onclick = () => act(api('/api/import', { method: 'POST' }));
+$('#exit').onclick = () => {
+  if (!confirm('Stop the dashboard? Checks and auto-switch stop until you start it again.')) return;
+  api('/api/exit', { method: 'POST' }).then(() => {
+    document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start claude-usage.exe again to bring it back.</p></section>';
+  }).catch(e => alert(e.message));
+};
 for (const id of ['autoSwitch', 'threshold', 'pollSeconds']) {
   $('#' + id).onchange = () => act(api('/api/settings', { method: 'POST', body: JSON.stringify({
     autoSwitch: $('#autoSwitch').checked, threshold: +$('#threshold').value, pollSeconds: +$('#pollSeconds').value }) }));

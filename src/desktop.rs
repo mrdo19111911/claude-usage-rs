@@ -388,8 +388,11 @@ mod win {
                 Start-Process ('shell:AppsFolder\\' + $p.PackageFamilyName + '!' + $id); exit 0 }; \
                 $e = Join-Path $env:LOCALAPPDATA 'AnthropicClaude\\claude.exe'; \
                 if (Test-Path -LiteralPath $e) { Start-Process $e; exit 0 }; exit 3";
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             let ok = Command::new("powershell")
                 .args(["-NoProfile", "-NonInteractive", "-Command", script])
+                .creation_flags(CREATE_NO_WINDOW)
                 .status()
                 .map(|s| s.success())
                 .unwrap_or(false);

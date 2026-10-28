@@ -3,9 +3,16 @@
 // Chạy file là xong: tự mở trình duyệt, tự nhận tài khoản mỗi lần bạn /login.
 // Claude Desktop (Windows) giữ đăng nhập riêng: desktop.rs đổi nó khi bạn bấm chuyển.
 
+// No console window of its own on Windows (not even for the SessionStart hook); from a
+// terminal it writes to that terminal (main). It lives in the tray instead (tray.rs).
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod desktop;
 mod lock;
 mod login;
+#[cfg(windows)]
+mod tray;
+mod web;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -28,7 +35,6 @@ const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const KEYCHAIN_SERVICE: &str = "Claude Code-credentials";
 const HOUR: i64 = 3_600_000;
-const INDEX: &str = include_str!("index.html");
 
 fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64
@@ -1101,8 +1107,10 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         if !host_ok {
             return Ok((403, r#"{"error":"forbidden host"}"#.into(), "application/json"));
         }
-        if method == "GET" && (path == "/" || path == "/index.html") {
-            return Ok((200, INDEX.to_string(), "text/html; charset=utf-8"));
+        if method == "GET" {
+            if let Some((text, ctype)) = web::asset(&path) {
+                return Ok((200, text.to_string(), ctype));
+            }
         }
         if method == "GET" && path == "/api/state" {
             return Ok((200, app.public_state(), "application/json"));
@@ -1126,6 +1134,17 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/refresh") | ("POST", "/api/import") => {
                 app.poll_all(true);
+            }
+            ("POST", "/api/exit") => {
+                // After this answer has gone out.
+                thread::spawn(|| {
+                    thread::sleep(Duration::from_millis(300));
+                    #[cfg(windows)]
+                    tray::request_exit();
+                    #[cfg(not(windows))]
+                    std::process::exit(0);
+                });
+                return Ok((200, "{}".into(), "application/json"));
             }
             ("POST", "/api/settings") => {
                 let mut st = app.st.lock().unwrap();
@@ -1219,10 +1238,17 @@ fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
 }
 
 fn main() {
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Console::AttachConsole(windows_sys::Win32::System::Console::ATTACH_PARENT_PROCESS);
+    }
     let args: Vec<String> = std::env::args().collect();
     let demo = args.iter().any(|a| a == "--demo");
-    let no_open = args.iter().any(|a| a == "--no-open");
-    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(4777);
+    // Windows: the tray icon is the way in, so no browser tab unless asked for (--open).
+    let no_open = if cfg!(windows) { !args.iter().any(|a| a == "--open") } else { args.iter().any(|a| a == "--no-open") };
+    // Windows: any free port (0), since the tray icon knows the address; elsewhere the
+    // address is typed or bookmarked, so a fixed one. PORT sets it either way.
+    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(if cfg!(windows) { 0 } else { 4777 });
 
     let config_dir = std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from);
     let claude_dir = config_dir.clone().unwrap_or_else(|| home().join(".claude"));
@@ -1237,6 +1263,31 @@ fn main() {
         }
         return;
     }
+
+    // One dashboard at a time. With a random port a busy port no longer tells, so on
+    // Windows a named mutex does; it lasts as long as this process.
+    #[cfg(windows)]
+    unsafe {
+        let name: Vec<u16> = format!("Local\\claude-usage-dashboard{}", if demo { "-demo" } else { "" }).encode_utf16().chain(Some(0)).collect();
+        windows_sys::Win32::System::Threading::CreateMutexW(std::ptr::null(), 0, name.as_ptr());
+        if windows_sys::Win32::Foundation::GetLastError() == windows_sys::Win32::Foundation::ERROR_ALREADY_EXISTS {
+            eprintln!("The dashboard is already running: hover its icon in the tray.");
+            return;
+        }
+    }
+
+    let server = match tiny_http::Server::http(("127.0.0.1", port)) {
+        Ok(s) => s,
+        Err(e) => {
+            // Most likely it is already running: just open it.
+            eprintln!("Port {port} busy ({e}); opening the existing dashboard.");
+            if !no_open {
+                open_browser(&format!("http://127.0.0.1:{port}"));
+            }
+            return;
+        }
+    };
+    let port = server.server_addr().to_ip().map_or(port, |a| a.port());
 
     let app = Arc::new(App {
         st: Mutex::new(State::default()),
@@ -1269,17 +1320,6 @@ fn main() {
         }
     }
 
-    let server = match tiny_http::Server::http(("127.0.0.1", port)) {
-        Ok(s) => s,
-        Err(e) => {
-            // Most likely it is already running: just open it.
-            eprintln!("Port {port} busy ({e}); opening the existing dashboard.");
-            if !no_open {
-                open_browser(&format!("http://127.0.0.1:{port}"));
-            }
-            return;
-        }
-    };
     let url = format!("http://127.0.0.1:{port}");
     println!("Claude usage dashboard{}: {url}", if demo { " (demo)" } else { "" });
     if !demo {
@@ -1287,10 +1327,17 @@ fn main() {
         println!("Claude Code login: {}", if app.keychain { "macOS Keychain".into() } else { app.creds_file.display().to_string() });
         println!("Claude Desktop data: {}", app.desktop_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_else(|| "not found".into()));
     }
-    println!("Keep this window open. Ctrl+C to stop.");
     if !no_open {
         open_browser(&url);
     }
+    #[cfg(windows)]
+    {
+        println!("Running in the tray: hover its icon for the figures, right-click it to quit.");
+        let st = app.clone();
+        tray::start(Arc::new(move || st.public_state()), url.clone(), data_dir.clone());
+    }
+    #[cfg(not(windows))]
+    println!("Keep this window open. Ctrl+C to stop.");
 
     let poller = app.clone();
     thread::spawn(move || loop {

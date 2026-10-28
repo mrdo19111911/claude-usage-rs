@@ -21,6 +21,13 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
+    # The tray icon and its widget (tray.rs); no console window (main).
+    "Win32_Graphics_Gdi",
+    "Win32_System_Console",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Time",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
 ] }
 
 # Windows/Linux: also trust the OS certificate store (company proxies). macOS uses the bundled roots.
