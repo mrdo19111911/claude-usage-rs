@@ -13,7 +13,8 @@
 AppId={{63905BC9-FAEF-420D-8FC1-DF04B915B4AF}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=Tyzen
+AppPublisher=mrdo19111911
+AppPublisherURL=https://github.com/mrdo19111911/claude-usage-rs
 ; No admin, ever: the app reads and writes this user's Claude files.
 PrivilegesRequired=lowest
 DefaultDirName={localappdata}\Programs\{#AppName}

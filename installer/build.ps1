@@ -9,6 +9,9 @@ $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"(.+)"' | Se
 
 # The running app locks its exe when started from target\release: ask it to exit first.
 if (Test-Path target\release\claude-usage.exe) { & target\release\claude-usage.exe --quit | Out-Null }
+# Rust keeps source paths for its panic messages: hide this computer's (user name, folders).
+# The encoded form (0x1f between flags): the paths may hold spaces.
+$env:CARGO_ENCODED_RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~" + [char]0x1f + "--remap-path-prefix=$root=."
 cargo build --release
 if ($LASTEXITCODE) { throw "cargo build failed" }
 
