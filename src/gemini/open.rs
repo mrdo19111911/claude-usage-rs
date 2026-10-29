@@ -10,9 +10,13 @@ pub(super) fn args(script: &Path) -> String {
 }
 
 pub(super) fn open(app: &Arc<App>, _body: &Value) -> Result<(), String> {
-    let cfg = app.st.lock().unwrap().gemini.clone().ok_or("Add a Gemini account first")?;
-    // Written at start and on save; once more in case it was deleted since.
-    script::write(app, &cfg).map_err(|e| format!("cgemini.cmd could not be written: {e}"))?;
+    {
+        // In turn with a save (setup.rs): never the token of a key just replaced.
+        let _one = super::setup::lock();
+        let cfg = app.st.lock().unwrap().gemini.clone().ok_or("Add a Gemini account first")?;
+        // Written at start and on save; once more in case it was deleted since.
+        script::write(app, &cfg).map_err(|e| format!("cgemini.cmd could not be written: {e}"))?;
+    }
     let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
     spawn(&home, &args(&script::script_path(app)))
 }

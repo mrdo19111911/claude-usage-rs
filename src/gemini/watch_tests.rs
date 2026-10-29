@@ -1,7 +1,8 @@
 // Copy to add: which clipboard text counts as a key, the watch's states, the route.
 
 use super::test_app::{app, config, temp_dir};
-use super::watch::{key_in, Read, Source, Watch, WATCH_MS};
+use super::key::key_in;
+use super::watch::{Read, Source, Watch, WATCH_MS};
 use super::api;
 use serde_json::{json, Value};
 use std::cell::{Cell, RefCell};

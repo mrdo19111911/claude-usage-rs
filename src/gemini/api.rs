@@ -3,7 +3,8 @@
 // answers with the whole public state, as the other routes do.
 
 use crate::*;
-use super::{models, path, script, upstream, watch, Config, FAST_MODEL, MODEL};
+use super::setup::{self, By};
+use super::{key, models, path, script, upstream, watch, Config, FAST_MODEL, MODEL};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 
@@ -43,7 +44,7 @@ fn new_token() -> String {
 }
 
 fn save_key(app: &Arc<App>, body: &Value) -> Result<(), String> {
-    save(app, body["key"].as_str().unwrap_or(""))
+    save(app, body["key"].as_str().unwrap_or(""), &upstream::list_models)
 }
 
 // Copy to add (watch.rs): the dialog is open (on) or closed (off).
@@ -60,15 +61,22 @@ fn watch(app: &Arc<App>, body: &Value) -> Result<(), String> {
     Ok(())
 }
 
-// A key pasted on the page or copied in AI Studio (watch.rs): checked with Google, saved,
-// cgemini written and put on PATH. A saved key ends a copy-to-add watch: nothing to wait for.
-pub(super) fn save(app: &Arc<App>, key: &str) -> Result<(), String> {
+// A key pasted on the page or copied in AI Studio (watch.rs, By::Watch): checked with Google
+// (`check`: upstream::list_models, or a test's), then cgemini written, put on PATH and the
+// key saved, in that order and one save at a time (setup.rs).
+pub(super) type Check<'a> = &'a dyn Fn(&str) -> Result<Vec<String>, String>;
+
+pub(super) fn save(app: &Arc<App>, key: &str, check: Check) -> Result<(), String> {
+    save_by(app, key, check, By::Page)
+}
+
+pub(super) fn save_by(app: &Arc<App>, key: &str, check: Check, by: By) -> Result<(), String> {
     let key = key.trim().to_string();
-    // It goes into a header: printable ASCII only, no spaces.
-    if key.is_empty() || key.len() > 200 || !key.chars().all(|c| c.is_ascii_graphic()) {
+    // The same rule as a copied key's (key.rs): it goes into a header.
+    if !key::fits(&key) {
         return Err("Paste the API key from Google AI Studio".into());
     }
-    let all = upstream::list_models(&key)?;
+    let all = check(&key)?;
     let cfg = Config {
         model: models::best(&all, MODEL),
         fast_model: models::best(&all, FAST_MODEL),
@@ -77,19 +85,11 @@ pub(super) fn save(app: &Arc<App>, key: &str) -> Result<(), String> {
         models: all,
         saved_at: now(),
     };
-    {
-        let mut st = app.st.lock().unwrap();
-        st.gemini = Some(cfg.clone());
-        let end = public(&st)["keyEnd"].as_str().unwrap_or("").to_string();
-        app.log(&mut st, format!("Gemini: key …{end} saved; type cgemini in a new terminal"));
-        app.save(&st);
-    }
-    app.gemini_watch.off();
-    script::write(app, &cfg).map_err(|e| format!("Key saved, but cgemini.cmd could not be written: {e}"))?;
-    path::add(&script::bin_dir(app)).map_err(|e| format!("Key saved, but the cgemini folder is not on PATH: {e}"))
+    setup::commit(app, cfg, by)
 }
 
 fn set_model(app: &Arc<App>, body: &Value) -> Result<(), String> {
+    let _one = setup::lock();
     let cfg = {
         let mut st = app.st.lock().unwrap();
         let c = st.gemini.as_mut().ok_or("No Gemini key is saved")?;
@@ -112,6 +112,7 @@ fn set_model(app: &Arc<App>, body: &Value) -> Result<(), String> {
 }
 
 fn remove(app: &Arc<App>, _body: &Value) -> Result<(), String> {
+    let _one = setup::lock();
     {
         let mut st = app.st.lock().unwrap();
         if st.gemini.take().is_none() {

@@ -83,3 +83,41 @@ pub(crate) fn call(port: u16, method: &str, path: &str, headers: &[(&str, &str)]
         Err(e) => panic!("{e}"),
     }
 }
+
+// Copied-key shaped fakes (AIza + 35): never valid at Google either.
+pub(crate) const KEY_A: &str = "AIzaFAKEaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub(crate) const KEY_B: &str = "AIzaFAKEbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+// A Google check that says yes at once, with config()'s models.
+pub(crate) fn google_ok(_key: &str) -> Result<Vec<String>, String> {
+    Ok(config().models)
+}
+
+// One step held until the test lets it go, so a race runs in the same order every time:
+// the thread that reaches `pass` says so and waits; `reached` waits for that; `open` lets
+// it go.
+#[derive(Default)]
+pub(crate) struct Gate {
+    s: Mutex<(bool, bool)>, // (reached, open)
+    cv: std::sync::Condvar,
+}
+
+impl Gate {
+    pub(crate) fn pass(&self) {
+        let mut s = self.s.lock().unwrap();
+        s.0 = true;
+        self.cv.notify_all();
+        while !s.1 {
+            s = self.cv.wait(s).unwrap();
+        }
+    }
+    pub(crate) fn reached(&self) {
+        let s = self.s.lock().unwrap();
+        let (s, t) = self.cv.wait_timeout_while(s, Duration::from_secs(10), |s| !s.0).unwrap();
+        assert!(s.0 && !t.timed_out(), "the held step was never reached");
+    }
+    pub(crate) fn open(&self) {
+        self.s.lock().unwrap().1 = true;
+        self.cv.notify_all();
+    }
+}

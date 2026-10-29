@@ -12,10 +12,20 @@ The user's normal `claude` and its login are never touched. Why these choices:
 - Click: opens `https://aistudio.google.com/app/apikey` in the browser and a dialog with
   three steps (sign in to Google; click *Create API key*; copy it and paste it here), a
   key field, **Done** / Cancel. No email or password is asked.
-- Done: `POST /api/gemini/key {key}`. The app checks the key with Google (list models,
-  10 s); a bad key is refused with Google's message. A good one is saved in state.json
-  (`gemini.key`, same file and rights as the Claude logins), with a fresh random proxy
-  token, and the `cgemini` command is written (below).
+- Done: `POST /api/gemini/key {key}`. A key is printable ASCII without spaces, 203
+  characters at most (`AQ.` + 200, the longest one Copy to add takes: one rule for both).
+  The app checks the key with Google (list models, 10 s); a bad key is refused with
+  Google's message. A good one gets a fresh random proxy token; the `cgemini` command and
+  its profile are written and its folder put on PATH (below) first, and only when all of
+  that worked is the key saved in state.json (`gemini.key`, same file and rights as the
+  Claude logins), so the page never says "ready" before `cgemini` is.
+- A step that fails saves nothing: cgemini.cmd and its profile go back to the key saved
+  before (or the script away, with none), the error shows in the dialog, and Done (or a
+  new copy) tries again.
+- One setup at a time, for the whole app: saving a key, changing the model, removing it
+  and Use this's rewrite of the script take turns, so the token in state.json and the one
+  in cgemini.cmd and its profile are always the same (two saves at once, a copied key and
+  a pasted one, would otherwise leave one token in each: HTTP 401).
 - Then the card is short, for someone who has never used a terminal (seen 2026-10-29:
   "Ready · key …", "Model", "open a new terminal", then three steps, were all too much):
   - "Gemini is ready (free)." and one button, **Use this**: it opens a new window with
@@ -47,7 +57,13 @@ project again (name kept) → Create key. Google does not make a key by itself.)
   `AQ.` + 20-200 of `[0-9A-Za-z_.-]` (the format AI Studio gives since May 2026).
   Anything else is ignored: never stored, logged or sent anywhere.
 - A key seen: checked with Google and saved exactly as `POST /api/gemini/key` does; the
-  watch ends. A key Google refuses: the error shows and the watch goes on.
+  watch ends. A key Google refuses, or a setup step that fails: the error shows and the
+  watch goes on.
+- The save goes on only if this watch is still the live one when its setup starts (looked
+  at under the setup's turn, so a close cannot slip in between): the dialog closed, or
+  closed and opened again, or another key saved while Google was asked, and the key seen
+  is dropped, nothing written. Only a key pasted on the page ends any watch; a watch ends
+  only its own, never a newer one.
 - /api/state: `geminiWatch: null | {state: "waiting"|"checking"|"error", error, until}`.
   The page asks for the state every second while the dialog is open.
 - Pasting by hand stays, under "Or paste it here".
@@ -78,7 +94,8 @@ screen they shrink to fit. The help page shows the same pictures.
   app (in case the port changed: the app keeps it when it can, modules.md) and when the
   key is saved; deleted with the key.
 - That folder is added once to the user's PATH (HKCU\Environment, then a
-  WM_SETTINGCHANGE broadcast) when the key is first saved; new terminals find `cgemini`.
+  WM_SETTINGCHANGE broadcast) when the key is saved, before state.json has it (above):
+  a key in state.json means the folder is on PATH; new terminals find `cgemini`.
   Removed from PATH with the key.
 - The script: `setlocal` (so nothing leaks into the terminal after it ends), checks the
   app answers (`curl -s http://127.0.0.1:<port>/v1/ping`), else prints "Claude Usage is

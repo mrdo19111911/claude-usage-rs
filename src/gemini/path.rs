@@ -39,11 +39,25 @@ pub(crate) fn remove(dir: &Path) -> Result<(), String> {
     change(|old| path_without(old, &dir.display().to_string()))
 }
 
-// Tests never touch the real PATH: only the pure helpers above are tested.
-#[cfg(any(not(windows), test))]
+// Elsewhere than Windows: no user PATH of this kind to change.
+#[cfg(all(not(windows), not(test)))]
 fn change(edit: impl Fn(&str) -> String) -> Result<(), String> {
     let _ = edit;
     Ok(())
+}
+
+// Tests never touch the real PATH: nothing happens, or, with FAIL set on this thread, a
+// PATH that cannot be changed.
+#[cfg(test)]
+thread_local!(pub(crate) static FAIL: std::cell::Cell<bool> = Default::default());
+
+#[cfg(test)]
+fn change(edit: impl Fn(&str) -> String) -> Result<(), String> {
+    let _ = edit;
+    match FAIL.with(|f| f.get()) {
+        true => Err("could not change PATH (error 5)".into()),
+        false => Ok(()),
+    }
 }
 
 #[cfg(all(windows, not(test)))]
