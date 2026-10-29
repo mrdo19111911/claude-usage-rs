@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 
 // Every URL the fake Google was asked for, and whether the key header came with it.
 static SEEN: Mutex<Vec<(String, bool)>> = Mutex::new(vec![]);
+// Every URL with the body sent to it.
+static BODIES: Mutex<Vec<(String, String)>> = Mutex::new(vec![]);
 
 fn chunk(text: &str) -> String {
     format!("data: {{\"candidates\":[{{\"content\":{{\"role\":\"model\",\"parts\":[{{\"text\":\"{text}\"}}]}}}}]}}\r\n\r\n")
@@ -32,10 +34,14 @@ fn fake_google() {
     });
 }
 
-fn answer(rq: tiny_http::Request) {
+fn answer(mut rq: tiny_http::Request) {
     let url = rq.url().to_string();
     let keyed = rq.headers().iter().any(|h| h.field.equiv("x-goog-api-key") && h.value.as_str() == KEY);
     SEEN.lock().unwrap().push((url.clone(), keyed));
+    let mut sent = String::new();
+    let _ = rq.as_reader().read_to_string(&mut sent);
+    // A failed test that held the lock must not fail the others.
+    BODIES.lock().unwrap_or_else(|e| e.into_inner()).push((url.clone(), sent));
     let json = |code: u16, body: &str| tiny_http::Response::from_string(body).with_status_code(code);
     if url.contains("gemini-busy") {
         let body = r#"{"error":{"code":429,"message":"Quota exceeded","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"7s"}]}}"#;
@@ -59,7 +65,12 @@ fn answer(rq: tiny_http::Request) {
 }
 
 fn ask(port: u16, model: &str, stream: bool, marks: &[&str]) -> (String, Vec<u128>) {
-    let body = format!(r#"{{"model":"{model}","max_tokens":100,"stream":{stream},"messages":[{{"role":"user","content":"hi"}}]}}"#);
+    ask_with(port, model, stream, "", marks)
+}
+
+// `extra`: more fields for the request body, each starting with a comma.
+fn ask_with(port: u16, model: &str, stream: bool, extra: &str, marks: &[&str]) -> (String, Vec<u128>) {
+    let body = format!(r#"{{"model":"{model}","max_tokens":100,"stream":{stream}{extra},"messages":[{{"role":"user","content":"hi"}}]}}"#);
     let mut s = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
     let head = format!("POST /v1/messages?beta=true HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
@@ -147,4 +158,20 @@ fn a_busy_model_hands_over_to_the_other_one_once() {
     assert!(all.starts_with("HTTP/1.1 429"), "{all}");
     let seen = SEEN.lock().unwrap();
     assert_eq!(seen.iter().filter(|(u, _)| u.contains("gemini-busy-a") || u.contains("gemini-busy-b")).count(), 2);
+}
+
+#[test]
+fn each_try_is_translated_for_its_own_model() {
+    fake_google();
+    // Gemini 3 busy, then Gemini 2.5, which refuses a thinkingLevel.
+    let cfg = Config { model: "gemini-busy-3".into(), fast_model: "gemini-2.5-flash-spare".into(), ..config() };
+    let (_app, port) = server(Some(cfg));
+    let thinking = r#","thinking":{"type":"adaptive"},"output_config":{"effort":"high"}"#;
+    let (all, _) = ask_with(port, "claude-sonnet-4-5", true, thinking, &[]);
+    assert!(all.starts_with("HTTP/1.1 200"), "{all}");
+    let bodies = BODIES.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let sent = |m: &str| bodies.iter().find(|(u, _)| u.contains(m)).map(|(_, b)| b.clone()).expect(m);
+    assert!(sent("gemini-busy-3").contains("\"thinkingLevel\""));
+    let old = sent("gemini-2.5-flash-spare");
+    assert!(old.contains("\"includeThoughts\"") && !old.contains("thinkingLevel"), "{old}");
 }

@@ -10,7 +10,9 @@ pub(super) fn stop_reason(finish: Option<&str>, called: bool) -> Result<&'static
     match finish {
         // No finishReason: the stream was cut, and a cut answer must not look whole.
         None => Err("Gemini's answer ended before it was finished".into()),
-        Some("MAX_TOKENS") => Ok("max_tokens"),
+        // CONTINUATION: Gemini 4 hit its per-request limit before the end. Cut, as
+        // OpenRouter says it; not resumed with continuationToken (spec, "The proxy").
+        Some("MAX_TOKENS" | "CONTINUATION") => Ok("max_tokens"),
         Some(
             "SAFETY" | "RECITATION" | "BLOCKLIST" | "PROHIBITED_CONTENT" | "SPII" | "LANGUAGE" | "IMAGE_SAFETY"
             | "IMAGE_PROHIBITED_CONTENT" | "IMAGE_RECITATION",

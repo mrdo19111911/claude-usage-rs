@@ -11,7 +11,7 @@ fn with(extra: Value) -> Value {
     for (k, v) in extra.as_object().unwrap() {
         r[k] = v.clone();
     }
-    to_gemini(&r, &Sigs::default(), false).unwrap()
+    to_gemini(&r, r["model"].as_str().unwrap(), &Sigs::default(), false).unwrap()
 }
 
 #[test]
@@ -43,6 +43,18 @@ fn thinking_asks_for_thoughts_and_effort_sets_the_level() {
     assert_eq!(old["generationConfig"]["thinkingConfig"], json!({ "includeThoughts": true, "thinkingBudget": 24576 }));
 }
 
+#[test]
+fn thinking_follows_the_model_called_not_the_name_asked() {
+    let mut r = base();
+    r["model"] = json!("claude-sonnet-4-5");
+    r["thinking"] = json!({ "type": "enabled", "budget_tokens": 50000 });
+    r["output_config"] = json!({ "effort": "high" });
+    let pro = to_gemini(&r, "gemini-2.5-pro", &Sigs::default(), false).unwrap();
+    assert_eq!(pro["generationConfig"]["thinkingConfig"], json!({ "includeThoughts": true, "thinkingBudget": 32768 }));
+    let new = to_gemini(&r, "gemini-3.8-flash", &Sigs::default(), false).unwrap();
+    assert_eq!(new["generationConfig"]["thinkingConfig"], json!({ "includeThoughts": true, "thinkingLevel": "high" }));
+}
+
 fn tools() -> Value {
     json!([
         { "name": "Read", "description": "Read a file", "input_schema": {
@@ -63,7 +75,7 @@ fn tools_become_function_declarations() {
     }]}]));
     let mut r = base();
     r["tools"] = tools();
-    let old = to_gemini(&r, &Sigs::default(), true).unwrap();
+    let old = to_gemini(&r, "gemini-3.8-flash", &Sigs::default(), true).unwrap();
     assert_eq!(old["tools"][0]["functionDeclarations"][0]["parameters"], json!({
         "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"]
     }));
@@ -82,7 +94,7 @@ fn tool_choice_maps_and_needs_tools() {
 
 #[test]
 fn a_request_without_messages_is_refused() {
-    assert!(to_gemini(&json!({ "max_tokens": 1 }), &Sigs::default(), false).is_err());
+    assert!(to_gemini(&json!({ "max_tokens": 1 }), "gemini-3.8-flash", &Sigs::default(), false).is_err());
 }
 
 #[test]

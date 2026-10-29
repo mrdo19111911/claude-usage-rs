@@ -110,3 +110,26 @@ fn legacy_merges_all_of_and_fills_what_gemini_needs() {
         "empty": { "type": "object" }
     }}));
 }
+
+#[test]
+fn legacy_takes_a_ref_to_a_boolean_schema_as_any() {
+    // A panic here kills the release app (panic = "abort").
+    let s = json!({ "type": "object", "$defs": { "Any": true, "None": false },
+        "properties": { "p": { "$ref": "#/$defs/Any", "description": "payload" }, "q": { "$ref": "#/$defs/None" } } });
+    assert_eq!(legacy(&s)["properties"], json!({
+        "p": { "type": "object", "description": "payload" },
+        "q": { "type": "object" }
+    }));
+}
+
+#[test]
+fn legacy_any_of_branches_keep_the_parent_properties() {
+    let s = json!({ "type": "object",
+        "properties": { "command": { "type": "string" }, "script": { "type": "string" } },
+        "anyOf": [{ "required": ["command"] }, { "required": ["script"] }] });
+    let props = json!({ "command": { "type": "string" }, "script": { "type": "string" } });
+    assert_eq!(legacy(&s), json!({ "anyOf": [
+        { "type": "object", "properties": props, "required": ["command"] },
+        { "type": "object", "properties": props, "required": ["script"] }
+    ]}));
+}
