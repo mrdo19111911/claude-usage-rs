@@ -49,3 +49,7 @@ mod tests;
 #[cfg(test)]
 #[path = "web_gemini_tests.rs"]
 mod gemini_tests;
+
+#[cfg(test)]
+#[path = "web_gemini_dialog_tests.rs"]
+mod gemini_dialog_tests;

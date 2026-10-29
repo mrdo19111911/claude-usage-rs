@@ -23,7 +23,14 @@ The user's normal `claude` and its login are never touched. Why these choices:
   - One line: "Free has a daily limit and can be slower than Claude."
   - Folded under "Advanced" (a `<details>`): the model select (the key's Gemini models
     that write text, no image, speech, embedding or robotics ones; default below),
-    "Small side jobs use: …", and "Or type `cgemini` in any terminal" with Copy.
+    "Small side jobs use: …", and "Or type `cgemini` in a new terminal" with Copy (a
+    terminal opened before the key was saved still has the old PATH).
+  - Free only for Flash models: of the models the research lists (`docs/SO_SANH_GEMINI_PROXY.md`
+    §5, 2026-10-29), every Flash and Flash Lite one has a free tier, `gemini-4-argon` and
+    `gemini-3.1-pro-preview` have none (Pro: 0 requests). A model without "flash" in its
+    name is not known to be free: in the select it reads "… (may cost money)", and when the
+    model or the side-jobs model is one, the card says "Gemini is ready." (no "free") and the
+    line is "This model may not be free. Pick a Flash one under Advanced to stay free."
   - "Remove".
   `POST /api/gemini/model {model}`, `DELETE /api/gemini`.
 - Just after the key is saved, a green line above: "All set! Press Use this to start."
@@ -43,6 +50,17 @@ project again (name kept) → Create key. Google does not make a key by itself.)
 - Opening the dialog sends `POST /api/gemini/watch {on:true}`; closing it `{on:false}`.
   While on (10 minutes at most), the app looks at the Windows clipboard every 0.5 s
   (only when its sequence number changes, and once at the start).
+- 10 minutes at most, counted by the page from when the dialog opened: it sends `on:true`
+  again only when the app has lost the watch (`geminiWatch` null, e.g. the app restarted)
+  and never to make it longer. At 10 minutes the page sends `{on:false}`, stops asking for
+  the state, opens "Or paste it here" and says "Stopped looking after 10 minutes: paste it
+  below." (The app's own 10-minute end stays, for a page that is gone.)
+- Leaving the page (tab closed, reloaded, gone to another page: `pagehide`) with the dialog
+  open sends `{on:false}` with `keepalive`, so it still goes out as the page unloads. A
+  page brought back from the browser's back/forward cache closes the dialog.
+- Each opening of the dialog is a new session: a pasted key's answer that comes back after
+  the dialog was closed (or closed and opened again) changes nothing in it: no error, no
+  "Checking…" ended, no closing. A key it saved still shows with the page's next state.
 - Only text that is exactly a Google key counts: `AIza` + 35 of `[0-9A-Za-z_-]`, or
   `AQ.` + 20-200 of `[0-9A-Za-z_.-]` (the format AI Studio gives since May 2026).
   Anything else is ignored: never stored, logged or sent anywhere.
