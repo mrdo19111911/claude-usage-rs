@@ -6,6 +6,7 @@
    .tableview .scroll; series colours (:root --s-five --s-week); range filter (.filters .seg);
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
+   top bar and updates (.topbar .upd-pill .upd [hidden]); help page (.help);
    narrow screens (@media). */
   :root {
     --bg: #0f0f10; --card: #1a1a1b; --row-active: #1d2229; --line: #2c2c2e; --grid: #2a2a2c;
@@ -104,6 +105,23 @@
   .lrow .side-bars { grid-column: 1 / -1; margin-top: 4px; }
   .lacct { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
   .lrow .use { min-width: 0; align-items: flex-end; }
+  /* Top bar (name, version, Help, "Update to X") and the Settings card's "Updates" row. */
+  [hidden] { display: none !important; }
+  .topbar { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; margin: 0 6px 14px; }
+  .topbar a, .help a { color: var(--blue); text-decoration: none; }
+  .topbar a:hover, .help a:hover { text-decoration: underline; }
+  .upd-pill { margin-left: auto; border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 600; background: transparent; border: 1.5px solid var(--green); color: var(--green); }
+  .upd-pill:hover { background: var(--green); color: #111; }
+  .upd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
+  .upd a { color: var(--blue); }
+  .upd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .upd .btn:disabled { opacity: .5; cursor: default; }
+  /* help.html: one <details> per question. */
+  .help { max-width: 760px; }
+  .help h1 { margin: 6px 0 4px; font-size: 22px; }
+  .help details { border-top: 1px solid var(--line); padding: 12px 0; }
+  .help summary { cursor: pointer; font-weight: 600; }
+  .help details p { margin: 8px 0 0; }
   @media (max-width: 760px) {
     .sides, .side-bars { grid-template-columns: 1fr; }
     .card { padding: 16px; }

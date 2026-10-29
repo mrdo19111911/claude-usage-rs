@@ -26,7 +26,8 @@ another module needs them.
 - Hover the icon: widget above it — Claude CLI, Claude Desktop, other accounts; reset
   times as time left plus this computer's local clock time ("4h39m · 22:20").
   Pointer away from icon and widget for 3 ticks of 150 ms: widget hides.
-- Click icon or widget: dashboard. Right-click icon: Open dashboard / Pin widget / Exit.
+- Click icon or widget: dashboard. Right-click icon: greyed version line / Open dashboard /
+  Help / Check for updates / Pin widget / Exit (tray/menu.rs; updates: specs/update.md).
 - Pinned widget: always on top, drags anywhere, ✕ unpins; place kept in `widget.json`.
 - Exit (menu or dashboard button): icon removed from the tray, then the program ends.
 - Exit while a Claude Desktop switch runs waits for it (killed midway it skips its

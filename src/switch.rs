@@ -11,7 +11,8 @@ impl App {
         let act = move |act: tray::Act| match act {
             tray::Act::Cli(id) => b.activate(&id, "manual"),
             tray::Act::Desktop(uuid) => b.start_desktop_switch(Some(uuid)),
-            tray::Act::CheckUpdate | tray::Act::InstallUpdate => Err("updates: not built yet".into()),
+            tray::Act::CheckUpdate => b.check_update(),
+            tray::Act::InstallUpdate => b.install_update(),
         };
         (Arc::new(move || a.public_state()), Arc::new(act))
     }

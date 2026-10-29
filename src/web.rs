@@ -8,6 +8,7 @@ const JS: &str = "text/javascript; charset=utf-8";
 pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
     match path {
         "/" | "/index.html" => Some((include_str!("web/index.html"), HTML)),
+        "/help.html" => Some((include_str!("web/help.html"), HTML)),
         "/style.css" => Some((include_str!("web/style.css"), CSS)),
         "/js/base.js" => Some((include_str!("web/js/base.js"), JS)),
         "/js/rows.js" => Some((include_str!("web/js/rows.js"), JS)),
@@ -16,6 +17,7 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
         "/js/sides.js" => Some((include_str!("web/js/sides.js"), JS)),
         "/js/chart.js" => Some((include_str!("web/js/chart.js"), JS)),
         "/js/settings.js" => Some((include_str!("web/js/settings.js"), JS)),
+        "/js/update.js" => Some((include_str!("web/js/update.js"), JS)),
         "/js/main.js" => Some((include_str!("web/js/main.js"), JS)),
         _ => None,
     }

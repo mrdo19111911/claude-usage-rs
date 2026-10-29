@@ -11,6 +11,13 @@ pub(crate) struct Settings {
     pub(crate) threshold: i64,
     pub(crate) auto_switch: bool,
     pub(crate) poll_seconds: u64,
+    // Install a newer release as soon as a check finds it (absent in older saved state: on).
+    #[serde(default = "yes")]
+    pub(crate) auto_update: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -100,7 +107,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, auto_switch: true, poll_seconds: 120 },
+            settings: Settings { threshold: 95, auto_switch: true, poll_seconds: 120, auto_update: true },
             accounts: vec![],
             active_id: None,
             events: vec![],

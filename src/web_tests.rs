@@ -29,9 +29,12 @@ fn serves_the_page() {
 #[test]
 fn serves_every_file_the_page_loads() {
     let page = asset("/").unwrap().0;
-    let css = attrs(page, "href");
+    let (css, links): (Vec<_>, Vec<_>) = attrs(page, "href").into_iter().partition(|h| h.ends_with(".css"));
     let js = attrs(page, "src");
     assert!(!css.is_empty() && !js.is_empty(), "the page loads its style and scripts from files");
+    for href in links {
+        assert_eq!(asset(&format!("/{href}")).unwrap_or_else(|| panic!("{href} not served")).1, HTML, "{href}");
+    }
     for href in css {
         let (text, ctype) = asset(&format!("/{href}")).unwrap_or_else(|| panic!("{href} not served"));
         assert_eq!(ctype, CSS, "{href}");
@@ -96,4 +99,37 @@ fn not_started_windows_and_model_limits_are_shown() {
     assert!(base.contains("not started yet"));
     let rows = asset("/js/rows.js").unwrap().0;
     assert!(rows.contains("u.scoped") && rows.contains("class=\"scoped\""), "a chip per model limit");
+}
+
+#[test]
+fn help_page_is_served_and_linked() {
+    let (help, ctype) = asset("/help.html").expect("help.html served");
+    assert_eq!(ctype, HTML);
+    assert!(help.contains("<title>Claude Usage — Help</title>"));
+    assert!(help.contains("href=\"style.css\""), "same style as the dashboard");
+    assert!(help.contains("href=\"/\""), "a way back to the dashboard");
+    assert!(help.matches("<details").count() >= 10, "one <details> per topic");
+    for w in ["5-hour", "Weekly", "not started yet", "Fable", "Claude CLI", "Claude Desktop",
+              "Auto-switch", "+ Add account", "429", "widget", "update", "uninstall", ".claude-usage-dashboard"] {
+        assert!(help.to_lowercase().contains(&w.to_lowercase()), "help covers {w}");
+    }
+    let page = asset("/").unwrap().0;
+    assert!(page.contains("href=\"help.html\""), "the top bar links Help");
+}
+
+#[test]
+fn the_top_bar_shows_the_version_and_update() {
+    let page = asset("/").unwrap().0;
+    let top = page.find("class=\"topbar\"").expect("a top bar");
+    assert!(top < page.find("class=\"card\"").unwrap(), "above the first card");
+    for id in ["version", "updPill", "autoUpdate", "updCheck", "updInstall", "updStatus", "updRow"] {
+        assert!(page.contains(&format!("id=\"{id}\"")), "{id} in the page");
+    }
+    assert!(page.contains("src=\"js/update.js\""), "update.js loaded");
+    assert!(page.find("js/update.js").unwrap() < page.find("js/main.js").unwrap(), "before main.js");
+    let js = asset("/js/update.js").expect("update.js served").0;
+    for s in ["function renderUpdate", "/api/update/check", "/api/update/install", "autoUpdate", "S.version"] {
+        assert!(js.contains(s), "update.js has {s}");
+    }
+    assert!(asset("/js/main.js").unwrap().0.contains("renderUpdate()"), "drawn with the rest");
 }

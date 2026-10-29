@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Usage — Help</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="help">
+  <a href="/">← Back to the dashboard</a>
+  <h1>Help</h1>
+  <p class="note">Short answers. Click a question to open it.</p>
+
+  <section class="card">
+    <details open><summary>What are the two limits?</summary>
+      <p>Anthropic gives each account two limits. The <b>5-hour</b> window starts with your first message and resets 5 hours later. The <b>Weekly</b> limit covers the whole week and resets once a week.</p>
+      <p>The figures are Anthropic's official ones.</p>
+    </details>
+
+    <details><summary>How do I read the bars?</summary>
+      <p>Each bar is the share of a limit used; the text under it says how much is <b>% left</b> and when it resets. Green is fine, amber is getting close, red is nearly or fully used.</p>
+      <p>On the widget's bars a light tick shows how much of the window's time has passed. A bar past its tick means you are using it faster than the window allows: at this pace it runs out before it resets.</p>
+      <p><b>Not started yet</b> means no use in that window yet, so there is no reset time.</p>
+    </details>
+
+    <details><summary>What is "Fable 0%" under the bars?</summary>
+      <p>Some models have their own weekly limit on top of the two above. Each one shows as a small chip with the model's name, for example <b>Fable 12%</b>; its reset time is in the tooltip.</p>
+    </details>
+
+    <details><summary>Claude CLI and Claude Desktop: what's the difference?</summary>
+      <p><b>Claude CLI</b> is Claude Code in a terminal and in VS Code; they share one sign-in. <b>Claude Desktop</b> is the desktop app and keeps its own sign-in.</p>
+      <p>The two are separate: switching one never changes the other.</p>
+    </details>
+
+    <details><summary>How do I switch accounts? What is auto-switch?</summary>
+      <p>Click <b>Use here</b> on an account. Claude CLI switches at once. Claude Desktop closes and opens again on that account, so tasks running in it stop.</p>
+      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches the set % (95 by default). It never touches Claude Desktop. Accounts switched off are skipped.</p>
+    </details>
+
+    <details><summary>How do I add an account?</summary>
+      <p>Claude CLI: click <b>+ Add account</b> and sign in on the page that opens in your browser. The account shows up here by itself within about 10 s.</p>
+      <p>Claude Desktop: click its <b>+ Add account</b>. Claude Desktop opens again signed out; whichever account you sign in with is saved, and later switches need no sign-in.</p>
+    </details>
+
+    <details><summary>How often are the figures checked? What does 429 mean?</summary>
+      <p>Every account every 2 minutes by default (change it in Settings). Near a limit more often: from 70% used twice as often, from 85% four times, from 95% eight times, at most every 15 s. An account at a 100% limit is not checked again until that limit resets.</p>
+      <p><b>HTTP 429</b> means Anthropic asked us to slow down. The app waits before asking again: 5 minutes, then twice as long each time, up to 1 hour.</p>
+    </details>
+
+    <details><summary>How do I use the widget?</summary>
+      <p>Hover the tray icon to see the widget. To keep it on screen, right-click the icon and choose <b>Pin widget</b>; drag it anywhere.</p>
+      <p>The <b>CLI</b> and <b>Desktop</b> buttons next to an account switch that side to it. A click elsewhere on the hover widget opens the dashboard.</p>
+    </details>
+
+    <details><summary>How do updates work?</summary>
+      <p>The app checks GitHub releases for a new version when it starts and every 6 hours, or when you click <b>Check for updates</b> in Settings or the tray menu.</p>
+      <p>If <b>Install updates automatically</b> is ticked, a new version is installed by itself; otherwise click <b>Update to …</b> at the top. The app closes and starts again on the new version.</p>
+    </details>
+
+    <details><summary>Where is my data kept?</summary>
+      <p>Everything stays on this computer, in <code>%USERPROFILE%\.claude-usage-dashboard</code>. Sign-in tokens are only ever sent to Anthropic.</p>
+    </details>
+
+    <details><summary>How do I uninstall it?</summary>
+      <p>Windows <b>Settings → Apps</b>, find Claude Usage, click Uninstall. Your saved accounts are kept.</p>
+    </details>
+  </section>
+</main>
+</body>
+</html>

@@ -20,6 +20,8 @@ pub(crate) struct App {
     pub(crate) login: Mutex<Option<login::Pending>>,
     // The email Claude Desktop is to be signed in to next, after a sign-out for it.
     pub(crate) desktop_expect: Mutex<Option<String>>,
+    // Checking for and installing a newer release (update/).
+    pub(crate) update: Mutex<update::Status>,
 }
 
 impl App {

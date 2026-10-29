@@ -1,4 +1,4 @@
-// The tray's messages: hover, click, menu, refresh, exit.
+// The tray's messages: hover, click, menu (menu.rs), refresh, exit.
 
 use super::*;
 
@@ -53,27 +53,6 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
 
 pub(super) fn open_dashboard() {
     crate::open_browser(&ui(|u| u.url.clone()));
-}
-
-pub(super) unsafe fn menu(x: i32, y: i32) {
-    let (msg, pin_on) = ui(|u| (u.msg, u.pin_on));
-    let m = CreatePopupMenu();
-    AppendMenuW(m, MF_STRING, ID_OPEN, wide("Open dashboard").as_ptr());
-    AppendMenuW(m, MF_STRING | if pin_on { MF_CHECKED } else { 0 }, ID_PIN, wide("Pin widget on the desktop").as_ptr());
-    AppendMenuW(m, MF_SEPARATOR, 0, ptr::null());
-    AppendMenuW(m, MF_STRING, ID_QUIT, wide("Exit").as_ptr());
-    // Without this the menu stays open after a click elsewhere.
-    SetForegroundWindow(msg);
-    let cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, x, y, 0, msg, ptr::null()) as usize;
-    PostMessageW(msg, WM_NULL, 0, 0);
-    DestroyMenu(m);
-    match cmd {
-        ID_OPEN => open_dashboard(),
-        ID_PIN if pin_on => unpin(),
-        ID_PIN => pin(None),
-        ID_QUIT => ask_exit(true),
-        _ => {}
-    }
 }
 
 // From any thread: the tray thread takes its icon out, then ends the program.

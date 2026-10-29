@@ -36,6 +36,8 @@ impl App {
             "polling": self.polling.load(Ordering::Relaxed),
             "loggingIn": self.login.lock().unwrap().as_ref().is_some_and(|p| t - p.started < login::PENDING_MS),
             "demo": self.demo,
+            "version": update::VERSION,
+            "update": *self.update.lock().unwrap(),
             "settings": st.settings,
             "activeId": st.active_id,
             "events": st.events.iter().take(15).collect::<Vec<_>>(),
