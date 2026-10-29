@@ -71,12 +71,13 @@ def fill():
             git("rm", "-rq", "--cached", "--ignore-unmatch", p.name, cwd=WT)
             subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", str(p)] if p.is_dir() else ["cmd", "/c", "del", "/q", str(p)])
     for name in public_files() + [README]:
-        text = git("show", f"{SRC_REF}:{name}")
-        if name.endswith(".rs"):
-            text = strip_tests(text)
         dest = WT / ("README.md" if name == README else name)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(text, encoding="utf-8", newline="")
+        if name.endswith(".rs"):
+            dest.write_text(strip_tests(git("show", f"{SRC_REF}:{name}")), encoding="utf-8", newline="")
+        else:
+            # Byte for byte: images (the dialog's screenshots) are not text.
+            dest.write_bytes(subprocess.run(["git", "show", f"{SRC_REF}:{name}"], cwd=ROOT, capture_output=True, check=True).stdout)
 
 
 def check():
