@@ -5,6 +5,7 @@
 // parameters, so tests use neither the real clipboard nor Google.
 
 use crate::*;
+use super::key::key_in;
 
 // The watch ends by itself after this, if the dialog is left open.
 pub(crate) const WATCH_MS: i64 = 10 * 60_000;
@@ -69,6 +70,12 @@ impl Watch {
         }
     }
 
+    // Whether `run` is the live watch: not closed, timed out or ended by a saved key.
+    pub(crate) fn live(&self, run: u64) -> bool {
+        let i = self.0.lock().unwrap();
+        i.run == run && i.now.is_some()
+    }
+
     // Sets the state while `run` is the live watch (None ends it); false when it is not.
     fn set(&self, run: u64, next: Option<(&'static str, Option<String>)>) -> bool {
         let mut i = self.0.lock().unwrap();
@@ -124,19 +131,6 @@ impl Watch {
     }
 }
 
-// The key in the copied text, if the text (trimmed) is exactly one: `AIza` + 35 of
-// [0-9A-Za-z_-], or `AQ.` + 20-200 of [0-9A-Za-z_.-] (AI Studio's format since May 2026).
-pub(crate) fn key_in(text: &str) -> Option<String> {
-    let t = text.trim();
-    let all = |s: &str, extra: &str| s.chars().all(|c| c.is_ascii_alphanumeric() || extra.contains(c));
-    let ok = match (t.strip_prefix("AIza"), t.strip_prefix("AQ.")) {
-        (Some(rest), _) => rest.len() == 35 && all(rest, "_-"),
-        (_, Some(rest)) => (20..=200).contains(&rest.len()) && all(rest, "_.-"),
-        _ => false,
-    };
-    ok.then(|| t.to_string())
-}
-
 // Clipboard text is the user's: zeroed before its memory is given back.
 fn wipe(s: String) {
     let mut b = s.into_bytes();
@@ -151,12 +145,18 @@ pub(crate) fn start(app: &Arc<App>, run: u64) {
     let app = app.clone();
     thread::spawn(move || {
         let src = real();
-        let save = |key: &str| super::api::save(&app, key);
+        let save = |key: &str| save_for(&app, run, key, &super::upstream::list_models);
         let mut seen = None;
         while app.gemini_watch.tick(run, now(), &mut seen, &src, &save) {
             thread::sleep(TICK);
         }
     });
+}
+
+// What the watcher of `run` does with a key: `check` it (with Google, or a test's), save it
+// if `run` is still the live watch by then (setup.rs).
+pub(super) fn save_for(app: &Arc<App>, run: u64, key: &str, check: super::api::Check) -> Result<(), String> {
+    super::api::save_by(app, key, check, super::setup::By::Watch(run))
 }
 
 // Tests never read the real clipboard: it may hold anything of the user's.
