@@ -17,7 +17,8 @@ The user's normal `claude` and its login are never touched. Why these choices:
   (`gemini.key`, same file and rights as the Claude logins), with a fresh random proxy
   token, and the `cgemini` command is written (below).
 - Then the card shows: "Ready: open a new terminal and type `cgemini`", the model in use
-  (a select: the Gemini models of the key, default as in the research), "Remove".
+  (a select: the key's Gemini models that write text, no image, speech, embedding or
+  robotics ones; default below), "Remove".
   `POST /api/gemini/model {model}`, `DELETE /api/gemini`.
 - The key itself is never sent back to the page (only its last 4 characters).
 
@@ -71,6 +72,8 @@ screen they shrink to fit. The help page shows the same pictures.
   `ANTHROPIC_AUTH_TOKEN`: seen 2026-10-29, Claude Code signed in to claude.ai sends its own
   login in `Authorization` and ignores `ANTHROPIC_AUTH_TOKEN` (then retries a 401 eight
   times). The proxy never logs or keeps that login.
+- `claude --strict-mcp-config %*`: no MCP servers. Seen 2026-10-29: 74 of 102 tools were
+  MCP ones (half of a 214 KB request), and a free key has 250K tokens a minute.
 - Finding `claude`: on PATH first; else `%USERPROFILE%\.localin\claude.exe`, where Claude
   Code's own installer puts it (seen 2026-10-29: installed there, but that folder was not on
   PATH). Neither: prints "Claude Code is not installed: see https://claude.com/claude-code"
@@ -86,7 +89,13 @@ screen they shrink to fit. The help page shows the same pictures.
   `POST /v1/messages/count_tokens`, `GET /v1/models`, `GET /v1/ping`: as the research says.
 - Translation rules (request, tool schemas, thought signatures, stream events, stop
   reasons, errors, script variables, default models): `docs/SO_SANH_GEMINI_PROXY.md` →
-  "Chọn". Models: `gemini-3.8-flash`, and `gemini-3.5-flash-lite` for Claude's "haiku".
+  "Chọn". Models: `gemini-3.5-flash-lite`, and `gemini-3.1-flash-lite` for Claude's
+  "haiku". Why Lite (AI Studio's Rate Limit page, free tier, 2026-10-29): Flash models give
+  20 requests a day and 5 a minute, Flash Lite 500 a day and 15 a minute, each model its
+  own count; Gemma's 16K tokens a minute is less than one Claude Code request; Pro models
+  0. A key without the default: the newest stable Flash Lite it has, else Flash.
+- Google busy or the model's count used up (503, 429): the same request once more with
+  the other model of the two (main ↔ fast), when it differs. Its own error otherwise.
 - `GET /v1/ping` needs no token (the script's check; it answers `{}` only).
 - The key goes to Google in the `x-goog-api-key` header, never in a URL.
 - A Gemini call has its own ureq agent: no overall timeout (a reply can take minutes),

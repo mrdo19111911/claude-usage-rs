@@ -18,9 +18,19 @@ fn plain(model: &str) -> bool {
 // An error answer: the status, the Anthropic error body, `retry-after` seconds.
 type Refusal = (u16, Value, Option<u64>);
 
+// Google busy (503) or the model's count used up (429): the other model of the two
+// answers instead, once (docs/specs/gemini.md, "The proxy"). The answer and its model.
+fn call(app: &App, cfg: &Config, model: &str, body: &Value, stream: bool) -> Result<(ureq::Response, String), Refusal> {
+    let other = if model == cfg.model { &cfg.fast_model } else if model == cfg.fast_model { &cfg.model } else { model };
+    match call_one(app, cfg, model, body, stream) {
+        Err((429 | 529, ..)) if other != model => call_one(app, cfg, other, body, stream).map(|r| (r, other.to_string())),
+        r => r.map(|r| (r, model.to_string())),
+    }
+}
+
 // Google's answer once it says 200. A 400 about a tool schema: once more with the older
 // `parameters` form of the schemas (docs/SO_SANH_GEMINI_PROXY.md, Chọn 2).
-fn call(app: &App, cfg: &Config, model: &str, body: &Value, stream: bool) -> Result<ureq::Response, Refusal> {
+fn call_one(app: &App, cfg: &Config, model: &str, body: &Value, stream: bool) -> Result<ureq::Response, Refusal> {
     let has_tools = body["tools"].as_array().is_some_and(|t| !t.is_empty());
     for legacy in [false, true] {
         let g = request::to_gemini(body, &app.gemini_sigs, legacy)
@@ -50,7 +60,7 @@ pub(crate) fn messages(app: &Arc<App>, cfg: &Config, rq: tiny_http::Request, bod
         return reply(rq, 400, &errors::error_json("invalid_request_error", &msg), None);
     }
     let streaming = body["stream"].as_bool().unwrap_or(false);
-    let resp = match call(app, cfg, &model, body, streaming) {
+    let (resp, model) = match call(app, cfg, &model, body, streaming) {
         Ok(r) => r,
         Err((code, err, retry)) => return reply(rq, code, &err, retry),
     };

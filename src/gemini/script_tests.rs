@@ -38,12 +38,12 @@ fn sets_the_variables_inside_setlocal() {
         &format!("set \"ANTHROPIC_CUSTOM_HEADERS=x-cud-token: {TOKEN}\""),
         "set ANTHROPIC_API_KEY=\r\n",
         "set \"NO_PROXY=127.0.0.1,localhost\"",
-        "set \"ANTHROPIC_MODEL=gemini-3.8-flash\"",
-        "set \"ANTHROPIC_DEFAULT_OPUS_MODEL=gemini-3.8-flash\"",
-        "set \"ANTHROPIC_DEFAULT_SONNET_MODEL=gemini-3.8-flash\"",
-        "set \"ANTHROPIC_DEFAULT_FABLE_MODEL=gemini-3.8-flash\"",
-        "set \"ANTHROPIC_DEFAULT_HAIKU_MODEL=gemini-3.5-flash-lite\"",
-        "set \"ANTHROPIC_SMALL_FAST_MODEL=gemini-3.5-flash-lite\"",
+        "set \"ANTHROPIC_MODEL=gemini-3.5-flash-lite\"",
+        "set \"ANTHROPIC_DEFAULT_OPUS_MODEL=gemini-3.5-flash-lite\"",
+        "set \"ANTHROPIC_DEFAULT_SONNET_MODEL=gemini-3.5-flash-lite\"",
+        "set \"ANTHROPIC_DEFAULT_FABLE_MODEL=gemini-3.5-flash-lite\"",
+        "set \"ANTHROPIC_DEFAULT_HAIKU_MODEL=gemini-3.1-flash-lite\"",
+        "set \"ANTHROPIC_SMALL_FAST_MODEL=gemini-3.1-flash-lite\"",
         "set \"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1\"",
         "set \"CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1\"",
         "set \"CLAUDE_CODE_ATTRIBUTION_HEADER=0\"",
@@ -58,7 +58,7 @@ fn sets_the_variables_inside_setlocal() {
 #[test]
 fn runs_claude_then_ends_the_local_scope() {
     let t = text();
-    let run = line_of(&t, "call \"%CUD_CLAUDE%\" %*");
+    let run = line_of(&t, "call \"%CUD_CLAUDE%\" --strict-mcp-config %*");
     // Claude Code on PATH, else where its own installer puts it, else a plain message.
     let find = line_of(&t, "where claude >nul 2>nul");
     assert!(t.contains(r#"if exist "%USERPROFILE%\.local\bin\claude.exe" set "CUD_CLAUDE=%USERPROFILE%\.local\bin\claude.exe""#), "{t}");

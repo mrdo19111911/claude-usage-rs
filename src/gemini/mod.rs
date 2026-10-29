@@ -36,8 +36,8 @@ pub(crate) use sigs::Sigs;
 pub(crate) use watch::Watch;
 
 // Main model and the fast one (Claude Code's "haiku" calls), as the research chose.
-pub(crate) const MODEL: &str = "gemini-3.8-flash";
-pub(crate) const FAST_MODEL: &str = "gemini-3.5-flash-lite";
+pub(crate) const MODEL: &str = "gemini-3.5-flash-lite";
+pub(crate) const FAST_MODEL: &str = "gemini-3.1-flash-lite";
 
 // Saved in state.json (`gemini`), next to the Claude logins.
 #[derive(Serialize, Deserialize, Clone)]

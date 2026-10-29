@@ -66,7 +66,9 @@ pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
         l.push(s.into());
     }
     // `call`: claude may itself be a .cmd (npm), which would otherwise never return here.
-    l.push(r#"call "%CUD_CLAUDE%" %*"#.into());
+    // No MCP servers: their tools were half of a request, and a free key's tokens a minute
+    // are few (docs/specs/gemini.md).
+    l.push(r#"call "%CUD_CLAUDE%" --strict-mcp-config %*"#.into());
     // %ERRORLEVEL% is read before endlocal runs: claude's own exit code goes out.
     l.push("endlocal & exit /b %ERRORLEVEL%".into());
     l.iter().map(|s| format!("{s}\r\n")).collect()

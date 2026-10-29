@@ -3,6 +3,7 @@
 
 use super::sse::Sse;
 use super::test_app::{config, server, KEY, TOKEN};
+use super::Config;
 use super::upstream::TEST_BASE;
 use std::io::{Read, Write};
 use std::sync::{Mutex, OnceLock};
@@ -129,4 +130,21 @@ fn a_bad_function_call_without_stream_is_a_500() {
     let (all, _) = ask(port, "gemini-bad-call", false, &[]);
     assert!(all.starts_with("HTTP/1.1 500"), "{all}");
     assert!(all.contains("\"type\":\"error\""), "{all}");
+}
+
+#[test]
+fn a_busy_model_hands_over_to_the_other_one_once() {
+    fake_google();
+    let cfg = Config { model: "gemini-busy-main".into(), ..config() };
+    let (_app, port) = server(Some(cfg));
+    let (all, _) = ask(port, "claude-sonnet-4-5", true, &[]);
+    assert!(all.starts_with("HTTP/1.1 200"), "{all}");
+    assert!(all.contains(&format!("\"model\":\"{}\"", super::FAST_MODEL)), "says which model answered: {all}");
+    // Both busy: Google's own error, after one try each.
+    let cfg = Config { model: "gemini-busy-a".into(), fast_model: "gemini-busy-b".into(), ..config() };
+    let (_app, port) = server(Some(cfg));
+    let (all, _) = ask(port, "claude-sonnet-4-5", true, &[]);
+    assert!(all.starts_with("HTTP/1.1 429"), "{all}");
+    let seen = SEEN.lock().unwrap();
+    assert_eq!(seen.iter().filter(|(u, _)| u.contains("gemini-busy-a") || u.contains("gemini-busy-b")).count(), 2);
 }

@@ -31,7 +31,7 @@ pub(crate) fn public(st: &State) -> Value {
     let Some(c) = &st.gemini else { return Value::Null };
     let chars: Vec<char> = c.key.chars().collect();
     let end: String = chars[chars.len().saturating_sub(4)..].iter().collect();
-    json!({ "keyEnd": end, "model": c.model, "fastModel": c.fast_model, "models": c.models, "command": "cgemini" })
+    json!({ "keyEnd": end, "model": c.model, "fastModel": c.fast_model, "models": models::text_models(&c.models), "command": "cgemini" })
 }
 
 // A fresh random token for cgemini (32 bytes, URL-safe base64: safe in a batch line too).
@@ -69,8 +69,8 @@ pub(super) fn save(app: &Arc<App>, key: &str) -> Result<(), String> {
     }
     let all = upstream::list_models(&key)?;
     let cfg = Config {
-        model: models::best(&all, MODEL, false),
-        fast_model: models::best(&all, FAST_MODEL, true),
+        model: models::best(&all, MODEL),
+        fast_model: models::best(&all, FAST_MODEL),
         key,
         token: new_token(),
         models: all,
