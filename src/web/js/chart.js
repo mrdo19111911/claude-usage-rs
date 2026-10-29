@@ -4,8 +4,8 @@
 
 // Small multiples: one chart per account, the same 0-100 scale and time range in all,
 // so they compare at a glance. Two lines each: 5-hour and weekly share used.
-let rangeH = 24;
-try { rangeH = +localStorage.getItem('cud-range') || 24; } catch (e) {}
+let rangeH = 5;
+try { rangeH = +localStorage.getItem('cud-range-v2') || 5; } catch (e) {}
 
 function chartPoints(a, start, now) {
   const pts = a.history.filter(p => p[0] >= start);
@@ -31,20 +31,30 @@ function miniChart(a, start, now) {
     g += `<text x="${x(t)}" y="${Ht - 6}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}">${lab}</text>`;
   }
   g += `<line x1="${L}" x2="${W - R}" y1="${y(th)}" y2="${y(th)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4"/>`;
-  if (pts.length < 2) {
-    g += `<text x="${(L + W - R) / 2}" y="${y(50)}" text-anchor="middle">${a.usage ? 'Not enough figures in this range yet' : 'No figures yet'}</text>`;
+  if (!a.usage) {
+    g += `<text x="${(L + W - R) / 2}" y="${y(50)}" text-anchor="middle">No figures yet</text>`;
   } else {
-    const line = i => pts.map((p, k) => `${k ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[i]).toFixed(1)}`).join('');
-    g += `<path d="${line(2)}" fill="none" stroke="var(--s-week)" stroke-width="2" stroke-linejoin="round"/>`;
-    g += `<path d="${line(1)}" fill="none" stroke="var(--s-five)" stroke-width="2" stroke-linejoin="round"/>`;
-    // Direct labels at the line ends, nudged apart when they would overlap.
-    const last = pts[pts.length - 1];
-    let y5 = y(last[1]), yw = y(last[2]);
-    if (Math.abs(y5 - yw) < 12) { const m = (y5 + yw) / 2; y5 = m + (last[1] >= last[2] ? -6 : 6); yw = m + (last[1] >= last[2] ? 6 : -6); }
-    g += `<circle cx="${x(last[0])}" cy="${y(last[2])}" r="3.5" fill="var(--s-week)" stroke="var(--card)" stroke-width="2"/>`;
-    g += `<circle cx="${x(last[0])}" cy="${y(last[1])}" r="3.5" fill="var(--s-five)" stroke="var(--card)" stroke-width="2"/>`;
-    g += `<text x="${W - R + 6}" y="${y5 + 4}" style="fill:var(--text)">${last[1]}%</text>`;
-    g += `<text x="${W - R + 6}" y="${yw + 4}" style="fill:var(--text)">${last[2]}%</text>`;
+    // Anthropic gives only the figures now: the history starts when the account was added.
+    const first = a.history[0];
+    if (first && first[0] > start) {
+      const fx = x(first[0]), right = fx > (L + W - R) / 2;
+      g += `<line x1="${fx}" x2="${fx}" y1="${T}" y2="${Ht - B}" stroke="var(--muted)" stroke-dasharray="2 3"/>`;
+      g += `<text x="${fx + (right ? -6 : 6)}" y="${T + 30}" text-anchor="${right ? 'end' : 'start'}">Recording since ${hhmm(first[0])}</text>`;
+    }
+    if (pts.length > 1) {
+      const line = i => pts.map((p, k) => `${k ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[i]).toFixed(1)}`).join('');
+      g += `<path d="${line(2)}" fill="none" stroke="var(--s-week)" stroke-width="2" stroke-linejoin="round"/>`;
+      g += `<path d="${line(1)}" fill="none" stroke="var(--s-five)" stroke-width="2" stroke-linejoin="round"/>`;
+    }
+    // The figures now: larger dots at the right edge with direct labels, nudged apart
+    // when they would overlap.
+    const now5 = a.usage.five.u, nowW = a.usage.week.u;
+    let y5 = y(now5), yw = y(nowW);
+    if (Math.abs(y5 - yw) < 12) { const m = (y5 + yw) / 2; y5 = m + (now5 >= nowW ? -6 : 6); yw = m + (now5 >= nowW ? 6 : -6); }
+    g += `<circle cx="${x(end)}" cy="${y(nowW)}" r="5.5" fill="var(--s-week)" stroke="var(--card)" stroke-width="2"/>`;
+    g += `<circle cx="${x(end)}" cy="${y(now5)}" r="5.5" fill="var(--s-five)" stroke="var(--card)" stroke-width="2"/>`;
+    g += `<text x="${W - R + 8}" y="${y5 + 4}" style="fill:var(--text)">${now5}%</text>`;
+    g += `<text x="${W - R + 8}" y="${yw + 4}" style="fill:var(--text)">${nowW}%</text>`;
   }
   g += `<line class="cross" x1="0" x2="0" y1="${T}" y2="${Ht - B}" stroke="#777" style="display:none"/>`;
   g += `<rect x="${L}" y="0" width="${W - L - R}" height="${Ht}" fill="transparent"/>`;
@@ -117,6 +127,6 @@ $('#range').addEventListener('click', e => {
   const b = e.target.closest('[data-range]');
   if (!b) return;
   rangeH = +b.dataset.range;
-  try { localStorage.setItem('cud-range', rangeH); } catch (err) {}
+  try { localStorage.setItem('cud-range-v2', rangeH); } catch (err) {}
   renderChart(true);
 });

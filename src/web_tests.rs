@@ -63,3 +63,29 @@ fn the_accounts_are_two_lists_cli_left_desktop_right() {
         assert!(page.contains(&format!("src=\"{js}\"")), "{js} loaded");
     }
 }
+
+#[test]
+fn both_lists_have_an_add_button() {
+    let page = asset("/").unwrap().0;
+    for id in ["cliAdd", "deskAdd"] {
+        assert!(page.contains(&format!("id=\"{id}\"")), "{id} in the page");
+    }
+    let main = asset("/js/main.js").unwrap().0;
+    assert!(main.contains("$('#deskAdd').onclick"), "deskAdd wired");
+    assert!(main.contains("dfirst: ''"), "deskAdd runs the Desktop first-time sign-in with no email");
+}
+
+#[test]
+fn a_new_account_chart_shows_its_figures_now() {
+    let chart = asset("/js/chart.js").unwrap().0;
+    assert!(chart.contains("Recording since"), "says why the line is short");
+    assert!(!chart.contains("Not enough figures in this range yet"), "figures are never hidden");
+}
+
+#[test]
+fn the_chart_opens_on_5_hours() {
+    let chart = asset("/js/chart.js").unwrap().0;
+    assert!(chart.contains("let rangeH = 5;"), "5h by default");
+    // A choice saved under the old key (24h default) must not override the new default.
+    assert!(!chart.contains("'cud-range'"), "old saved range ignored");
+}

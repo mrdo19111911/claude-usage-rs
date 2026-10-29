@@ -102,3 +102,24 @@ accounts; square corners; "✕" unclear; a hint line always on.
 - Tests first: pace, full_until, split_others order, same_account, `checked`; button
   slots and hit test; the layout leaves the DC font in place; a preview test
   (`cargo test preview -- --ignored`) renders presets to target/widget-preview/*.bmp.
+
+## Add buttons and a new account's chart
+
+What the user saw: "+ Add account" too small to notice; no way to add an account to Claude
+Desktop that Claude CLI does not know; a newly added account's chart showed two tiny dots
+at its right edge (Anthropic gives only the figures now, history starts when it is added).
+
+- Both column heads hold "+ Add account" (`#cliAdd`, `#deskAdd`), larger than a row button
+  and outlined in the column's colour (teal / violet), filled on hover.
+- `#deskAdd` runs the first-time Desktop sign-in with no email (`/api/desktop/add`): Claude
+  Desktop opens signed out, any account signed in there is saved. Disabled in the demo,
+  when Claude Desktop is not found, and while a Desktop switch runs.
+- Chart: the figures now are drawn as two larger dots (radius 5.5) at the right edge with
+  their % labels, also when the account has no line yet (no "Not enough figures" text when
+  there are figures). When the account's first figures fall inside the range, a muted
+  "Recording since HH:MM" at that point says why the line is short.
+- Tests first (web_tests.rs): both add buttons in the page; main.js wires `#deskAdd` to the
+  Desktop first-time flow; chart.js has the "Recording since" note and no longer hides the
+  figures behind "Not enough figures in this range yet".
+- The chart opens on 5h. The range picked is remembered under `cud-range-v2` (a choice
+  saved under the old key, from when 24h was the default, no longer applies).

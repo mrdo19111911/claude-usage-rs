@@ -44,6 +44,7 @@ function renderRows() {
   $('#cliAdd').disabled = S.demo;
 
   const D = S.desktop, box = $('#desktopSub');
+  $('#deskAdd').disabled = S.demo || !D.found || D.switching;
   const msg = D.switching ? 'Claude Desktop is closing and will open again (up to a minute)…'
     : D.expect ? `Claude Desktop is open and signed out: click <b>Continue with Google</b> there and choose <b>${esc(D.expect)}</b>.`
     : '';
