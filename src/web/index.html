@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Usage</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section class="card">
+    <h2>In use now</h2>
+    <div class="sub note">Two separate logins: switching one never changes the other.</div>
+    <div class="sides" id="sides">
+      <div class="side code" id="sideCode"></div>
+      <div class="side desk" id="sideDesk"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <div>
+        <h2>Usage over time</h2>
+        <div class="sub note" id="chartSub">Share of each limit used, per account. Anthropic's official figures.</div>
+      </div>
+      <div class="filters">
+        <div class="seg" id="range">
+          <button data-range="5">5h</button><button data-range="24">24h</button><button data-range="168">7d</button>
+        </div>
+        <button class="link" id="viewToggle">Table view</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--s-five)"></i>5-hour limit</span>
+      <span><i style="background:var(--s-week)"></i>Weekly limit</span>
+      <span><i class="dash"></i><b id="thLegend"></b>% auto-switch</span>
+    </div>
+    <div id="chart" class="grid"></div>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <div>
+        <h2 style="padding-top:4px">Claude accounts</h2>
+        <div class="sub note" id="summary"></div>
+      </div>
+    </div>
+    <div class="sides" id="accts">
+      <div class="side code">
+        <div class="side-head"><span class="tag code">Claude CLI</span><span class="note">Terminal and VS Code</span><button class="btn add" id="cliAdd">+ Add account</button></div>
+        <div id="cliRows"></div>
+      </div>
+      <div class="side desk">
+        <div class="side-head"><span class="tag desk">Claude Desktop</span><span class="note">Its own sign-in</span></div>
+        <div class="sub" id="desktopSub" style="display:none"></div>
+        <div id="deskRows"></div>
+      </div>
+    </div>
+    <p class="note"><b>Claude CLI</b> (terminal and VS Code share one login) switches at once; auto-switch moves only this one. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>Settings</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="refresh">Refresh now</button>
+        <button class="btn primary" id="import">Check for new login</button>
+        <button class="btn" id="exit" title="Stop the dashboard and take its icon out of the tray">Exit</button>
+      </div>
+    </div>
+    <div class="settings" style="margin-top:14px">
+      <label><input type="checkbox" id="autoSwitch"> Auto-switch</label>
+      <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
+      <label>check each account every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
+    </div>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.<br>Checks: every account at that pace; from 70% used twice as often, from 85% four times, from 95% eight times (at most every 15 s). An account at a 100% limit is not checked again until that limit resets.</p>
+    <ul class="events" id="events"></ul>
+    <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
+  </section>
+</main>
+
+<script src="js/base.js"></script>
+<script src="js/rows.js"></script>
+<script src="js/list_cli.js"></script>
+<script src="js/list_desk.js"></script>
+<script src="js/sides.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+[package]
+name = "claude-usage"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+tiny_http = "0.12"
+ureq = { version = "2.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+# preserve_order: Claude's own JSON files are rewritten with their keys in the order they had.
+serde_json = { version = "1", features = ["preserve_order"] }
+# Browser sign-in (OAuth PKCE): random state and verifier, SHA-256 challenge.
+getrandom = "0.2"
+sha2 = "0.10"
+base64 = "0.22"
+
+# Closing and finding Claude Desktop for a desktop switch.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_Controls",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    # The tray icon and its widget (tray.rs); no console window (main).
+    "Win32_Graphics_Gdi",
+    "Win32_System_Console",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Time",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+] }
+
+# Windows/Linux: also trust the OS certificate store (company proxies). macOS uses the bundled roots.
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+ureq = { version = "2.12", features = ["json", "native-certs"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
