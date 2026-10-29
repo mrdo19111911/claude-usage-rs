@@ -8,6 +8,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod desktop;
+mod gemini;
 mod lock;
 mod login;
 #[cfg(windows)]
