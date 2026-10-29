@@ -28,7 +28,8 @@ fn the_card_comes_after_the_claude_accounts() {
     assert!(p.find("Claude accounts").unwrap() < card, "after Claude accounts");
     assert!(card < p.find("<h2>Settings</h2>").unwrap(), "before Settings");
     assert!(p.contains("Claude Code on Gemini"));
-    assert!(p.contains("instead of <code>claude</code>"), "one line on what it is");
+    assert!(p.contains("Gemini answers instead of Claude"), "one line on what it is, no jargon");
+    assert!(!p.contains("AI Studio key:"), "no \"key\" words in it");
     assert!(p.contains("id=\"gemBody\""), "room for the ready state");
 }
 
@@ -95,8 +96,7 @@ fn gemini_js_uses_the_endpoints_and_opens_ai_studio() {
     }
     assert!(j.contains("S.gemini || null"), "a missing `gemini` is treated as null");
     assert!(j.contains("Checking the key"), "says it is checking while Google answers");
-    assert!(j.contains("Your Gemini account is ready. Open a new terminal and type <code>${cmd}</code> to start coding."),
-            "the success text");
+    assert!(j.contains("All set! Follow the steps below."), "the success text");
     assert!(j.contains("g.command || 'cgemini'"), "the command, `cgemini` unless the app says otherwise");
 }
 
@@ -160,4 +160,24 @@ fn the_dialog_and_help_warn_that_google_may_use_what_is_sent() {
             assert!(text.contains(w), "says {w}");
         }
     }
+}
+
+#[test]
+fn the_ready_card_says_how_to_use_it_in_plain_words() {
+    let j = asset("/js/gemini.js").unwrap().0;
+    let card = &j[j.find("function gemReady").unwrap()..];
+    let card = &card[..card.find("\n}").unwrap()];
+    let has = |s: &str| card.find(s).unwrap_or_else(|| panic!("the card says {s:?}"));
+    let steps = ["your free Gemini code is saved", "How to use it:", "Open <b>PowerShell</b>",
+                 "Windows key", "Type <code>${cmd}</code> and press <b>Enter</b>", "data-gcopy",
+                 "Gemini answers instead of Claude", "daily limit", "slower than Claude",
+                 "<details", "Advanced: which Gemini model", "${fast}", "</details>", "Remove the code"];
+    let at: Vec<usize> = steps.iter().map(|s| has(s)).collect();
+    assert!(at.windows(2).all(|w| w[0] < w[1]), "in this order: {steps:?}");
+    for gone in ["<b>Ready</b>", "quick tasks", "Open a new terminal"] {
+        assert!(!card.contains(gone), "no more {gone:?}");
+    }
+    assert!(card.contains("Small side jobs use:"), "the second model, said plainly");
+    let model = has("id=\"gemModel\"");
+    assert!(has("<details") < model && model < has("</details>"), "the model is folded away");
 }

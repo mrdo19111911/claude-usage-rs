@@ -18,17 +18,24 @@ function renderGemini() {
   $('#gemBody').innerHTML = gemLast = html;
 }
 
+// Said for someone who has never opened a terminal (docs/specs/gemini.md, "Onboarding").
 function gemReady(g) {
   const cmd = esc(g.command || 'cgemini');
-  const done = gemSaved
-    ? `<p class="gem-ok" role="status">Your Gemini account is ready. Open a new terminal and type <code>${cmd}</code> to start coding.</p>` : '';
-  const fast = g.fastModel ? ` <span class="note">(quick tasks: ${esc(g.fastModel)})</span>` : '';
+  const done = gemSaved ? '<p class="gem-ok" role="status">All set! Follow the steps below.</p>' : '';
+  const fast = g.fastModel ? `<span class="note">Small side jobs use: ${esc(g.fastModel)}</span>` : '';
   return `${done}<div class="gem-ready">
-    <div><span class="dot"></span><b>Ready</b> <span class="note">· key …${esc(g.keyEnd || '')}</span></div>
-    <label class="gem-model">Model <select id="gemModel">${gemModels(g)}</select>${fast}</label>
-    <div class="gem-cmd"><span>Open a new terminal and type <code>${cmd}</code></span>
-      <button class="btn" data-gcopy="${cmd}">Copy</button></div>
-    <div><button class="btn" data-gremove="1">Remove</button></div>
+    <p><span class="dot"></span>Done: your free Gemini code is saved <span class="note">(it ends in …${esc(g.keyEnd || '')})</span>.</p>
+    <p><b>How to use it:</b></p>
+    <ol class="gem-use">
+      <li>Open <b>PowerShell</b>: press the Windows key, type <i>PowerShell</i>, press <b>Enter</b>.</li>
+      <li>Type <code>${cmd}</code> and press <b>Enter</b>. <button class="btn" data-gcopy="${cmd}">Copy</button></li>
+      <li>Claude Code starts as usual, but Gemini answers instead of Claude. Type what you want done.</li>
+    </ol>
+    <p class="note">Free has a daily limit: when it runs out, try again tomorrow. It can be slower than Claude.</p>
+    <details class="gem-adv"><summary>Advanced: which Gemini model</summary>
+      <label class="gem-model">Model <select id="gemModel">${gemModels(g)}</select></label>${fast}
+    </details>
+    <div><button class="btn" data-gremove="1">Remove the code</button></div>
   </div>`;
 }
 

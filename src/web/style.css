@@ -7,7 +7,7 @@
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
    top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
-   dialog (.gem-add .gem-ready .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
+   dialog (.gem-add .gem-ready .gem-use .gem-adv .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
    .gem-pulse .gem-spin .copy-ic .gem-paste .note.small .shot .gem-privacy); help page (.help);
    narrow screens (@media). */
   :root {
@@ -121,10 +121,16 @@
   /* Claude Code on Gemini: the card (gemini.js) and its three-step dialog. */
   .gem-add { padding: 10px 20px; font-size: 15px; font-weight: 600; align-self: center; }
   .gem-add:hover { filter: brightness(1.1); }
-  .gem-ready { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 14px; }
+  .gem-ready { margin-top: 14px; }
+  .gem-ready p { margin: 8px 0; }
   .gem-ready select { background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 14px; max-width: 100%; }
   .gem-model { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 14px; min-width: 0; }
-  .gem-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .gem-use { margin: 4px 0 8px; padding-left: 22px; }
+  .gem-use li { margin: 6px 0; line-height: 1.6; }
+  .gem-adv { margin: 10px 0 12px; color: var(--muted); font-size: 14px; }
+  .gem-adv summary { cursor: pointer; }
+  .gem-adv[open] summary { margin-bottom: 8px; }
+  .gem-adv .note { display: block; margin-top: 6px; }
   .gem-ok { background: #16261a; border: 1px solid #2c5a35; border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; }
   .gem-dlg { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
   .gem-dlg::backdrop { background: rgba(0, 0, 0, .6); }

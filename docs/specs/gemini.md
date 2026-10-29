@@ -16,10 +16,20 @@ The user's normal `claude` and its login are never touched. Why these choices:
   10 s); a bad key is refused with Google's message. A good one is saved in state.json
   (`gemini.key`, same file and rights as the Claude logins), with a fresh random proxy
   token, and the `cgemini` command is written (below).
-- Then the card shows: "Ready: open a new terminal and type `cgemini`", the model in use
-  (a select: the key's Gemini models that write text, no image, speech, embedding or
-  robotics ones; default below), "Remove".
+- Then the card says, in plain words for someone who has never used a terminal
+  (seen 2026-10-29: "Ready · key …", "Model" and "open a new terminal" were not understood):
+  - "Done: your free Gemini code is saved (it ends in …XXXX)."
+  - "How to use it:" three numbered steps: 1. open PowerShell (Windows key, type
+    PowerShell, Enter); 2. type `cgemini` and press Enter, with a Copy button; 3. Claude
+    Code starts as usual, but Gemini answers instead of Claude: type what you want done.
+  - One line on what to expect: free has a daily limit (try again tomorrow when it runs
+    out), and it can be slower than Claude.
+  - The model choice folded away under "Advanced: which Gemini model" (a `<details>`): a
+    select of the key's Gemini models that write text, no image, speech, embedding or
+    robotics ones (default below), and "Small side jobs use: …".
+  - "Remove the code".
   `POST /api/gemini/model {model}`, `DELETE /api/gemini`.
+- Just after the key is saved, a green line above: "All set! Follow the steps below."
 - The key itself is never sent back to the page (only its last 4 characters).
 
 ### Copy to add (no paste, no "API key" words)
