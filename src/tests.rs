@@ -89,3 +89,17 @@ fn per_model_weekly_limits_are_read() {
     assert_eq!(s[0].resets_at, parse_iso("2026-11-02T02:00:00+00:00"));
     assert!(to_scoped(&json!({"five_hour": {}})).is_empty(), "no limits list: none");
 }
+
+#[test]
+fn auto_switch_has_a_threshold_per_window() {
+    use crate::switch::{has_room, switch_reason};
+    use crate::*;
+    let s: Settings = serde_json::from_str(r#"{"threshold":95,"autoSwitch":true,"pollSeconds":120}"#).unwrap();
+    assert_eq!((s.threshold, s.week_threshold), (95, 99), "old settings: weekly 99");
+    let at = |five, week| Usage { five: Win { u: five, resets_at: None }, week: Win { u: week, resets_at: None }, fetched_at: 0, scoped: vec![] };
+    assert_eq!(switch_reason(&at(10, 96), &s), None, "weekly 96% is not the end yet");
+    assert_eq!(switch_reason(&at(10, 99), &s).as_deref(), Some("weekly 99%"));
+    assert_eq!(switch_reason(&at(95, 40), &s).as_deref(), Some("5-hour 95%"));
+    assert!(has_room(&at(20, 97), &s), "weekly 97% can still take over");
+    assert!(!has_room(&at(95, 10), &s) && !has_room(&at(10, 99), &s));
+}

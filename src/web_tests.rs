@@ -133,3 +133,13 @@ fn the_top_bar_shows_the_version_and_update() {
     }
     assert!(asset("/js/main.js").unwrap().0.contains("renderUpdate()"), "drawn with the rest");
 }
+
+#[test]
+fn settings_have_a_weekly_threshold() {
+    let page = asset("/").unwrap().0;
+    assert!(page.contains("id=\"weekThreshold\""));
+    let main = asset("/js/main.js").unwrap().0;
+    assert!(main.contains("weekThreshold: +$('#weekThreshold').value"));
+    let chart = asset("/js/chart.js").unwrap().0;
+    assert!(chart.contains("weekThreshold"), "the weekly line uses its own threshold");
+}

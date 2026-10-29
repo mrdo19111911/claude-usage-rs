@@ -66,6 +66,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["threshold"].as_f64() {
                     st.settings.threshold = (v as i64).clamp(50, 100);
                 }
+                if let Some(v) = body["weekThreshold"].as_f64() {
+                    st.settings.week_threshold = (v as i64).clamp(50, 100);
+                }
                 if let Some(v) = body["autoSwitch"].as_bool() {
                     st.settings.auto_switch = v;
                 }

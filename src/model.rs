@@ -8,7 +8,11 @@ pub(crate) const HOUR: i64 = 3_600_000;
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Settings {
+    // Auto-switch when the 5-hour window reaches this %.
     pub(crate) threshold: i64,
+    // ...or the weekly one reaches this % (later: 1% of a week is ~5x 1% of 5 hours).
+    #[serde(default = "week_99")]
+    pub(crate) week_threshold: i64,
     pub(crate) auto_switch: bool,
     pub(crate) poll_seconds: u64,
     // Install a newer release as soon as a check finds it (absent in older saved state: on).
@@ -18,6 +22,10 @@ pub(crate) struct Settings {
 
 fn yes() -> bool {
     true
+}
+
+fn week_99() -> i64 {
+    99
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -111,7 +119,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, auto_switch: true, poll_seconds: 120, auto_update: true },
+            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true },
             accounts: vec![],
             active_id: None,
             events: vec![],

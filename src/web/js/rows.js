@@ -33,12 +33,12 @@ function listRow(cls, left, right, u) {
 }
 
 function renderRows() {
-  const th = S.settings.threshold;
+  const th = S.settings.threshold, thW = S.settings.weekThreshold ?? 99;
   $('#cliRows').innerHTML = renderCli();
   $('#deskRows').innerHTML = renderDesk();
 
   const on = S.accounts.filter(a => a.enabled && a.usage);
-  const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < th).length;
+  const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < thW).length;
   const head = on.reduce((s, a) => s + (100 - a.usage.week.u), 0);
   $('#summary').innerHTML = S.loggingIn && loginUrl
     ? `Sign-in page opened in your browser: sign in with the account to add. Not there? <a href="${esc(loginUrl)}" target="_blank" rel="noopener">Open it</a>.`

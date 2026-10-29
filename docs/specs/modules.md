@@ -136,3 +136,16 @@ at its right edge (Anthropic gives only the figures now, history starts when it 
   a small chip under the bars: "Fable 0%", coloured by level, reset in its tooltip.
 - Tests first: `to_scoped` (one Fable entry kept, other kinds ignored, no `limits` = none);
   web: base.js says "not started yet", rows.js draws the `scoped` chips.
+
+## Auto-switch: one threshold per window
+
+1% of the weekly limit is about 5× the use of 1% of the 5-hour limit, so the weekly one
+switches later: **5-hour at 95%** (`threshold`, as before), **weekly at 99%**
+(`weekThreshold`, new; saved settings without it read 99).
+
+- The account in use is moved when its 5-hour % ≥ `threshold` or its weekly % ≥
+  `weekThreshold`; an account it may move to is under both (`switch_reason`, `has_room`).
+- Settings: "Auto-switch at [95] % 5-hour · [99] % weekly". The chart draws each window's
+  own dashed line in its colour; the legend reads "95% / 99% auto-switch".
+- Tests first: weekly 96% stays (was a switch at 95), weekly 99% switches, 5-hour 95%
+  switches; an account at weekly 97% can be moved to; old settings read weekThreshold 99.

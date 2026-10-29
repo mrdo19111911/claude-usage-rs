@@ -6,6 +6,7 @@ function renderSettings() {
   if (document.activeElement?.tagName !== 'INPUT') {
     $('#autoSwitch').checked = s.autoSwitch;
     $('#threshold').value = s.threshold;
+    $('#weekThreshold').value = s.weekThreshold;
     $('#pollSeconds').value = s.pollSeconds;
   }
   $('#events').innerHTML = S.events.map(e => `<li>${hhmm(e.t)} — ${esc(e.msg)}</li>`).join('');

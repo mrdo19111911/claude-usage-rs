@@ -56,6 +56,7 @@ pub(crate) fn start(app: Arc<App>) {
     if app.demo {
         return;
     }
+    app.update.lock().unwrap().checked_at = app.st.lock().unwrap().update_checked_at;
     thread::spawn(move || {
         thread::sleep(FIRST_LOOK);
         loop {

@@ -113,19 +113,15 @@ impl App {
         if !st.settings.auto_switch {
             return None;
         }
-        let th = st.settings.threshold;
+        let s = st.settings.clone();
         let active = st.active_id.as_ref().and_then(|id| st.accounts.iter().find(|a| &a.id == id)).cloned()?;
-        let u = active.usage.as_ref()?;
-        if u.five.u < th && u.week.u < th {
-            return None;
-        }
+        let which = switch_reason(active.usage.as_ref()?, &s)?;
         let room = |a: &Account| a.usage.as_ref().map(|u| (100 - u.five.u).min(100 - u.week.u)).unwrap_or(0);
         let next = st.accounts.iter()
             .filter(|a| a.enabled && a.id != active.id && a.error.is_none())
-            .filter(|a| a.usage.as_ref().is_some_and(|u| u.five.u < th && u.week.u < th))
+            .filter(|a| a.usage.as_ref().is_some_and(|u| has_room(u, &s)))
             .max_by_key(|a| room(a))
             .map(|a| a.id.clone());
-        let which = if u.five.u >= th { format!("5-hour {}%", u.five.u) } else { format!("weekly {}%", u.week.u) };
         if next.is_none() {
             let msg = format!("{} hit {which} but no other account has room", active.email);
             if st.events.first().map(|e| &e.msg) != Some(&msg) {
@@ -134,4 +130,21 @@ impl App {
         }
         next.map(|id| (id, format!("auto: {which}")))
     }
+}
+
+// Why the account in use must be left: its 5-hour window at `threshold` or its weekly
+// one at `week_threshold`; None while both are under.
+pub(crate) fn switch_reason(u: &Usage, s: &Settings) -> Option<String> {
+    if u.five.u >= s.threshold {
+        Some(format!("5-hour {}%", u.five.u))
+    } else if u.week.u >= s.week_threshold {
+        Some(format!("weekly {}%", u.week.u))
+    } else {
+        None
+    }
+}
+
+// Whether an account can take over: under both thresholds.
+pub(crate) fn has_room(u: &Usage, s: &Settings) -> bool {
+    switch_reason(u, s).is_none()
 }
