@@ -16,20 +16,21 @@ The user's normal `claude` and its login are never touched. Why these choices:
   10 s); a bad key is refused with Google's message. A good one is saved in state.json
   (`gemini.key`, same file and rights as the Claude logins), with a fresh random proxy
   token, and the `cgemini` command is written (below).
-- Then the card says, in plain words for someone who has never used a terminal
-  (seen 2026-10-29: "Ready · key …", "Model" and "open a new terminal" were not understood):
-  - "Done: your free Gemini code is saved (it ends in …XXXX)."
-  - "How to use it:" three numbered steps: 1. open PowerShell (Windows key, type
-    PowerShell, Enter); 2. type `cgemini` and press Enter, with a Copy button; 3. Claude
-    Code starts as usual, but Gemini answers instead of Claude: type what you want done.
-  - One line on what to expect: free has a daily limit (try again tomorrow when it runs
-    out), and it can be slower than Claude.
-  - The model choice folded away under "Advanced: which Gemini model" (a `<details>`): a
-    select of the key's Gemini models that write text, no image, speech, embedding or
-    robotics ones (default below), and "Small side jobs use: …".
-  - "Remove the code".
+- Then the card is short, for someone who has never used a terminal (seen 2026-10-29:
+  "Ready · key …", "Model", "open a new terminal", then three steps, were all too much):
+  - "Gemini is ready (free)." and one button, **Use this**: it opens a new window with
+    Claude Code running on Gemini (`POST /api/gemini/open`), nothing to type.
+  - One line: "Free has a daily limit and can be slower than Claude."
+  - Folded under "Advanced" (a `<details>`): the model select (the key's Gemini models
+    that write text, no image, speech, embedding or robotics ones; default below),
+    "Small side jobs use: …", and "Or type `cgemini` in any terminal" with Copy.
+  - "Remove".
   `POST /api/gemini/model {model}`, `DELETE /api/gemini`.
-- Just after the key is saved, a green line above: "All set! Follow the steps below."
+- Just after the key is saved, a green line above: "All set! Press Use this to start."
+- **Use this** (`POST /api/gemini/open`): `cmd.exe /k "<cgemini.cmd>"` in a new console
+  window, started in the user's home folder (Claude Code asks there whether to trust the
+  folder), out of this app's job when allowed, as the update setup is. No key: refused
+  ("Add a Gemini account first"). The demo opens nothing.
 - The key itself is never sent back to the page (only its last 4 characters).
 
 ### Copy to add (no paste, no "API key" words)

@@ -1,5 +1,6 @@
-// The "Claude Code on Gemini" card: once a key is saved, the model in use, the `cgemini`
-// command to copy, and Remove. Adding the key (the dialog) is in gemini_dialog.js.
+// The "Claude Code on Gemini" card: once a key is saved, Use this (a window running
+// cgemini), and folded away the model, the `cgemini` command to copy; Remove. Adding
+// the key (the dialog) is in gemini_dialog.js.
 // Parts: KEY_URL, gemSaved, gemLast, gem, renderGemini, gemReady, gemModels;
 // #gemBody click/change.
 
@@ -18,24 +19,21 @@ function renderGemini() {
   $('#gemBody').innerHTML = gemLast = html;
 }
 
-// Said for someone who has never opened a terminal (docs/specs/gemini.md, "Onboarding").
+// One button for someone who has never opened a terminal; the rest folded away
+// (docs/specs/gemini.md, "Onboarding").
 function gemReady(g) {
   const cmd = esc(g.command || 'cgemini');
-  const done = gemSaved ? '<p class="gem-ok" role="status">All set! Follow the steps below.</p>' : '';
+  const done = gemSaved ? '<p class="gem-ok" role="status">All set! Press <b>Use this</b> to start.</p>' : '';
   const fast = g.fastModel ? `<span class="note">Small side jobs use: ${esc(g.fastModel)}</span>` : '';
   return `${done}<div class="gem-ready">
-    <p><span class="dot"></span>Done: your free Gemini code is saved <span class="note">(it ends in …${esc(g.keyEnd || '')})</span>.</p>
-    <p><b>How to use it:</b></p>
-    <ol class="gem-use">
-      <li>Open <b>PowerShell</b>: press the Windows key, type <i>PowerShell</i>, press <b>Enter</b>.</li>
-      <li>Type <code>${cmd}</code> and press <b>Enter</b>. <button class="btn" data-gcopy="${cmd}">Copy</button></li>
-      <li>Claude Code starts as usual, but Gemini answers instead of Claude. Type what you want done.</li>
-    </ol>
-    <p class="note">Free has a daily limit: when it runs out, try again tomorrow. It can be slower than Claude.</p>
-    <details class="gem-adv"><summary>Advanced: which Gemini model</summary>
+    <p><span class="dot"></span>Gemini is ready (free).</p>
+    <p><button class="btn primary" data-gopen="1">Use this</button></p>
+    <p class="note">Free has a daily limit and can be slower than Claude.</p>
+    <details class="gem-adv"><summary>Advanced</summary>
       <label class="gem-model">Model <select id="gemModel">${gemModels(g)}</select></label>${fast}
+      <p>Or type <code>${cmd}</code> in any terminal <button class="btn" data-gcopy="${cmd}">Copy</button></p>
     </details>
-    <div><button class="btn" data-gremove="1">Remove the code</button></div>
+    <div><button class="btn" data-gremove="1">Remove</button></div>
   </div>`;
 }
 
@@ -52,7 +50,9 @@ $('#gemBody').addEventListener('change', e => {
 });
 $('#gemBody').addEventListener('click', e => {
   const copy = e.target.closest('[data-gcopy]');
-  if (copy) {
+  if (e.target.closest('[data-gopen]')) {
+    act(api('/api/gemini/open', { method: 'POST' }));
+  } else if (copy) {
     navigator.clipboard.writeText(copy.dataset.gcopy).then(() => {
       copy.textContent = 'Copied';
       setTimeout(() => (copy.textContent = 'Copy'), 1500);

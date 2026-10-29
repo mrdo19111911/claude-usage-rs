@@ -1,6 +1,6 @@
 // /api/gemini/* for the dashboard page: save the key, pick the model, remove, watch the
-// clipboard for a copied key (watch.rs). Each answers with the whole public state, as the
-// other routes do.
+// clipboard for a copied key (watch.rs), open a window running cgemini (open.rs). Each
+// answers with the whole public state, as the other routes do.
 
 use crate::*;
 use super::{models, path, script, upstream, watch, Config, FAST_MODEL, MODEL};
@@ -16,6 +16,7 @@ pub(crate) fn api(app: &Arc<App>, method: &str, path: &str, body: &Value) -> Opt
         ("POST", "/api/gemini/model") => set_model,
         ("DELETE", "/api/gemini") => remove,
         ("POST", "/api/gemini/watch") => watch,
+        ("POST", "/api/gemini/open") => super::open::open,
         _ => return None,
     };
     // The demo must not check keys or touch the real PATH and files.

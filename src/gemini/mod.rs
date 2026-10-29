@@ -7,7 +7,7 @@
 // upstream (the calls to Google), relay (Google's stream → ours), sse (our streamed
 // answer), models (which Gemini model), api (/api/gemini/* for the page), script
 // (cgemini.cmd), path (its folder on the user's PATH), watch and clipboard (copy to add:
-// a key copied in AI Studio is saved by itself).
+// a key copied in AI Studio is saved by itself), open ("Use this": a window running it).
 
 use crate::*;
 
@@ -16,6 +16,7 @@ mod clipboard;
 mod errors;
 mod messages;
 mod models;
+mod open;
 mod path;
 #[cfg(all(windows, not(test)))]
 mod path_win;
@@ -68,6 +69,8 @@ mod api_tests;
 mod messages_tests;
 #[cfg(test)]
 mod models_tests;
+#[cfg(test)]
+mod open_tests;
 #[cfg(test)]
 mod path_tests;
 #[cfg(test)]
