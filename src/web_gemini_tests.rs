@@ -114,7 +114,7 @@ fn the_watch_starts_on_open_and_stops_on_close() {
     assert!(stop.contains("gemWatch(false)") && stop.contains("clearInterval(gemPoll)"), "closing stops both");
     assert!(j.contains("addEventListener('close', gemStop)") && j.contains("addEventListener('cancel', gemStop)"),
             "Done, Cancel, Esc and success all end in close or cancel");
-    assert!(j.contains("< 60e3"), "the watch is renewed when under a minute is left");
+    assert!(j.contains("GEM_WATCH_MS"), "and ends 10 minutes after opening (web_gemini_dialog_tests.rs)");
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn the_ready_card_is_one_button_in_plain_words() {
     let has = |s: &str| card.find(s).unwrap_or_else(|| panic!("the card says {s:?}"));
     let order = ["Gemini is ready (free).", "data-gopen", ">Use this</button>", "daily limit",
                  "slower than Claude", "<details", "<summary>Advanced</summary>", "id=\"gemModel\"",
-                 "${fast}", "Or type <code>${cmd}</code> in any terminal", "data-gcopy", "</details>", ">Remove</button>"];
+                 "${fast}", "Or type <code>${cmd}</code> in a new terminal", "data-gcopy", "</details>", ">Remove</button>"];
     let at: Vec<usize> = order.iter().map(|s| has(s)).collect();
     assert!(at.windows(2).all(|w| w[0] < w[1]), "in this order: {order:?}");
     assert!(card.contains("Small side jobs use:"), "the second model, said plainly");

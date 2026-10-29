@@ -7,7 +7,7 @@
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
    top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
-   dialog (.gem-add .gem-ready .gem-adv .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
+   dialog (.gem-add .gem-ready .gem-warn .gem-adv .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
    .gem-pulse .gem-spin .copy-ic .gem-paste .note.small .shot .gem-privacy); help page (.help);
    narrow screens (@media). */
   :root {
@@ -123,6 +123,7 @@
   .gem-add:hover { filter: brightness(1.1); }
   .gem-ready { margin-top: 14px; }
   .gem-ready p { margin: 8px 0; }
+  .gem-ready .gem-warn { color: var(--amber); }   /* a model not known to be free */
   .gem-ready select { background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 14px; max-width: 100%; }
   .gem-model { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 14px; min-width: 0; }
   .gem-adv { margin: 10px 0 12px; color: var(--muted); font-size: 14px; }
