@@ -1,6 +1,6 @@
 // cgemini.cmd in %USERPROFILE%\.claude-usage-dashboard\bin (next to state.json): sets
-// Claude Code's variables for this app's port and token, runs `claude`, and lets nothing
-// leak into the terminal afterwards (setlocal ... endlocal).
+// Claude Code's variables for this app's port and token and its own profile (profile.rs),
+// runs `claude`, and lets nothing leak into the terminal afterwards (setlocal ... endlocal).
 
 use crate::*;
 use super::Config;
@@ -18,41 +18,53 @@ fn safe(s: &str) -> String {
     s.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')).collect()
 }
 
+// Claude Code's variables for this app: in the script and in the profile's settings.json
+// `env` (which Claude Code applies over the terminal's). Only safe characters.
+pub(crate) fn env(port: u16, cfg: &Config) -> Vec<(&'static str, String)> {
+    let (model, fast, token) = (safe(&cfg.model), safe(&cfg.fast_model), safe(&cfg.token));
+    let mut v = vec![
+        ("ANTHROPIC_BASE_URL", format!("http://127.0.0.1:{port}")),
+        ("ANTHROPIC_AUTH_TOKEN", token.clone()),
+        // Signed in to claude.ai, Claude Code sends its login instead of the token above.
+        ("ANTHROPIC_CUSTOM_HEADERS", format!("x-cud-token: {token}")),
+        // A key of the user's own would be sent instead of the token, and asked about.
+        ("ANTHROPIC_API_KEY", String::new()),
+        ("NO_PROXY", "127.0.0.1,localhost".into()),
+    ];
+    for n in ["ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL"] {
+        v.push((n, model.clone()));
+    }
+    for n in ["ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"] {
+        v.push((n, fast.clone()));
+    }
+    for (n, x) in [
+        ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
+        ("CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS", "1"),
+        ("CLAUDE_CODE_ATTRIBUTION_HEADER", "0"),
+        ("CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT", "1"),
+        ("ENABLE_TOOL_SEARCH", "false"),
+    ] {
+        v.push((n, x.into()));
+    }
+    v
+}
+
 pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
-    let base = format!("http://127.0.0.1:{port}");
-    let (model, fast) = (safe(&cfg.model), safe(&cfg.fast_model));
     let mut l: Vec<String> = vec![
         "@echo off".into(),
         "rem Written by Claude Usage at each start (its port changes): edits here are lost.".into(),
         "setlocal".into(),
-        format!("curl.exe -sf -o nul -m 2 {base}/v1/ping"),
+        format!("curl.exe -sf -o nul -m 2 http://127.0.0.1:{port}/v1/ping"),
         "if errorlevel 1 (".into(),
         "  echo Claude Usage is not running: start it from the Start menu.".into(),
         "  exit /b 1".into(),
         ")".into(),
-        format!("set \"ANTHROPIC_BASE_URL={base}\""),
-        format!("set \"ANTHROPIC_AUTH_TOKEN={}\"", safe(&cfg.token)),
-        // Signed in to claude.ai, Claude Code sends its login instead of the token above.
-        format!("set \"ANTHROPIC_CUSTOM_HEADERS=x-cud-token: {}\"", safe(&cfg.token)),
-        // A key of the user's own would be sent instead of the token, and asked about.
-        "set ANTHROPIC_API_KEY=".into(),
-        "set \"NO_PROXY=127.0.0.1,localhost\"".into(),
     ];
-    for v in ["ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL"] {
-        l.push(format!("set \"{v}={model}\""));
+    for (n, x) in env(port, cfg) {
+        l.push(if x.is_empty() { format!("set {n}=") } else { format!("set \"{n}={x}\"") });
     }
-    for v in ["ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"] {
-        l.push(format!("set \"{v}={fast}\""));
-    }
-    for v in [
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
-        "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1",
-        "CLAUDE_CODE_ATTRIBUTION_HEADER=0",
-        "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1",
-        "ENABLE_TOOL_SEARCH=false",
-    ] {
-        l.push(format!("set \"{v}\""));
-    }
+    // Its own profile, next to this script's folder (profile.rs): no Claude login in it.
+    l.push(r#"set "CLAUDE_CONFIG_DIR=%~dp0..\gemini-profile""#.into());
     // Claude Code on PATH, else where its own installer puts it (not always on PATH).
     for s in [
         r#"set "CUD_CLAUDE=claude""#,
@@ -76,7 +88,8 @@ pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
 
 pub(crate) fn write(app: &App, cfg: &Config) -> std::io::Result<()> {
     fs::create_dir_all(bin_dir(app))?;
-    write_private(&script_path(app), &script_text(app.port, cfg))
+    write_private(&script_path(app), &script_text(app.port, cfg))?;
+    super::profile::write(app, cfg)
 }
 
 pub(crate) fn remove(app: &App) {

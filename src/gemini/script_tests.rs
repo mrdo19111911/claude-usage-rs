@@ -65,6 +65,9 @@ fn runs_claude_then_ends_the_local_scope() {
     let none = line_of(&t, "echo Claude Code is not installed: see https://claude.com/claude-code");
     assert!(find < none && none < run);
     assert!(run > line_of(&t, "ENABLE_TOOL_SEARCH"));
+    // Its own profile, next to the script's folder: no Claude login, onboarding done.
+    let prof = line_of(&t, r#"set "CLAUDE_CONFIG_DIR=%~dp0..\gemini-profile""#);
+    assert!(line_of(&t, "setlocal") < prof && prof < run);
     assert_eq!(t.trim_end().lines().last(), Some("endlocal & exit /b %ERRORLEVEL%"));
 }
 

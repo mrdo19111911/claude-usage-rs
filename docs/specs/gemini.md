@@ -89,10 +89,33 @@ screen they shrink to fit. The help page shows the same pictures.
   times). The proxy never logs or keeps that login.
 - `claude --strict-mcp-config %*`: no MCP servers. Seen 2026-10-29: 74 of 102 tools were
   MCP ones (half of a 214 KB request), and a free key has 250K tokens a minute.
-- Finding `claude`: on PATH first; else `%USERPROFILE%\.localin\claude.exe`, where Claude
+- Finding `claude`: on PATH first; else `%USERPROFILE%\.local\bin\claude.exe`, where Claude
   Code's own installer puts it (seen 2026-10-29: installed there, but that folder was not on
   PATH). Neither: prints "Claude Code is not installed: see https://claude.com/claude-code"
   and stops.
+
+### Its own Claude Code profile
+
+Like any other provider that speaks Anthropic's API (Z.AI: `ANTHROPIC_BASE_URL` and a
+key), only the link and the key change; Gemini's link is this app, the translator (seen
+2026-10-29: Google answers 404 to `/v1/messages`, Z.AI 401). So that Claude Code opens
+straight to the prompt and never sees the Claude login, `cgemini` runs it on a profile
+of its own: `set "CLAUDE_CONFIG_DIR=%~dp0..\gemini-profile"`, that is
+`%USERPROFILE%\.claude-usage-dashboard\gemini-profile`. Written with the script (each
+start, key saved, model changed, Use this):
+- `settings.json`: a copy of the user's `~/.claude/settings.json` (hooks, status line,
+  their other settings), without `enabledPlugins` and `extraKnownMarketplaces` (the
+  plugins are not in this profile: Claude Code would fetch them again) nor
+  `apiKeyHelper`; its `env` holds the same link, token and model variables as the script.
+  Rewritten each time: edits there are lost.
+- `CLAUDE.md`: a copy of the user's `~/.claude/CLAUDE.md`, if there is one.
+- `.claude.json`: `hasCompletedOnboarding: true` (and `theme: "dark"`) set once, when the
+  mark is missing (Claude Code drops `theme` from it later, seen 2026-10-29); what
+  Claude Code itself writes there (its history, trusted folders) is kept.
+- No `.credentials.json`: the claude.ai login is not in this profile, so Claude Code
+  sends the token. Claude Code still asks once per folder whether to trust it (a safety
+  question, never answered for the user).
+- Removing the key leaves the profile (its history); the token in it no longer works.
 
 ## The proxy (`src/gemini/`)
 
