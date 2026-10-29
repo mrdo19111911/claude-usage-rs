@@ -21,6 +21,23 @@ The user's normal `claude` and its login are never touched. Why these choices:
   `POST /api/gemini/model {model}`, `DELETE /api/gemini`.
 - The key itself is never sent back to the page (only its last 4 characters).
 
+### Copy to add (no paste, no "API key" words)
+
+Most people do not know what an API key is. Google gives a new AI Studio user a key by
+itself once they accept the terms, so the dialog only asks: sign in, then press the copy
+button next to the key ("access code" in the text).
+- Opening the dialog sends `POST /api/gemini/watch {on:true}`; closing it `{on:false}`.
+  While on (10 minutes at most), the app looks at the Windows clipboard every 0.5 s
+  (only when its sequence number changes, and once at the start).
+- Only text that is exactly a Google key counts: `AIza` + 35 of `[0-9A-Za-z_-]`, or
+  `AQ.` + 20-200 of `[0-9A-Za-z_.-]` (the format AI Studio gives since May 2026).
+  Anything else is ignored: never stored, logged or sent anywhere.
+- A key seen: checked with Google and saved exactly as `POST /api/gemini/key` does; the
+  watch ends. A key Google refuses: the error shows and the watch goes on.
+- /api/state: `geminiWatch: null | {state: "waiting"|"checking"|"error", error, until}`.
+  The page asks for the state every second while the dialog is open.
+- Pasting by hand stays, under "Or paste it here".
+
 ## The `cgemini` command
 
 - `%USERPROFILE%\.claude-usage-dashboard\bin\cgemini.cmd`, rewritten at every start of the
