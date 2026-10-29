@@ -22,10 +22,31 @@ fn is_a_windows_batch_file_with_crlf_lines() {
 #[test]
 fn checks_the_app_first() {
     let t = text();
-    let ping = line_of(&t, "curl.exe -sf -o nul -m 2 http://127.0.0.1:4777/v1/ping");
+    let ping = line_of(&t, "/v1/ping");
     assert!(line_of(&t, "Claude Usage is not running: start it from the Start menu.") > ping);
     assert!(line_of(&t, "exit /b 1") > ping);
     assert!(ping < line_of(&t, "ANTHROPIC_BASE_URL"));
+}
+
+// The ping runs before NO_PROXY is set; a proxy from HTTP_PROXY or ALL_PROXY must not
+// carry it (curl uses them for 127.0.0.1 too).
+#[test]
+fn the_ping_never_goes_through_a_proxy() {
+    let t = text();
+    let ping = t.lines().find(|l| l.contains("/v1/ping")).unwrap();
+    assert_eq!(ping, r#"curl.exe -sf --noproxy "*" -o nul -m 2 http://127.0.0.1:4777/v1/ping"#);
+}
+
+// Bedrock, Vertex and the like set in the terminal would win over the link: unset.
+#[test]
+fn clears_the_other_providers() {
+    let t = text();
+    let local = line_of(&t, "setlocal");
+    for p in ["BEDROCK", "VERTEX", "FOUNDRY", "MANTLE", "ANTHROPIC_AWS"] {
+        let v = format!("set CLAUDE_CODE_USE_{p}=\r\n");
+        assert!(t.contains(&v), "missing {v:?} in\n{t}");
+        assert!(line_of(&t, v.trim_end()) > local);
+    }
 }
 
 #[test]

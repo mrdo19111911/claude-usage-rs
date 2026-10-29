@@ -25,7 +25,8 @@ fn settings_are_the_users_with_our_link_and_token() {
         "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "echo done"}]}]},
         "statusLine": {"type": "command", "command": "my-status"},
         "enabledPlugins": {"x@y": true}, "extraKnownMarketplaces": {"y": {}}, "apiKeyHelper": "get-key",
-        "env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic", "ANTHROPIC_AUTH_TOKEN": "zai", "MY_VAR": "1"},
+        "env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic", "ANTHROPIC_AUTH_TOKEN": "zai", "MY_VAR": "1",
+                "CLAUDE_CODE_USE_BEDROCK": "1", "CLAUDE_CODE_USE_VERTEX": "true"},
     });
     fs::write(dir.join("settings.json"), mine.to_string()).unwrap();
     let a = app(&dir, 4777, Some(config()));
@@ -43,6 +44,10 @@ fn settings_are_the_users_with_our_link_and_token() {
     assert_eq!(env["ANTHROPIC_SMALL_FAST_MODEL"], super::FAST_MODEL);
     assert_eq!(env["ANTHROPIC_API_KEY"], "");
     assert_eq!(env["MY_VAR"], "1", "the user's other variables stay");
+    // Another provider would win over the link: "" is off for provider selection.
+    for p in ["BEDROCK", "VERTEX", "FOUNDRY", "MANTLE", "ANTHROPIC_AWS"] {
+        assert_eq!(env[format!("CLAUDE_CODE_USE_{p}")], "", "{p}");
+    }
     assert!(!fs::read_to_string(profile_dir(&a).join("settings.json")).unwrap().contains(KEY), "never the Google key");
 }
 

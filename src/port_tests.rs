@@ -39,7 +39,15 @@ fn a_set_port_is_used_and_not_kept() {
     let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
     assert_eq!(port_of(&listen(&d, free, true).unwrap()), free);
     assert!(!d.join("port").exists(), "PORT or the fixed one is not remembered");
-    // The demo keeps nothing either.
-    listen(&d, 0, false).unwrap();
-    assert!(!d.join("port").exists());
+}
+
+// The demo runs beside the real one, with the same data folder: it must not take the
+// saved port (cgemini sessions would reach the demo), nor keep its own.
+#[test]
+fn the_demo_never_takes_the_saved_port() {
+    let d = dir("demo");
+    let saved = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    fs::write(d.join("port"), saved.to_string()).unwrap();
+    assert_ne!(port_of(&listen(&d, 0, false).unwrap()), saved);
+    assert_eq!(fs::read_to_string(d.join("port")).unwrap(), saved.to_string(), "left as it was");
 }
