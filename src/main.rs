@@ -118,6 +118,7 @@ fn main() {
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),
         gemini_sigs: Default::default(),
+        gemini_watch: Default::default(),
     });
 
     {

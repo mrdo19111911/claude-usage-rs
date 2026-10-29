@@ -1,8 +1,9 @@
-// /api/gemini/* for the dashboard page: save the key, pick the model, remove. Each
-// answers with the whole public state, as the other routes do.
+// /api/gemini/* for the dashboard page: save the key, pick the model, remove, watch the
+// clipboard for a copied key (watch.rs). Each answers with the whole public state, as the
+// other routes do.
 
 use crate::*;
-use super::{models, path, script, upstream, Config, FAST_MODEL, MODEL};
+use super::{models, path, script, upstream, watch, Config, FAST_MODEL, MODEL};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 
@@ -14,6 +15,7 @@ pub(crate) fn api(app: &Arc<App>, method: &str, path: &str, body: &Value) -> Opt
         ("POST", "/api/gemini/key") => save_key,
         ("POST", "/api/gemini/model") => set_model,
         ("DELETE", "/api/gemini") => remove,
+        ("POST", "/api/gemini/watch") => watch,
         _ => return None,
     };
     // The demo must not check keys or touch the real PATH and files.
@@ -40,7 +42,27 @@ fn new_token() -> String {
 }
 
 fn save_key(app: &Arc<App>, body: &Value) -> Result<(), String> {
-    let key = body["key"].as_str().unwrap_or("").trim().to_string();
+    save(app, body["key"].as_str().unwrap_or(""))
+}
+
+// Copy to add (watch.rs): the dialog is open (on) or closed (off).
+fn watch(app: &Arc<App>, body: &Value) -> Result<(), String> {
+    match body["on"].as_bool() {
+        Some(true) => {
+            if let Some(run) = app.gemini_watch.on(now()) {
+                watch::start(app, run);
+            }
+        }
+        Some(false) => app.gemini_watch.off(),
+        None => return Err("on: true or false".into()),
+    }
+    Ok(())
+}
+
+// A key pasted on the page or copied in AI Studio (watch.rs): checked with Google, saved,
+// cgemini written and put on PATH. A saved key ends a copy-to-add watch: nothing to wait for.
+pub(super) fn save(app: &Arc<App>, key: &str) -> Result<(), String> {
+    let key = key.trim().to_string();
     // It goes into a header: printable ASCII only, no spaces.
     if key.is_empty() || key.len() > 200 || !key.chars().all(|c| c.is_ascii_graphic()) {
         return Err("Paste the API key from Google AI Studio".into());
@@ -61,6 +83,7 @@ fn save_key(app: &Arc<App>, body: &Value) -> Result<(), String> {
         app.log(&mut st, format!("Gemini: key …{end} saved; type cgemini in a new terminal"));
         app.save(&st);
     }
+    app.gemini_watch.off();
     script::write(app, &cfg).map_err(|e| format!("Key saved, but cgemini.cmd could not be written: {e}"))?;
     path::add(&script::bin_dir(app)).map_err(|e| format!("Key saved, but the cgemini folder is not on PATH: {e}"))
 }

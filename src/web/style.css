@@ -7,7 +7,8 @@
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
    top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
-   dialog (.gem-add .gem-ready .gem-ok .gem-dlg .steps .gem-key .dlg-btns); help page (.help);
+   dialog (.gem-add .gem-ready .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
+   .gem-pulse .gem-spin .copy-ic .gem-paste .note.small); help page (.help);
    narrow screens (@media). */
   :root {
     --bg: #0f0f10; --card: #1a1a1b; --row-active: #1d2229; --line: #2c2c2e; --grid: #2a2a2c;
@@ -138,6 +139,23 @@
   .gem-dlg .err:empty, .gem-dlg #gemBusy:empty { display: none; }
   .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
   .dlg-btns .btn:disabled { opacity: .6; cursor: default; }
+  .gem-key .btn:disabled { opacity: .6; cursor: default; }
+  /* The live line under the steps (gemini_dialog.js) and the "Or paste it here" part. */
+  .gem-watch { min-height: 22px; margin: 0 0 12px; font-weight: 600; }
+  .gem-watch:empty { display: none; }
+  .gem-pulse, .gem-spin { display: inline-block; vertical-align: -1px; margin-right: 10px; }
+  .gem-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); animation: gem-pulse 1.4s ease-in-out infinite; }
+  .gem-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--blue); vertical-align: -2px; animation: gem-spin .8s linear infinite; }
+  @keyframes gem-pulse { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+  @keyframes gem-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .gem-pulse, .gem-spin { animation: none; } }
+  .copy-ic { display: inline-block; position: relative; width: 16px; height: 16px; vertical-align: -3px; }
+  .copy-ic::before, .copy-ic::after { content: ""; position: absolute; width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: 2px; }
+  .copy-ic::before { left: 1px; top: 4px; }
+  .copy-ic::after { left: 5px; top: 0; background: var(--card); }
+  .gem-paste { border-top: 1px solid var(--line); padding-top: 10px; }
+  .gem-paste summary { cursor: pointer; color: var(--muted); }
+  .note.small { font-size: 12.5px; }
   /* help.html: one <details> per question. */
   .help { max-width: 760px; }
   .help h1 { margin: 6px 0 4px; font-size: 22px; }

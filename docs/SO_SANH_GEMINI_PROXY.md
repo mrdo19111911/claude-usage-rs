@@ -196,3 +196,28 @@ Phần dịch (`request*.rs`, `schema*.rs`, `sigs.rs`, `stream*.rs`, `errors.rs`
   - `$ref` lặp vòng thì dừng ở `{type:object}`, như `unpack_defs` để nguyên ref vòng.
 - **Lỗi**: Google trả key sai là 400 `INVALID_ARGUMENT` kèm `ErrorInfo.reason = API_KEY_INVALID`. Code đổi thành 401 `authentication_error`. `retryDelay` lẻ ("1.2s") được làm tròn lên. 404 → `not_found_error`, 413 → `request_too_large`.
 - **Trang structured-output** của Gemini: nhóm khóa `minLength/maxLength/minProperties/maxProperties/uniqueItems/contains` bị "strip và bỏ qua" chứ không báo lỗi. Trang không nói gì về `$ref`/`$defs`/`const` và không nói quy tắc này có áp cho `parametersJsonSchema` không. Vì vậy `clean` chỉ bỏ những gì đã chọn ở trên, phần còn lại để đường thử lại bằng `parameters` lo.
+
+## Onboarding chỉ bấm Copy
+
+Tìm ngày 2026-10-29. Câu hỏi: người không biết "API key" là gì thì lấy key từ trang khác về app với ít bước nhất bằng cách nào.
+
+| Dự án | Cách làm | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| [GitHub CLI](https://github.com/cli/cli) `gh auth login` (device flow, [cli/oauth](https://github.com/cli/oauth) `oauth_device.go`) | In mã một lần, "press Enter" mở github.com/login/device; người dùng gõ mã ở đó; CLI tự hỏi GitHub vài giây một lần cho tới khi được duyệt. Issue [#5886](https://github.com/cli/cli/issues/5886): chữ "copy your one-time code" làm người dùng lúng túng vì trang không cho dán | Cao về ý: một việc trong trình duyệt, app **tự chờ** và tự thấy xong. Lấy: dòng trạng thái "Waiting…" và hỏi trạng thái định kỳ | Không chép được: Google AI Studio không có device flow cấp key |
+| [OpenRouter OAuth PKCE](https://openrouter.ai/docs/guides/overview/auth/oauth) (Cline, Roo Code dùng nút "Get OpenRouter API Key") | Mở `/auth?callback_url=…`, người dùng đăng nhập, trình duyệt quay về `callback_url?code=…`, app đổi `code` lấy key ở `/api/v1/auth/keys`. Không chép, không dán | Cao nhất về trải nghiệm (0 thao tác với key) | Không dùng được: AI Studio không cấp key qua OAuth cho app ngoài |
+| [Zed](https://zed.dev/docs/ai/configuration) (Agent settings → Google AI), [LibreChat](https://www.librechat.ai/docs/quick_start/first_chat) (Set API Key) | Link tới trang AI Studio, ô dán key, lưu (Zed: keychain) | Vừa: chính là cách cũ (dán). Giữ làm đường dự phòng "Or paste it here" | Thấp, đã có |
+| [ppiankov/pastewatch](https://github.com/ppiankov/pastewatch) (macOS, MIT) | Theo dõi clipboard, nhận diện bí mật bằng regex cố định theo từng loại (30+ loại, không đoán), chỉ ra tay khi khớp chắc chắn | Cao về cách nhận diện: chỉ nhận chuỗi **đúng hệt** dạng key Google, còn lại bỏ qua | Thấp: một regex + đọc clipboard (phía Rust, agent khác làm) |
+
+Chọn: kiểu gh (người dùng chỉ làm một việc ở trình duyệt, cửa sổ tự chờ, có dòng trạng thái) + nhận diện bằng regex đúng dạng như pastewatch, nhưng chỉ khi cửa sổ đang mở (`POST /api/gemini/watch {on}`, tối đa 10 phút, trang hỏi `/api/state` mỗi 1 s, gửi lại `on:true` khi còn dưới 1 phút). Trong cửa sổ gọi key là "access code" (mã truy cập miễn phí của Google), chữ "API key" chỉ một lần ở dòng nhỏ để người dùng tìm thấy trên trang Google. Ô dán của Zed/LibreChat giữ lại dưới `<details>` "Or paste it here". OpenRouter PKCE tốt hơn nhưng Google không có.
+
+## Clipboard
+
+Tìm ngày 2026-10-29: đọc chữ trong clipboard Windows từ Rust (cho `src/gemini/clipboard.rs`).
+
+| Dự án | Cách làm | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| [clipboard-win](https://github.com/DoumanAsh/clipboard-win) `src/raw.rs`, `src/lib.rs` | `OpenClipboard(NULL)`; `get_string`: `GetClipboardData(CF_UNICODETEXT)`, khóa bộ nhớ (guard gọi `GlobalUnlock`), độ dài = `GlobalSize/2`, đổi sang UTF-8 rồi cắt ở NUL đầu tiên. `seq_num()` = `GetClipboardSequenceNumber` (0 = không có quyền). `get_clipboard_string` mở bằng `new_attempts(10)`, ngủ `Sleep(5)` giữa các lần | Cao: đúng các bước cần, ít code | Thêm một crate (và `error-code`) cho ~30 dòng |
+| [arboard](https://github.com/1Password/arboard) `src/platform/windows.rs` | Dựa trên clipboard-win: mở lại tối đa 5 lần, 5 ms mỗi lần (tránh `new_attempts` vì nó ngủ 0 ms), hết lượt thì `ClipboardOccupied`; `is_format_avail(CF_UNICODETEXT)` rồi `raw::get_string` | Vừa: thêm lớp đa nền tảng không cần | Nặng hơn (ảnh, X11/Wayland ở nền khác) |
+| [copypasta](https://github.com/alacritty/copypasta) `src/windows_clipboard.rs` | Gọi thẳng `get_clipboard_string()` của clipboard-win, không tự thử lại | Thấp: chỉ là lớp bọc | Như clipboard-win |
+
+Chọn: tự viết bằng `windows-sys` (đã có trong dự án, thêm feature `Win32_System_DataExchange`, `Win32_System_Memory`, `Win32_System_Ole`), theo đúng các bước của clipboard-win: `OpenClipboard(NULL)` → `IsClipboardFormatAvailable` → `GetClipboardData(CF_UNICODETEXT)` → `GlobalLock` → đọc tới NUL đầu tiên trong `GlobalSize/2` đơn vị → `GlobalUnlock` → `CloseClipboard`. Khác: chỉ thử mở **một lần**, không ngủ; bận thì lần tick sau (0,5 s) đọc lại, nên không chặn và không treo. Chỉ đọc khi `GetClipboardSequenceNumber` đổi. Chép ra tối đa 1024 đơn vị UTF-16 (dài hơn thì không thể là key, bỏ luôn), chuỗi đọc được xóa về 0 ngay sau khi so khớp. So khớp viết tay, không dùng crate regex.

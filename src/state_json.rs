@@ -47,6 +47,7 @@ impl App {
             "loginEmail": self.read_oauth_account().get("emailAddress").cloned().unwrap_or(Value::Null),
             "claudeJson": self.claude_json.display().to_string(),
             "gemini": gemini::public(&st),
+            "geminiWatch": self.gemini_watch.public(),
         })
         .to_string()
     }

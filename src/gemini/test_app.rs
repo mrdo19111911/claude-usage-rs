@@ -47,6 +47,7 @@ pub(crate) fn app(dir: &Path, port: u16, cfg: Option<Config>) -> Arc<App> {
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),
         gemini_sigs: Default::default(),
+        gemini_watch: Default::default(),
     });
     app.st.lock().unwrap().gemini = cfg;
     app

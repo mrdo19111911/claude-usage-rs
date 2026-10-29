@@ -77,24 +77,27 @@
   </section>
 
   <dialog id="gemDlg" class="gem-dlg" aria-labelledby="gemTitle">
-    <h3 id="gemTitle">Add a free Gemini account</h3>
-    <p class="note">Google AI Studio opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open it again</a>.</p>
+    <h3 id="gemTitle" tabindex="-1">Add a free Gemini account</h3>
+    <p class="note">Google's page opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open Google's page again</a></p>
     <ol class="steps">
-      <li>Sign in with your Google account on the page that opened.</li>
-      <li>Click <b>Create API key</b> (pick or create any project).</li>
-      <li>Copy the key and paste it here.</li>
+      <li>Sign in with your Google account on the page that opened (and accept Google's terms if asked).</li>
+      <li>Next to your access code, press the <b>Copy</b> button <span class="copy-ic" aria-hidden="true"></span> (two small squares). No code yet? Press <b>Create API key</b>.</li>
+      <li>That's it: this window picks it up by itself.</li>
     </ol>
-    <label for="gemKey">Gemini API key</label>
-    <div class="gem-key">
-      <input type="password" id="gemKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your API key here" aria-describedby="gemErr gemBusy" autofocus>
-      <button type="button" class="btn" id="gemShow" aria-pressed="false" aria-controls="gemKey">Show</button>
-    </div>
-    <p class="err" id="gemErr" role="alert"></p>
-    <p class="note" id="gemBusy" role="status"></p>
-    <p class="note">The app checks the key with Google, then keeps it on this computer only.</p>
+    <p class="gem-watch" id="gemWatch" role="status" aria-live="polite"></p>
+    <p class="note small">The access code is free, from Google. Google's page calls it an “API key”. The app checks it with Google, then keeps it on this computer only.</p>
+    <details class="gem-paste" id="gemPaste"><summary>Or paste it here</summary>
+      <label for="gemKey">Your access code</label>
+      <div class="gem-key">
+        <input type="password" id="gemKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your access code here" aria-describedby="gemErr gemBusy">
+        <button type="button" class="btn" id="gemShow" aria-pressed="false" aria-controls="gemKey">Show</button>
+        <button type="button" class="btn primary" id="gemDone">Done</button>
+      </div>
+      <p class="err" id="gemErr" role="alert"></p>
+      <p class="note" id="gemBusy" role="status"></p>
+    </details>
     <div class="dlg-btns">
       <button type="button" class="btn" id="gemCancel">Cancel</button>
-      <button type="button" class="btn primary" id="gemDone">Done</button>
     </div>
   </dialog>
 
@@ -134,6 +137,7 @@
 <script src="js/settings.js"></script>
 <script src="js/update.js"></script>
 <script src="js/gemini.js"></script>
+<script src="js/gemini_dialog.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

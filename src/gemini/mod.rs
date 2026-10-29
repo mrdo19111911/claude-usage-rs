@@ -6,11 +6,13 @@
 // errors → Anthropic's), proxy (/v1/*: checks and routes), messages (/v1/messages),
 // upstream (the calls to Google), relay (Google's stream → ours), sse (our streamed
 // answer), models (which Gemini model), api (/api/gemini/* for the page), script
-// (cgemini.cmd), path (its folder on the user's PATH).
+// (cgemini.cmd), path (its folder on the user's PATH), watch and clipboard (copy to add:
+// a key copied in AI Studio is saved by itself).
 
 use crate::*;
 
 mod api;
+mod clipboard;
 mod errors;
 mod messages;
 mod models;
@@ -26,10 +28,12 @@ mod sigs;
 mod sse;
 mod stream;
 mod upstream;
+mod watch;
 
 pub(crate) use api::{api, public};
 pub(crate) use proxy::serve;
 pub(crate) use sigs::Sigs;
+pub(crate) use watch::Watch;
 
 // Main model and the fast one (Claude Code's "haiku" calls), as the research chose.
 pub(crate) const MODEL: &str = "gemini-3.8-flash";
@@ -74,3 +78,7 @@ mod relay_tests;
 mod script_tests;
 #[cfg(test)]
 mod sse_tests;
+#[cfg(test)]
+mod clipboard_tests;
+#[cfg(test)]
+mod watch_tests;

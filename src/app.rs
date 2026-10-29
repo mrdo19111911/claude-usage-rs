@@ -24,6 +24,8 @@ pub(crate) struct App {
     pub(crate) update: Mutex<update::Status>,
     // Gemini's thought signatures by tool_use id, for the next request (gemini/sigs.rs).
     pub(crate) gemini_sigs: gemini::Sigs,
+    // Copy to add: the clipboard watch while the add dialog is open (gemini/watch.rs).
+    pub(crate) gemini_watch: gemini::Watch,
 }
 
 impl App {
