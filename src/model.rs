@@ -26,6 +26,17 @@ pub(crate) struct Usage {
     pub(crate) five: Win,
     pub(crate) week: Win,
     pub(crate) fetched_at: i64,
+    // Weekly limits of one model each (Anthropic's "weekly_scoped"), e.g. Fable.
+    #[serde(default)]
+    pub(crate) scoped: Vec<Scoped>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Scoped {
+    pub(crate) name: String,
+    pub(crate) u: i64,
+    pub(crate) resets_at: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

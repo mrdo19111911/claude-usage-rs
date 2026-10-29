@@ -59,7 +59,7 @@ pub(crate) fn demo_state(app: &App) -> State {
         enabled: true,
         creds: json!({}),
         oauth_account: Value::Null,
-        usage: Some(Usage { five: Win { u: five, resets_at: five_reset }, week: Win { u: week, resets_at: Some(t + week_reset_h * HOUR) }, fetched_at: t - 12_000 }),
+        usage: Some(Usage { five: Win { u: five, resets_at: five_reset }, week: Win { u: week, resets_at: Some(t + week_reset_h * HOUR) }, fetched_at: t - 12_000, scoped: vec![Scoped { name: "Fable".into(), u: week / 3, resets_at: Some(t + week_reset_h * HOUR) }] }),
         history: hist,
         error: None,
         raw: Value::Null,

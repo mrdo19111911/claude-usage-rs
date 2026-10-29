@@ -123,3 +123,15 @@ at its right edge (Anthropic gives only the figures now, history starts when it 
   figures behind "Not enough figures in this range yet".
 - The chart opens on 5h. The range picked is remembered under `cud-range-v2` (a choice
   saved under the old key, from when 24h was the default, no longer applies).
+
+## "Not started yet" and per-model weekly limits (Fable)
+
+- A window with no reset time (Anthropic's `resets_at: null`: no use yet, so the window has
+  not begun) reads "0% … · not started yet": dashboard bars (`bar` in base.js) and the
+  widget's in-use card (where the time left would be).
+- Anthropic's `limits` entries of kind `weekly_scoped` (a weekly limit of one model, named
+  by `scope.model.display_name`, e.g. "Fable") are kept as `Usage.scoped` (name, %, reset;
+  `to_scoped` in util.rs; absent in older saved state = none). The dashboard shows each as
+  a small chip under the bars: "Fable 0%", coloured by level, reset in its tooltip.
+- Tests first: `to_scoped` (one Fable entry kept, other kinds ignored, no `limits` = none);
+  web: base.js says "not started yet", rows.js draws the `scoped` chips.

@@ -21,7 +21,7 @@ fn thins_old_history_only() {
 fn checks_less_when_far_from_a_limit_and_not_at_all_while_one_is_full() {
     use super::{next_check_at, Usage, Win};
     let w = |u, r| Win { u, resets_at: r };
-    let at = |five, week| Usage { five, week, fetched_at: 0 };
+    let at = |five, week| Usage { five, week, fetched_at: 0, scoped: vec![] };
     let (base, t, h) = (120_000, 1_000_000, 3_600_000);
     // New account, little used: every base.
     assert_eq!(next_check_at(&at(w(5, None), w(10, None)), base, t), t + 120_000);
@@ -72,4 +72,20 @@ fn iso() {
     assert_eq!(super::parse_iso("2025-10-28T11:40:00.123456+00:00"), Some(1761651600123));
     assert_eq!(super::parse_iso("2025-10-28T18:40:00+07:00"), Some(1761651600000));
     assert_eq!(super::parse_iso("2024-02-29T00:00:00Z"), Some(1709164800000));
+}
+
+#[test]
+fn per_model_weekly_limits_are_read() {
+    use crate::*;
+    let j = json!({"limits": [
+        {"kind": "session", "percent": 0, "resets_at": null, "scope": null},
+        {"kind": "weekly_all", "percent": 53, "resets_at": "2026-11-02T01:59:59.5+00:00", "scope": null},
+        {"kind": "weekly_scoped", "percent": 7, "resets_at": "2026-11-02T02:00:00+00:00",
+         "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null}}
+    ]});
+    let s = to_scoped(&j);
+    assert_eq!(s.len(), 1);
+    assert_eq!((s[0].name.as_str(), s[0].u), ("Fable", 7));
+    assert_eq!(s[0].resets_at, parse_iso("2026-11-02T02:00:00+00:00"));
+    assert!(to_scoped(&json!({"five_hour": {}})).is_empty(), "no limits list: none");
 }

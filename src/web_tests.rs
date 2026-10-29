@@ -89,3 +89,11 @@ fn the_chart_opens_on_5_hours() {
     // A choice saved under the old key (24h default) must not override the new default.
     assert!(!chart.contains("'cud-range'"), "old saved range ignored");
 }
+
+#[test]
+fn not_started_windows_and_model_limits_are_shown() {
+    let base = asset("/js/base.js").unwrap().0;
+    assert!(base.contains("not started yet"));
+    let rows = asset("/js/rows.js").unwrap().0;
+    assert!(rows.contains("u.scoped") && rows.contains("class=\"scoped\""), "a chip per model limit");
+}

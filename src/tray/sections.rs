@@ -72,6 +72,8 @@ unsafe fn card(p: &Painter, m: &Model, sd: &Side, chips: &[(&str, u32)], w: i32,
         p.text_mid(cl + p.px(54.0), cy, &format!("{}%", win.u), TEXT, BOLD);
         if let Some(t) = win.reset.filter(|&t| t > m.now) {
             p.text_mid_right(cr, cy, &format!("{} · {}", left(t - m.now), clock(t, m.now)), MUTED, SMALL);
+        } else if win.reset.is_none() {
+            p.text_mid_right(cr, cy, "not started yet", MUTED, SMALL);
         }
         let bt = yy + p.px(30.0);
         p.bar(cl, bt, cr, bt + p.px(6.0), win.u);
