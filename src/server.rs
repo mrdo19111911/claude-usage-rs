@@ -22,6 +22,12 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         host == format!("127.0.0.1:{}", app.port) || host == format!("localhost:{}", app.port)
     });
 
+    if let (true, "GET", Some(png)) = (host_ok, method.as_str(), web::image(&path)) {
+        let resp = tiny_http::Response::from_data(png)
+            .with_header(tiny_http::Header::from_bytes("Content-Type", "image/png").unwrap());
+        let _ = rq.respond(resp);
+        return;
+    }
     let result: Result<(u16, String, &str), String> = (|| {
         if !host_ok {
             return Ok((403, r#"{"error":"forbidden host"}"#.into(), "application/json"));

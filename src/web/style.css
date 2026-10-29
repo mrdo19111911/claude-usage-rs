@@ -8,7 +8,7 @@
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
    top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
    dialog (.gem-add .gem-ready .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
-   .gem-pulse .gem-spin .copy-ic .gem-paste .note.small); help page (.help);
+   .gem-pulse .gem-spin .copy-ic .gem-paste .note.small .shot); help page (.help);
    narrow screens (@media). */
   :root {
     --bg: #0f0f10; --card: #1a1a1b; --row-active: #1d2229; --line: #2c2c2e; --grid: #2a2a2c;
@@ -126,7 +126,7 @@
   .gem-model { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 14px; min-width: 0; }
   .gem-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .gem-ok { background: #16261a; border: 1px solid #2c5a35; border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; }
-  .gem-dlg { width: min(540px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+  .gem-dlg { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
   .gem-dlg::backdrop { background: rgba(0, 0, 0, .6); }
   .gem-dlg h3 { margin: 0 0 6px; font-size: 18px; }
   .gem-dlg a { color: var(--blue); }
@@ -156,6 +156,8 @@
   .gem-paste { border-top: 1px solid var(--line); padding-top: 10px; }
   .gem-paste summary { cursor: pointer; color: var(--muted); }
   .note.small { font-size: 12.5px; }
+  /* Step pictures (real screenshots), in the dialog and in help. */
+  .shot { display: block; max-width: 100%; height: auto; margin: 8px 0 4px; border: 1px solid var(--line); border-radius: 8px; }
   /* help.html: one <details> per question. */
   .help { max-width: 760px; }
   .help h1 { margin: 6px 0 4px; font-size: 22px; }

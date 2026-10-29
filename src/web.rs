@@ -25,6 +25,23 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
+// The step pictures of the Gemini dialog (PNG).
+pub fn image(path: &str) -> Option<&'static [u8]> {
+    match path {
+        "/img/gem-1-signin.png" => Some(include_bytes!("web/img/gem-1-signin.png")),
+        "/img/gem-2-create.png" => Some(include_bytes!("web/img/gem-2-create.png")),
+        "/img/gem-3-project.png" => Some(include_bytes!("web/img/gem-3-project.png")),
+        "/img/gem-4-newproject.png" => Some(include_bytes!("web/img/gem-4-newproject.png")),
+        "/img/gem-5-createkey.png" => Some(include_bytes!("web/img/gem-5-createkey.png")),
+        "/img/gem-6-copy.png" => Some(include_bytes!("web/img/gem-6-copy.png")),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+#[path = "web_pictures_tests.rs"]
+mod pictures_tests;
+
 #[cfg(test)]
 #[path = "web_tests.rs"]
 mod tests;

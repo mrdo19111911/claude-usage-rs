@@ -23,9 +23,11 @@ The user's normal `claude` and its login are never touched. Why these choices:
 
 ### Copy to add (no paste, no "API key" words)
 
-Most people do not know what an API key is. Google gives a new AI Studio user a key by
-itself once they accept the terms, so the dialog only asks: sign in, then press the copy
-button next to the key ("access code" in the text).
+Most people do not know what an API key is. The dialog calls it an "access code" and
+asks: sign in, make a code if there is none, then press the copy button next to it.
+(Seen on 2026-10-29: a Google account new to AI Studio has no key and no project. Create
+API key then asks for a project: "No Cloud Projects Available" → Create project → Create
+project again (name kept) → Create key. Google does not make a key by itself.)
 - Opening the dialog sends `POST /api/gemini/watch {on:true}`; closing it `{on:false}`.
   While on (10 minutes at most), the app looks at the Windows clipboard every 0.5 s
   (only when its sequence number changes, and once at the start).
@@ -37,6 +39,22 @@ button next to the key ("access code" in the text).
 - /api/state: `geminiWatch: null | {state: "waiting"|"checking"|"error", error, until}`.
   The page asks for the state every second while the dialog is open.
 - Pasting by hand stays, under "Or paste it here".
+
+### Step pictures
+
+Words alone do not show where to click. The dialog has four steps, with real screenshots
+of Google's pages under them, the place to click ringed in red:
+1. Sign in: `/img/gem-1-signin.png`.
+2. No code yet (first time): `/img/gem-2-create.png` (Create API key),
+   `/img/gem-3-project.png` (Create project, in the project list),
+   `/img/gem-4-newproject.png` (Create project, name kept), `/img/gem-5-createkey.png`
+   (Create key). Someone who already sees a code skips this step.
+3. `/img/gem-6-copy.png`: the Copy button at the end of the code's row.
+4. That's it: the window picks it up.
+The pictures carry no email, name, project ID or key: those parts are cut off or blurred
+before the file is saved. They are PNG files built into the program (served with
+`image/png`), each under 150 KB, with an `alt` text saying what they show; on a narrow
+screen they shrink to fit. The help page shows the same pictures.
 
 ## The `cgemini` command
 

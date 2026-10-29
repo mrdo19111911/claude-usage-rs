@@ -1,5 +1,5 @@
 // The "Claude Code on Gemini" card (docs/specs/gemini.md, "Onboarding" and "Copy to add"):
-// the page has the card, its button and the three-step dialog; gemini.js and
+// the page has the card, its button and the four-step dialog; gemini.js and
 // gemini_dialog.js are served, loaded and call the endpoints; the help page explains it.
 
 use super::asset;
@@ -41,12 +41,13 @@ fn the_add_button_has_its_text() {
 }
 
 #[test]
-fn the_dialog_has_three_steps_sign_in_copy_and_nothing_else() {
+fn the_dialog_has_four_steps_sign_in_make_a_code_copy_and_nothing_else() {
     let dlg = dialog();
     let ol = &dlg[dlg.find("<ol").unwrap()..dlg.find("</ol>").unwrap()];
-    assert_eq!(ol.matches("<li>").count(), 3, "three steps");
+    assert_eq!(ol.matches("<li>").count(), 4, "four steps");
     for w in ["Sign in with your Google account", "accept Google's terms", "<b>Copy</b>",
-              "two small squares", "No code yet?", "Create API key", "picks it up by itself"] {
+              "two small squares", "No code yet", "<b>Create API key</b>", "No Cloud Projects Available",
+              "<b>Create project</b>", "<b>Create key</b>", "skip this step", "picks it up by itself"] {
         assert!(ol.contains(w), "steps say {w}");
     }
     assert!(dlg.contains("access code"), "the key is called an access code");

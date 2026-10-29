@@ -80,8 +80,18 @@
     <h3 id="gemTitle" tabindex="-1">Add a free Gemini account</h3>
     <p class="note">Google's page opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open Google's page again</a></p>
     <ol class="steps">
-      <li>Sign in with your Google account on the page that opened (and accept Google's terms if asked).</li>
-      <li>Next to your access code, press the <b>Copy</b> button <span class="copy-ic" aria-hidden="true"></span> (two small squares). No code yet? Press <b>Create API key</b>.</li>
+      <li>Sign in with your Google account on the page that opened (and accept Google's terms if asked).
+        <img class="shot" src="img/gem-1-signin.png" alt="Google's sign-in page: type your Gmail address, then press Next" width="680" height="390" loading="lazy">
+      </li>
+      <li>No code yet (the first time)? Press <b>Create API key</b>. If it says “No Cloud Projects Available”, choose <b>Create project</b>, press <b>Create project</b> again (keep the name), then <b>Create key</b>. Already see a code in the list? Then skip this step.
+        <img class="shot" src="img/gem-2-create.png" alt="Google AI Studio, API Keys page: the Create API key button at the top right, ringed in red" width="900" height="400" loading="lazy">
+        <img class="shot" src="img/gem-3-project.png" alt="Create a new key: in the project list, Create project, ringed in red" width="640" height="371" loading="lazy">
+        <img class="shot" src="img/gem-4-newproject.png" alt="Create a new project: keep the name, press Create project, ringed in red" width="600" height="258" loading="lazy">
+        <img class="shot" src="img/gem-5-createkey.png" alt="Create a new key, with the new project chosen: the Create key button, ringed in red" width="600" height="352" loading="lazy">
+      </li>
+      <li>Next to your access code, press the <b>Copy</b> button <span class="copy-ic" aria-hidden="true"></span> (two small squares).
+        <img class="shot" src="img/gem-6-copy.png" alt="The list of codes: the Copy button, first of the small buttons at the end of the row, ringed in red" width="900" height="256" loading="lazy">
+      </li>
       <li>That's it: this window picks it up by itself.</li>
     </ol>
     <p class="gem-watch" id="gemWatch" role="status" aria-live="polite"></p>

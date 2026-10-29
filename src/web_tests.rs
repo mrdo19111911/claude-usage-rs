@@ -32,8 +32,11 @@ fn serves_every_file_the_page_loads() {
     // Links to other sites (Google AI Studio) are not ours to serve.
     let local = attrs(page, "href").into_iter().filter(|h| !h.starts_with("https://"));
     let (css, links): (Vec<_>, Vec<_>) = local.partition(|h| h.ends_with(".css"));
-    let js = attrs(page, "src");
+    let (pics, js): (Vec<_>, Vec<_>) = attrs(page, "src").into_iter().partition(|s| s.ends_with(".png"));
     assert!(!css.is_empty() && !js.is_empty(), "the page loads its style and scripts from files");
+    for src in pics {
+        assert!(super::image(&format!("/{src}")).is_some(), "{src} not served");
+    }
     for href in links {
         assert_eq!(asset(&format!("/{href}")).unwrap_or_else(|| panic!("{href} not served")).1, HTML, "{href}");
     }
