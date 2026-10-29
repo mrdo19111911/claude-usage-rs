@@ -53,7 +53,7 @@ impl App {
                 let t = now();
                 a.history.retain(|p| p.0 > t - 8 * 24 * HOUR);
                 a.history.push((t, five.u, week.u));
-                let u = Usage { five, week, fetched_at: t };
+                let u = Usage { five, week, fetched_at: t, scoped: to_scoped(&j) };
                 a.next_check = next_check_at(&u, base, t);
                 a.usage = Some(u);
                 a.error = None;

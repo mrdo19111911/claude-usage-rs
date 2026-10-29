@@ -30,6 +30,22 @@ pub(crate) fn to_win(w: &Value) -> Win {
     }
 }
 
+// Anthropic's per-model weekly limits: "limits" entries of kind "weekly_scoped", named by
+// their model ("Fable"). Other kinds are the 5-hour and weekly windows, read above.
+pub(crate) fn to_scoped(j: &Value) -> Vec<Scoped> {
+    let all = j["limits"].as_array().map(Vec::as_slice).unwrap_or_default();
+    all.iter()
+        .filter(|l| l["kind"] == "weekly_scoped")
+        .filter_map(|l| {
+            Some(Scoped {
+                name: l["scope"]["model"]["display_name"].as_str()?.to_string(),
+                u: l["percent"].as_f64().unwrap_or(0.0).round() as i64,
+                resets_at: l["resets_at"].as_str().and_then(parse_iso),
+            })
+        })
+        .collect()
+}
+
 // "2025-10-28T11:40:00.123+00:00" -> epoch ms
 pub(crate) fn parse_iso(s: &str) -> Option<i64> {
     let b = s.as_bytes();

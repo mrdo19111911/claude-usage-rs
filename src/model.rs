@@ -11,6 +11,13 @@ pub(crate) struct Settings {
     pub(crate) threshold: i64,
     pub(crate) auto_switch: bool,
     pub(crate) poll_seconds: u64,
+    // Install a newer release as soon as a check finds it (absent in older saved state: on).
+    #[serde(default = "yes")]
+    pub(crate) auto_update: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -26,6 +33,17 @@ pub(crate) struct Usage {
     pub(crate) five: Win,
     pub(crate) week: Win,
     pub(crate) fetched_at: i64,
+    // Weekly limits of one model each (Anthropic's "weekly_scoped"), e.g. Fable.
+    #[serde(default)]
+    pub(crate) scoped: Vec<Scoped>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Scoped {
+    pub(crate) name: String,
+    pub(crate) u: i64,
+    pub(crate) resets_at: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -89,7 +107,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, auto_switch: true, poll_seconds: 120 },
+            settings: Settings { threshold: 95, auto_switch: true, poll_seconds: 120, auto_update: true },
             accounts: vec![],
             active_id: None,
             events: vec![],

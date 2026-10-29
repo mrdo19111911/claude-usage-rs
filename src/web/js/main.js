@@ -1,9 +1,9 @@
 // Loaded last: drawing, buttons and the load loop.
-// Parts: render, setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
+// Parts: render (renderUpdate is in update.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
 // autoSwitch/threshold/pollSeconds onchange; loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run, #accts change; load() and the two timers.
 
-function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); }
+function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); renderUpdate(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
@@ -27,6 +27,8 @@ let loginUrl = '';
 const signIn = email => api('/api/login', { method: 'POST', body: JSON.stringify({ email }) })
   .then(r => { loginUrl = r.url; return api('/api/state'); }).then(setState).catch(e => alert(e.message));
 $('#cliAdd').onclick = () => signIn('');
+// Any account: Claude Desktop opens signed out and saves whichever one signs in there.
+$('#deskAdd').onclick = () => run({ dfirst: '' });
 $('#accts').addEventListener('click', e => {
   const t = e.target.closest('[data-activate],[data-remove],[data-signin],[data-dswitch],[data-dfirst],[data-dremove]');
   if (t) run(t.dataset);

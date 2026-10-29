@@ -46,5 +46,5 @@ function status(a) {
 function bar(w, showReset = true) {
   const u = w.u;
   return `<div class="bar"><div class="track"><div class="fill" style="width:${Math.max(u, u > 0 ? 3 : 0)}%;background:${color(u)}"></div></div><div class="pct">${u}%</div></div>
-    <div class="left"><b>${100 - u}% left</b>${showReset && w.resetsAt ? ' · resets ' + resetLabel(w.resetsAt) : ''}</div>`;
+    <div class="left"><b>${100 - u}% left</b>${!showReset ? '' : w.resetsAt ? ' · resets ' + resetLabel(w.resetsAt) : ' · not started yet'}</div>`;
 }

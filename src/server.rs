@@ -72,7 +72,23 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["pollSeconds"].as_f64() {
                     st.settings.poll_seconds = (v as u64).max(30);
                 }
+                if let Some(v) = body["autoUpdate"].as_bool() {
+                    st.settings.auto_update = v;
+                }
                 app.save(&st);
+            }
+            // Both reach GitHub (the install downloads a setup): in the background; the
+            // page follows "update" in /api/state.
+            ("POST", "/api/update/check") => {
+                if app.begin_check() {
+                    let a = app.clone();
+                    thread::spawn(move || a.finish_check());
+                }
+            }
+            ("POST", "/api/update/install") => {
+                app.begin_install()?;
+                let a = app.clone();
+                thread::spawn(move || a.finish_install());
             }
             ("POST", "/api/login") => {
                 let url = app.start_login(body["email"].as_str())?;

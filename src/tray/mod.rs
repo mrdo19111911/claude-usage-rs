@@ -11,6 +11,7 @@ mod events;
 mod icon;
 mod instance;
 mod layout;
+mod menu;
 mod model;
 mod paint;
 mod place;
@@ -23,6 +24,7 @@ use events::*;
 use icon::*;
 use instance::*;
 use layout::*;
+use menu::*;
 use model::*;
 use paint::*;
 use place::*;
@@ -49,6 +51,10 @@ pub type StateFn = Arc<dyn Fn() -> String + Send + Sync>;
 pub enum Act {
     Cli(String),
     Desktop(String),
+    // Ask GitHub for a newer version (the answer is in the state JSON's "update").
+    CheckUpdate,
+    // Download, verify and run the newer setup; the setup then closes this app.
+    InstallUpdate,
 }
 pub type ActFn = Arc<dyn Fn(Act) -> Result<(), String> + Send + Sync>;
 
@@ -67,6 +73,9 @@ const NIN_KEYSELECT: u32 = NIN_SELECT | 1;
 const ID_OPEN: usize = 1;
 const ID_PIN: usize = 2;
 const ID_QUIT: usize = 3;
+const ID_VERSION: usize = 4;
+const ID_HELP: usize = 5;
+const ID_UPDATE: usize = 6;
 
 // Same palette as the page.
 const BG: u32 = rgb(0x1a, 0x1a, 0x1b);

@@ -19,9 +19,11 @@ function checkLine(a) {
   return parts.length ? `<div class="meta">${parts.join(' · ')}</div>` : '';
 }
 
-// The 5-hour and weekly bars side by side (also the "In use now" panels').
+// The 5-hour and weekly bars side by side (also the "In use now" panels'), then a small
+// chip per model with a weekly limit of its own ("Fable 0%").
 function usageBars(u) {
-  return `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}</div></div>`;
+  const chips = (u.scoped || []).map(s => `<span class="scoped" style="--c:${color(s.u)}" title="${esc(s.name)} weekly limit${s.resetsAt ? ' · resets ' + resetLabel(s.resetsAt) : ''}">${esc(s.name)} <b>${s.u}%</b></span>`).join('');
+  return `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}${chips}</div></div>`;
 }
 
 // One row of either list: `cls` is "inuse", "muted" or ""; `left` the account, `right`
@@ -44,6 +46,7 @@ function renderRows() {
   $('#cliAdd').disabled = S.demo;
 
   const D = S.desktop, box = $('#desktopSub');
+  $('#deskAdd').disabled = S.demo || !D.found || D.switching;
   const msg = D.switching ? 'Claude Desktop is closing and will open again (up to a minute)…'
     : D.expect ? `Claude Desktop is open and signed out: click <b>Continue with Google</b> there and choose <b>${esc(D.expect)}</b>.`
     : '';

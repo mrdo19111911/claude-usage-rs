@@ -8,6 +8,12 @@
 </head>
 <body>
 <main>
+  <header class="topbar">
+    <b>Claude Usage</b><span class="note" id="version"></span>
+    <a href="help.html" target="_blank" rel="noopener">Help</a>
+    <button class="btn upd-pill" id="updPill" hidden></button>
+  </header>
+
   <section class="card">
     <h2>In use now</h2>
     <div class="sub note">Two separate logins: switching one never changes the other.</div>
@@ -51,7 +57,7 @@
         <div id="cliRows"></div>
       </div>
       <div class="side desk">
-        <div class="side-head"><span class="tag desk">Claude Desktop</span><span class="note">Its own sign-in</span></div>
+        <div class="side-head"><span class="tag desk">Claude Desktop</span><span class="note">Its own sign-in</span><button class="btn add" id="deskAdd">+ Add account</button></div>
         <div class="sub" id="desktopSub" style="display:none"></div>
         <div id="deskRows"></div>
       </div>
@@ -73,6 +79,12 @@
       <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
       <label>check each account every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
     </div>
+    <div class="upd" id="updRow">
+      <span><b>Updates</b> <span class="note">· version <span id="updVer"></span></span></span>
+      <span class="note" id="updStatus"></span>
+      <span class="upd-btns"><button class="btn" id="updCheck">Check for updates</button><button class="btn primary" id="updInstall" hidden></button></span>
+      <label class="note"><input type="checkbox" id="autoUpdate"> Install updates automatically</label>
+    </div>
     <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.<br>Checks: every account at that pace; from 70% used twice as often, from 85% four times, from 95% eight times (at most every 15 s). An account at a 100% limit is not checked again until that limit resets.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
@@ -86,6 +98,7 @@
 <script src="js/sides.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/update.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

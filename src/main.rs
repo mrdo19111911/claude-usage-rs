@@ -26,6 +26,7 @@ mod signin;
 mod state_json;
 mod switch;
 mod sync;
+mod update;
 mod util;
 use anthropic::*;
 use app::*;
@@ -114,6 +115,7 @@ fn main() {
         switching: AtomicBool::new(false),
         login: Mutex::new(None),
         desktop_expect: Mutex::new(None),
+        update: Mutex::new(update::Status::default()),
     });
 
     {
@@ -153,6 +155,7 @@ fn main() {
     #[cfg(not(windows))]
     println!("Keep this window open. Ctrl+C to stop.");
 
+    update::start(app.clone());
     let poller = app.clone();
     thread::spawn(move || loop {
         poller.poll_all(false);
