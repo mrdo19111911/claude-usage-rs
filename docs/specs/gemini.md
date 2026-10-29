@@ -67,11 +67,19 @@ screen they shrink to fit. The help page shows the same pictures.
   app answers (`curl -s http://127.0.0.1:<port>/v1/ping`), else prints "Claude Usage is
   not running: start it from the Start menu" and stops; sets `ANTHROPIC_BASE_URL`, the
   token and the model variables (see research), runs `claude %*`, `endlocal`.
+- The token goes in `ANTHROPIC_CUSTOM_HEADERS` as `x-cud-token` as well as in
+  `ANTHROPIC_AUTH_TOKEN`: seen 2026-10-29, Claude Code signed in to claude.ai sends its own
+  login in `Authorization` and ignores `ANTHROPIC_AUTH_TOKEN` (then retries a 401 eight
+  times). The proxy never logs or keeps that login.
+- Finding `claude`: on PATH first; else `%USERPROFILE%\.localin\claude.exe`, where Claude
+  Code's own installer puts it (seen 2026-10-29: installed there, but that folder was not on
+  PATH). Neither: prints "Claude Code is not installed: see https://claude.com/claude-code"
+  and stops.
 
 ## The proxy (`src/gemini/`)
 
 - Paths under `/v1/` on the dashboard's own server, before the page's checks; every one
-  needs the token (`Authorization: Bearer <token>` or `x-api-key`), so a web page in the
+  needs the token (`x-cud-token`, `Authorization: Bearer <token>` or `x-api-key`), so a web page in the
   browser cannot use the key. No key saved: 401 with an Anthropic-shaped error.
 - `POST /v1/messages`: Anthropic request → Gemini `streamGenerateContent?alt=sse`
   (or `generateContent` when `stream` is false) → Anthropic SSE (or one message JSON).

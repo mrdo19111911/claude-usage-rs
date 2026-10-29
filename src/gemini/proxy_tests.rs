@@ -15,14 +15,17 @@ fn compares_tokens_whole() {
 #[test]
 fn takes_the_token_from_either_header() {
     let t = "tok-1";
-    assert!(token_ok(Some("Bearer tok-1"), None, t));
-    assert!(token_ok(Some("bearer tok-1"), None, t), "scheme in any case");
-    assert!(token_ok(None, Some("tok-1"), t));
-    assert!(token_ok(Some("Bearer wrong"), Some("tok-1"), t), "either one will do");
-    assert!(!token_ok(Some("Bearer wrong"), None, t));
-    assert!(!token_ok(Some("tok-1"), None, t), "Authorization needs Bearer");
-    assert!(!token_ok(None, None, t));
-    assert!(!token_ok(Some("Bearer "), Some(""), ""), "no token saved: nothing opens");
+    assert!(token_ok(Some("Bearer tok-1"), None, None, t));
+    assert!(token_ok(Some("bearer tok-1"), None, None, t), "scheme in any case");
+    assert!(token_ok(None, Some("tok-1"), None, t));
+    assert!(token_ok(Some("Bearer wrong"), Some("tok-1"), None, t), "either one will do");
+    assert!(!token_ok(Some("Bearer wrong"), None, None, t));
+    assert!(!token_ok(Some("tok-1"), None, None, t), "Authorization needs Bearer");
+    assert!(!token_ok(None, None, None, t));
+    assert!(!token_ok(Some("Bearer "), Some(""), None, ""), "no token saved: nothing opens");
+    // Claude Code signed in to claude.ai sends its own login in Authorization.
+    assert!(token_ok(Some("Bearer sk-ant-oat-login"), None, Some("tok-1"), t), "x-cud-token will do");
+    assert!(!token_ok(Some("Bearer sk-ant-oat-login"), None, Some("wrong"), t));
 }
 
 #[test]

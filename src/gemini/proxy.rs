@@ -30,13 +30,16 @@ pub(crate) fn same(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
-// `Authorization: Bearer <token>` (ANTHROPIC_AUTH_TOKEN) or `x-api-key` (ANTHROPIC_API_KEY).
-pub(crate) fn token_ok(auth: Option<&str>, x_api_key: Option<&str>, token: &str) -> bool {
+// `Authorization: Bearer <token>` (ANTHROPIC_AUTH_TOKEN), `x-api-key` (ANTHROPIC_API_KEY) or
+// `x-cud-token` (ANTHROPIC_CUSTOM_HEADERS: Claude Code signed in to claude.ai sends its own
+// login in Authorization instead of the token).
+pub(crate) fn token_ok(auth: Option<&str>, x_api_key: Option<&str>, x_cud: Option<&str>, token: &str) -> bool {
     if token.is_empty() {
         return false;
     }
     let bearer = auth.and_then(|a| a.get(..7).filter(|s| s.eq_ignore_ascii_case("bearer ")).map(|_| &a[7..]));
-    bearer.is_some_and(|b| same(b.trim(), token)) | x_api_key.is_some_and(|k| same(k.trim(), token))
+    let is = |v: Option<&str>| v.is_some_and(|v| same(v.trim(), token));
+    is(bearer) | is(x_api_key) | is(x_cud)
 }
 
 fn header<'a>(rq: &'a tiny_http::Request, name: &'static str) -> Option<&'a str> {
@@ -67,7 +70,7 @@ pub(crate) fn serve(app: &Arc<App>, mut rq: tiny_http::Request) {
     }
     let cfg = app.st.lock().unwrap().gemini.clone();
     let token = cfg.as_ref().map_or("", |c| c.token.as_str());
-    if !token_ok(header(&rq, "Authorization"), header(&rq, "x-api-key"), token) {
+    if !token_ok(header(&rq, "Authorization"), header(&rq, "x-api-key"), header(&rq, "x-cud-token"), token) {
         let msg = if cfg.is_none() { "No Gemini key is saved: add one in Claude Usage." } else { "Wrong token: run cgemini again." };
         return reply(rq, 401, &errors::error_json("authentication_error", msg), None);
     }

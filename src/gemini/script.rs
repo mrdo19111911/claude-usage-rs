@@ -32,6 +32,8 @@ pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
         ")".into(),
         format!("set \"ANTHROPIC_BASE_URL={base}\""),
         format!("set \"ANTHROPIC_AUTH_TOKEN={}\"", safe(&cfg.token)),
+        // Signed in to claude.ai, Claude Code sends its login instead of the token above.
+        format!("set \"ANTHROPIC_CUSTOM_HEADERS=x-cud-token: {}\"", safe(&cfg.token)),
         // A key of the user's own would be sent instead of the token, and asked about.
         "set ANTHROPIC_API_KEY=".into(),
         "set \"NO_PROXY=127.0.0.1,localhost\"".into(),
@@ -51,8 +53,20 @@ pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
     ] {
         l.push(format!("set \"{v}\""));
     }
+    // Claude Code on PATH, else where its own installer puts it (not always on PATH).
+    for s in [
+        r#"set "CUD_CLAUDE=claude""#,
+        "where claude >nul 2>nul || set CUD_CLAUDE=",
+        r#"if not defined CUD_CLAUDE if exist "%USERPROFILE%\.local\bin\claude.exe" set "CUD_CLAUDE=%USERPROFILE%\.local\bin\claude.exe""#,
+        "if not defined CUD_CLAUDE (",
+        "  echo Claude Code is not installed: see https://claude.com/claude-code",
+        "  exit /b 1",
+        ")",
+    ] {
+        l.push(s.into());
+    }
     // `call`: claude may itself be a .cmd (npm), which would otherwise never return here.
-    l.push("call claude %*".into());
+    l.push(r#"call "%CUD_CLAUDE%" %*"#.into());
     // %ERRORLEVEL% is read before endlocal runs: claude's own exit code goes out.
     l.push("endlocal & exit /b %ERRORLEVEL%".into());
     l.iter().map(|s| format!("{s}\r\n")).collect()
