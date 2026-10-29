@@ -6,7 +6,9 @@
    .tableview .scroll; series colours (:root --s-five --s-week); range filter (.filters .seg);
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
-   top bar and updates (.topbar .upd-pill .upd [hidden]); help page (.help);
+   top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
+   dialog (.gem-add .gem-ready .gem-warn .gem-adv .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
+   .gem-pulse .gem-spin .copy-ic .gem-paste .note.small .shot .gem-privacy); help page (.help);
    narrow screens (@media). */
   :root {
     --bg: #0f0f10; --card: #1a1a1b; --row-active: #1d2229; --line: #2c2c2e; --grid: #2a2a2c;
@@ -116,6 +118,53 @@
   .upd a { color: var(--blue); }
   .upd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .upd .btn:disabled { opacity: .5; cursor: default; }
+  /* Claude Code on Gemini: the card (gemini.js) and its three-step dialog. */
+  .gem-add { padding: 10px 20px; font-size: 15px; font-weight: 600; align-self: center; }
+  .gem-add:hover { filter: brightness(1.1); }
+  .gem-ready { margin-top: 14px; }
+  .gem-ready p { margin: 8px 0; }
+  .gem-ready .gem-warn { color: var(--amber); }   /* a model not known to be free */
+  .gem-ready select { background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 14px; max-width: 100%; }
+  .gem-model { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 14px; min-width: 0; }
+  .gem-adv { margin: 10px 0 12px; color: var(--muted); font-size: 14px; }
+  .gem-adv summary { cursor: pointer; }
+  .gem-adv[open] summary { margin-bottom: 8px; }
+  .gem-adv .note { display: block; margin-top: 6px; }
+  .gem-adv p { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .gem-ok { background: #16261a; border: 1px solid #2c5a35; border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; }
+  .gem-dlg { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+  .gem-dlg::backdrop { background: rgba(0, 0, 0, .6); }
+  .gem-dlg h3 { margin: 0 0 6px; font-size: 18px; }
+  .gem-dlg a { color: var(--blue); }
+  .gem-dlg label { display: block; font-weight: 600; margin-top: 4px; }
+  .steps { margin: 12px 0 14px; padding-left: 22px; }
+  .steps li { margin: 6px 0; }
+  .gem-key { display: flex; gap: 8px; margin-top: 6px; }
+  .gem-key input { flex: 1; min-width: 0; background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-family: Consolas, ui-monospace, monospace; }
+  .gem-key input:focus, .gem-ready select:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .gem-dlg .err:empty, .gem-dlg #gemBusy:empty { display: none; }
+  .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .dlg-btns .btn:disabled { opacity: .6; cursor: default; }
+  .gem-key .btn:disabled { opacity: .6; cursor: default; }
+  /* The live line under the steps (gemini_dialog.js) and the "Or paste it here" part. */
+  .gem-watch { min-height: 22px; margin: 0 0 12px; font-weight: 600; }
+  .gem-watch:empty { display: none; }
+  .gem-pulse, .gem-spin { display: inline-block; vertical-align: -1px; margin-right: 10px; }
+  .gem-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); animation: gem-pulse 1.4s ease-in-out infinite; }
+  .gem-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--blue); vertical-align: -2px; animation: gem-spin .8s linear infinite; }
+  @keyframes gem-pulse { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+  @keyframes gem-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .gem-pulse, .gem-spin { animation: none; } }
+  .copy-ic { display: inline-block; position: relative; width: 16px; height: 16px; vertical-align: -3px; }
+  .copy-ic::before, .copy-ic::after { content: ""; position: absolute; width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: 2px; }
+  .copy-ic::before { left: 1px; top: 4px; }
+  .copy-ic::after { left: 5px; top: 0; background: var(--card); }
+  .gem-paste { border-top: 1px solid var(--line); padding-top: 10px; }
+  .gem-paste summary { cursor: pointer; color: var(--muted); }
+  .note.small { font-size: 12.5px; }
+  .gem-privacy { background: #2a2312; border: 1px solid #5c4a1c; border-radius: 10px; padding: 8px 12px; margin: 10px 0 4px; font-size: 13.5px; }
+  /* Step pictures (real screenshots), in the dialog and in help. */
+  .shot { display: block; max-width: 100%; height: auto; margin: 8px 0 4px; border: 1px solid var(--line); border-radius: 8px; }
   /* help.html: one <details> per question. */
   .help { max-width: 760px; }
   .help h1 { margin: 6px 0 4px; font-size: 22px; }

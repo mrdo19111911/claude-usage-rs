@@ -7,6 +7,10 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
     let method = rq.method().as_str().to_string();
     let url = rq.url().to_string();
     let path = url.split('?').next().unwrap_or("").to_string();
+    // Claude Code (cgemini): its own checks (a token), its own answers (streamed).
+    if path.starts_with("/v1/") {
+        return gemini::serve(app, rq);
+    }
     let mut body = String::new();
     let _ = rq.as_reader().read_to_string(&mut body);
     let body: Value = serde_json::from_str(&body).unwrap_or(json!({}));
@@ -18,6 +22,12 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         host == format!("127.0.0.1:{}", app.port) || host == format!("localhost:{}", app.port)
     });
 
+    if let (true, "GET", Some(png)) = (host_ok, method.as_str(), web::image(&path)) {
+        let resp = tiny_http::Response::from_data(png)
+            .with_header(tiny_http::Header::from_bytes("Content-Type", "image/png").unwrap());
+        let _ = rq.respond(resp);
+        return;
+    }
     let result: Result<(u16, String, &str), String> = (|| {
         if !host_ok {
             return Ok((403, r#"{"error":"forbidden host"}"#.into(), "application/json"));
@@ -46,6 +56,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         if method != "GET" && !from_page {
             return Ok((403, r#"{"error":"forbidden"}"#.into(), "application/json"));
         }
+        if let Some(answer) = gemini::api(app, &method, &path, &body) {
+            return answer;
+        }
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/refresh") | ("POST", "/api/import") => {
                 app.poll_all(true);
@@ -65,6 +78,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 let mut st = app.st.lock().unwrap();
                 if let Some(v) = body["threshold"].as_f64() {
                     st.settings.threshold = (v as i64).clamp(50, 100);
+                }
+                if let Some(v) = body["weekThreshold"].as_f64() {
+                    st.settings.week_threshold = (v as i64).clamp(50, 100);
                 }
                 if let Some(v) = body["autoSwitch"].as_bool() {
                     st.settings.auto_switch = v;

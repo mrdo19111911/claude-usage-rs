@@ -1,8 +1,10 @@
 // Checking GitHub for a newer release and installing it (docs/specs/update.md).
-// github.rs: the release and its setup (pure parts); install.rs: download and run it.
+// check.rs: asking GitHub; github.rs: the release and its setup (pure parts);
+// install.rs: download and run it.
 
 use crate::*;
 
+mod check;
 mod github;
 mod install;
 pub(crate) use github::*;
@@ -50,12 +52,14 @@ pub(crate) struct Status {
 }
 
 // The background checker: looks a minute after start, then hourly, and checks once 3
-// days have passed since GitHub last answered (saved, so restarts do not check again).
-// Errors only go to the status and the log; the next look tries again.
+// days have passed since GitHub last answered with nothing to install (saved, so
+// restarts do not check again). Errors only go to the status and the log; the next look
+// tries again, as it does a found version not installed yet (check.rs).
 pub(crate) fn start(app: Arc<App>) {
     if app.demo {
         return;
     }
+    app.update.lock().unwrap().checked_at = app.st.lock().unwrap().update_checked_at;
     thread::spawn(move || {
         thread::sleep(FIRST_LOOK);
         loop {
@@ -84,72 +88,6 @@ impl App {
         None
     }
 
-    // Marks the status "checking"; false when there is nothing to start (demo, busy).
-    pub(crate) fn begin_check(&self) -> bool {
-        if self.demo {
-            return false;
-        }
-        let mut u = self.update.lock().unwrap();
-        if matches!(u.phase, Phase::Checking | Phase::Downloading | Phase::Installing) {
-            return false;
-        }
-        u.phase = Phase::Checking;
-        true
-    }
-
-    // Asks GitHub for the latest release; blocking (up to the agent's 20 s).
-    pub(crate) fn check_update(&self) -> Result<(), String> {
-        if !self.begin_check() {
-            return Ok(());
-        }
-        self.finish_check()
-    }
-
-    pub(crate) fn finish_check(&self) -> Result<(), String> {
-        let res = latest_release(&self.http);
-        let t = now();
-        let found = match &res {
-            Ok(r) => {
-                let tag = r["tag_name"].as_str().unwrap_or("");
-                let latest = tag.trim_start_matches('v').to_string();
-                let url = r["html_url"].as_str().filter(|u| u.starts_with("https://github.com/")).map(String::from);
-                let newer = newer(tag, VERSION);
-                let mut u = self.update.lock().unwrap();
-                *u = Status {
-                    phase: if newer { Phase::Available } else { Phase::UpToDate },
-                    latest: Some(latest.clone()).filter(|l| !l.is_empty()),
-                    url,
-                    checked_at: Some(t),
-                    error: None,
-                    logged: u.logged.take(),
-                };
-                let first = newer && u.logged.as_deref() != Some(latest.as_str());
-                if first {
-                    u.logged = Some(latest.clone());
-                }
-                first.then_some(latest)
-            }
-            Err(e) => {
-                self.set_update(|u| {
-                    u.phase = Phase::Error;
-                    u.checked_at = Some(t);
-                    u.error = Some(e.clone());
-                });
-                None
-            }
-        };
-        let mut st = self.st.lock().unwrap();
-        if res.is_ok() {
-            st.update_checked_at = Some(t);
-        }
-        if let Some(v) = found {
-            self.log(&mut st, format!("Update {v} found"));
-        }
-        self.save(&st);
-        drop(st);
-        res.map(|_| ())
-    }
-
     // One round of the background checker: check, then install at once when allowed.
     // A check or install already running: check_update leaves it alone.
     fn auto_update(&self) {
@@ -157,7 +95,8 @@ impl App {
             return;
         }
         let auto = self.st.lock().unwrap().settings.auto_update;
-        // Blocked (a switch or a sign-in): the next check tries again.
+        // Blocked (a switch or a sign-in), or the install failed: the check time was not
+        // saved (check.rs), so the next hourly look tries again.
         if auto && self.update_blocked().is_none() {
             let _ = self.install_update();
         }

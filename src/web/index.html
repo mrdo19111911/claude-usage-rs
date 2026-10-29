@@ -39,7 +39,7 @@
     <div class="legend">
       <span><i style="background:var(--s-five)"></i>5-hour limit</span>
       <span><i style="background:var(--s-week)"></i>Weekly limit</span>
-      <span><i class="dash"></i><b id="thLegend"></b>% auto-switch</span>
+      <span><i class="dash"></i><b id="thLegend"></b> auto-switch</span>
     </div>
     <div id="chart" class="grid"></div>
   </section>
@@ -65,6 +65,53 @@
     <p class="note"><b>Claude CLI</b> (terminal and VS Code share one login) switches at once; auto-switch moves only this one. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
   </section>
 
+  <section class="card gem" id="gemCard">
+    <div class="head">
+      <div>
+        <h2>Claude Code on Gemini</h2>
+        <div class="sub note">Use Claude Code for free: Google's Gemini answers instead of Claude. Your Claude accounts stay as they are.</div>
+      </div>
+      <button class="btn primary gem-add" id="gemAdd">+ Add Gemini account (free)</button>
+    </div>
+    <div id="gemBody"></div>
+  </section>
+
+  <dialog id="gemDlg" class="gem-dlg" aria-labelledby="gemTitle">
+    <h3 id="gemTitle" tabindex="-1">Add a free Gemini account</h3>
+    <p class="note">Google's page opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open Google's page again</a></p>
+    <p class="gem-privacy" role="note">With a free key, Google may read what you send through <code>cgemini</code>, your code too, and use it to improve its models. Do not use it for code that must stay private.</p>
+    <ol class="steps">
+      <li>Sign in with your Google account on the page that opened (and accept Google's terms if asked).
+        <img class="shot" src="img/gem-1-signin.png" alt="Google's sign-in page: type your Gmail address, then press Next" width="680" height="390" loading="lazy">
+      </li>
+      <li>No code yet (the first time)? Press <b>Create API key</b>. If it says “No Cloud Projects Available”, choose <b>Create project</b>, press <b>Create project</b> again (keep the name), then <b>Create key</b>. Already see a code in the list? Then skip this step.
+        <img class="shot" src="img/gem-2-create.png" alt="Google AI Studio, API Keys page: the Create API key button at the top right, ringed in red" width="900" height="400" loading="lazy">
+        <img class="shot" src="img/gem-3-project.png" alt="Create a new key: in the project list, Create project, ringed in red" width="640" height="371" loading="lazy">
+        <img class="shot" src="img/gem-4-newproject.png" alt="Create a new project: keep the name, press Create project, ringed in red" width="600" height="258" loading="lazy">
+        <img class="shot" src="img/gem-5-createkey.png" alt="Create a new key, with the new project chosen: the Create key button, ringed in red" width="600" height="352" loading="lazy">
+      </li>
+      <li>Next to your access code, press the <b>Copy</b> button <span class="copy-ic" aria-hidden="true"></span> (two small squares).
+        <img class="shot" src="img/gem-6-copy.png" alt="The list of codes: the Copy button, first of the small buttons at the end of the row, ringed in red" width="900" height="256" loading="lazy">
+      </li>
+      <li>That's it: this window picks it up by itself.</li>
+    </ol>
+    <p class="gem-watch" id="gemWatch" role="status" aria-live="polite"></p>
+    <p class="note small">The access code is free, from Google. Google's page calls it an “API key”. The app checks it with Google, then keeps it on this computer only.</p>
+    <details class="gem-paste" id="gemPaste"><summary>Or paste it here</summary>
+      <label for="gemKey">Your access code</label>
+      <div class="gem-key">
+        <input type="password" id="gemKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your access code here" aria-describedby="gemErr gemBusy">
+        <button type="button" class="btn" id="gemShow" aria-pressed="false" aria-controls="gemKey">Show</button>
+        <button type="button" class="btn primary" id="gemDone">Done</button>
+      </div>
+      <p class="err" id="gemErr" role="alert"></p>
+      <p class="note" id="gemBusy" role="status"></p>
+    </details>
+    <div class="dlg-btns">
+      <button type="button" class="btn" id="gemCancel">Cancel</button>
+    </div>
+  </dialog>
+
   <section class="card">
     <div class="head">
       <h2>Settings</h2>
@@ -76,7 +123,8 @@
     </div>
     <div class="settings" style="margin-top:14px">
       <label><input type="checkbox" id="autoSwitch"> Auto-switch</label>
-      <label>at <input type="number" id="threshold" min="50" max="100"> %</label>
+      <label>at <input type="number" id="threshold" min="50" max="100"> % 5-hour</label>
+      <label><input type="number" id="weekThreshold" min="50" max="100"> % weekly</label>
       <label>check each account every <input type="number" id="pollSeconds" min="30" step="30"> s</label>
     </div>
     <div class="upd" id="updRow">
@@ -99,6 +147,8 @@
 <script src="js/chart.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/update.js"></script>
+<script src="js/gemini.js"></script>
+<script src="js/gemini_dialog.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

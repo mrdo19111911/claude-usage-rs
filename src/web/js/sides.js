@@ -24,7 +24,7 @@ function renderSides() {
   const cur = S.accounts.find(a => a.id === S.activeId);
   const codeOpts = S.accounts.filter(a => a !== cur).map(a => [`activate:${a.id}`, a.email + usageHint(a.usage) + (a.enabled ? '' : ' · off')]);
   $('#sideCode').innerHTML = side('code', 'Claude CLI', 'Terminal and VS Code: one shared login', cur && cur.email, cur && cur.usage,
-    s.autoSwitch ? `Auto-switch moves it to another account at ${s.threshold}%.` : 'Auto-switch is off.', codeOpts, false);
+    s.autoSwitch ? `Auto-switch moves it to another account at ${s.threshold}% (5-hour) or ${s.weekThreshold ?? 99}% (weekly).` : 'Auto-switch is off.', codeOpts, false);
   if (!D.found || S.demo) {
     $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', null, null, 'Claude Desktop was not found on this computer.', [], true);
     return;

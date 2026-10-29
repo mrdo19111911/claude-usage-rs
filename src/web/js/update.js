@@ -17,7 +17,8 @@ function updText(u) {
     case 'available': return `Version ${esc(u.latest)} available${news}`;
     case 'upToDate': return 'Up to date' + when;
     case 'error': return `<span class="err">${esc(u.error || 'The update check failed')}</span>${when}`;
-    default: return 'Never checked';
+    // Idle after a restart: the last check is remembered, its answer is not.
+    default: return u.checkedAt ? `Last checked <span data-ago="${u.checkedAt}">${ago(u.checkedAt)}</span>` : 'Never checked';
   }
 }
 

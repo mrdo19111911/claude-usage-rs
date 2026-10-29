@@ -8,6 +8,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod desktop;
+mod gemini;
 mod lock;
 mod login;
 #[cfg(windows)]
@@ -21,6 +22,7 @@ mod app;
 mod creds;
 mod model;
 mod poll;
+mod port;
 mod server;
 mod signin;
 mod state_json;
@@ -58,8 +60,8 @@ fn main() {
     let demo = args.iter().any(|a| a == "--demo");
     // Windows: the tray icon is the way in, so no browser tab unless asked for (--open).
     let no_open = if cfg!(windows) { !args.iter().any(|a| a == "--open") } else { args.iter().any(|a| a == "--no-open") };
-    // Windows: any free port (0), since the tray icon knows the address; elsewhere the
-    // address is typed or bookmarked, so a fixed one. PORT sets it either way.
+    // Windows: any free port (0; port.rs takes the last run's again), since the tray icon
+    // knows the address; elsewhere it is typed or bookmarked, so a fixed one. PORT sets it.
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(if cfg!(windows) { 0 } else { 4777 });
 
     let config_dir = std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from);
@@ -82,7 +84,7 @@ fn main() {
         return;
     }
 
-    let server = match tiny_http::Server::http(("127.0.0.1", port)) {
+    let server = match port::listen(&data_dir, port, !demo) {
         Ok(s) => s,
         Err(e) => {
             // Most likely it is already running: just open it.
@@ -116,6 +118,8 @@ fn main() {
         login: Mutex::new(None),
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),
+        gemini_sigs: Default::default(),
+        gemini_watch: Default::default(),
     });
 
     {
@@ -126,6 +130,7 @@ fn main() {
             *st = s;
         }
     }
+    gemini::start(&app); // cgemini.cmd again, for this run's port
 
     let url = format!("http://127.0.0.1:{port}");
     println!("Claude usage dashboard{}: {url}", if demo { " (demo)" } else { "" });

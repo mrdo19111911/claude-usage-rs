@@ -17,7 +17,7 @@ function chartPoints(a, start, now) {
 }
 
 function miniChart(a, start, now) {
-  const th = S.settings.threshold, end = now;
+  const th = S.settings.threshold, thW = S.settings.weekThreshold ?? 99, end = now;
   const pts = chartPoints(a, start, now);
   const W = 400, Ht = 150, L = 30, R = 40, T = 10, B = 22;
   const x = t => L + (t - start) / (end - start) * (W - L - R);
@@ -30,7 +30,9 @@ function miniChart(a, start, now) {
     const lab = rangeH === 168 ? new Date(t).toLocaleDateString('en-US', { weekday: 'short' }) : hhmm(t);
     g += `<text x="${x(t)}" y="${Ht - 6}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}">${lab}</text>`;
   }
-  g += `<line x1="${L}" x2="${W - R}" y1="${y(th)}" y2="${y(th)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4"/>`;
+  // Each window's own auto-switch line, in its colour.
+  for (const [v, c] of [[th, 'var(--s-five)'], [thW, 'var(--s-week)']])
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-opacity=".55" stroke-width="1" stroke-dasharray="4 4"/>`;
   if (!a.usage) {
     g += `<text x="${(L + W - R) / 2}" y="${y(50)}" text-anchor="middle">No figures yet</text>`;
   } else {
@@ -66,7 +68,7 @@ function renderChart(force) {
   // A redraw would drop the tooltip under the pointer: wait until it leaves.
   if (hovering && !force) return;
   const now = Date.now() - clockSkew, start = now - rangeH * H;
-  $('#thLegend').textContent = S.settings.threshold;
+  $('#thLegend').textContent = `${S.settings.threshold}% / ${S.settings.weekThreshold ?? 99}%`;
   document.querySelectorAll('#range button').forEach(b => b.classList.toggle('on', +b.dataset.range === rangeH));
   if (!S.accounts.length) { $('#chart').innerHTML = '<p class="note">No accounts yet.</p>'; return; }
   const inDesk = uuid => S.desktop.accounts.some(d => d.signedIn && d.uuid === uuid);

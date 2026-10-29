@@ -35,7 +35,7 @@
 
     <details><summary>How do I switch accounts? What is auto-switch?</summary>
       <p>Click <b>Use here</b> on an account. Claude CLI switches at once. Claude Desktop closes and opens again on that account, so tasks running in it stop.</p>
-      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches the set % (95 by default). It never touches Claude Desktop. Accounts switched off are skipped.</p>
+      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches 95% of its 5-hour limit or 99% of its weekly limit (both set in Settings). The weekly one is higher because 1% of a week is about five times as much use as 1% of five hours. It never touches Claude Desktop. Accounts switched off are skipped.</p>
     </details>
 
     <details><summary>How do I add an account?</summary>
@@ -56,6 +56,22 @@
     <details><summary>How do updates work?</summary>
       <p>The app checks GitHub releases for a new version every 3 days by itself, or when you click <b>Check for updates</b> in Settings or the tray menu.</p>
       <p>If <b>Install updates automatically</b> is ticked, a new version is installed by itself; otherwise click <b>Update to …</b> at the top. The app closes and starts again on the new version.</p>
+    </details>
+
+    <details><summary>Claude Code on Gemini (cgemini)</summary>
+      <p>The <code>cgemini</code> command runs Claude Code as usual, but its answers come from Google's Gemini models, paid for by a free Google AI Studio key. Your <code>claude</code> command and Claude logins stay as they are.</p>
+      <p>To set it up: click <b>+ Add Gemini account (free)</b>. Google AI Studio opens in your browser and the dashboard shows four steps, with pictures (below): 1. sign in with your Google account there (and accept Google's terms if asked); 2. the first time, there is no code yet: press <b>Create API key</b>; if it says "No Cloud Projects Available", choose <b>Create project</b>, press <b>Create project</b> again (keep the name), then <b>Create key</b>; 3. next to your access code (Google calls it an "API key"), press the <b>Copy</b> button, two small squares; 4. that's it: the dashboard picks it up by itself, checks it with Google and saves it. Then press <b>Use this</b> on the card: a window opens with Claude Code, and Gemini answers instead of Claude. (Or type <code>cgemini</code> in a new terminal: one opened before you added the key does not know it yet.) The dashboard must be running while you use it. Free has a daily limit (try again the next day) and can be slower than Claude.</p>
+      <p><b>Privacy:</b> With a free key, Google may read what you send through <code>cgemini</code>, your code too, and use it to improve its models. Do not use it for code that must stay private.</p>
+      <p><img class="shot" src="img/gem-1-signin.png" alt="1. Google's sign-in page" width="680" height="390" loading="lazy">
+        <img class="shot" src="img/gem-2-create.png" alt="2. No code yet: Create API key" width="900" height="400" loading="lazy">
+        <img class="shot" src="img/gem-3-project.png" alt="2. No project yet: Create project" width="640" height="371" loading="lazy">
+        <img class="shot" src="img/gem-4-newproject.png" alt="2. Create project, name kept" width="600" height="258" loading="lazy">
+        <img class="shot" src="img/gem-5-createkey.png" alt="2. Create key" width="600" height="352" loading="lazy">
+        <img class="shot" src="img/gem-6-copy.png" alt="3. The Copy button next to the code" width="900" height="256" loading="lazy"></p>
+      <p>The app reads the clipboard only while that window is open (10 minutes at most), and only keeps text that looks exactly like a Google key; anything else you copy is ignored, never saved or sent. If it does not pick it up, open <b>Or paste it here</b> in the window, paste the code and click <b>Done</b>.</p>
+      <p>Google sets the free tier's limits (requests per minute and per day) and can change them; AI Studio shows yours. When one is reached, Claude Code reports a rate limit: wait and try again. The card lets you pick another Gemini model (under <b>Advanced</b>). Only Flash models are free; the others say "may cost money".</p>
+      <p>The key stays on this computer, in the app's state file (<code>%USERPROFILE%\.claude-usage-dashboard\state.json</code>), and is only ever sent to Google. The dashboard shows only its last 4 characters.</p>
+      <p>To remove it: click <b>Remove</b> on the card. The key is deleted from this computer and <code>cgemini</code> stops working. To revoke the key itself, delete it in Google AI Studio.</p>
     </details>
 
     <details><summary>Where is my data kept?</summary>
