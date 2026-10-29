@@ -65,6 +65,39 @@
     <p class="note"><b>Claude CLI</b> (terminal and VS Code share one login) switches at once; auto-switch moves only this one. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop). The first time for an account, the app opens signed out: click <b>Continue with Google</b> there and choose the account; after that the switch needs no sign-in.</p>
   </section>
 
+  <section class="card gem" id="gemCard">
+    <div class="head">
+      <div>
+        <h2>Claude Code on Gemini</h2>
+        <div class="sub note">Run Claude Code on Google's Gemini with a free AI Studio key: type <code>cgemini</code> instead of <code>claude</code>. Your Claude logins are not touched.</div>
+      </div>
+      <button class="btn primary gem-add" id="gemAdd">+ Add Gemini account (free)</button>
+    </div>
+    <div id="gemBody"></div>
+  </section>
+
+  <dialog id="gemDlg" class="gem-dlg" aria-labelledby="gemTitle">
+    <h3 id="gemTitle">Add a free Gemini account</h3>
+    <p class="note">Google AI Studio opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open it again</a>.</p>
+    <ol class="steps">
+      <li>Sign in with your Google account on the page that opened.</li>
+      <li>Click <b>Create API key</b> (pick or create any project).</li>
+      <li>Copy the key and paste it here.</li>
+    </ol>
+    <label for="gemKey">Gemini API key</label>
+    <div class="gem-key">
+      <input type="password" id="gemKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your API key here" aria-describedby="gemErr gemBusy" autofocus>
+      <button type="button" class="btn" id="gemShow" aria-pressed="false" aria-controls="gemKey">Show</button>
+    </div>
+    <p class="err" id="gemErr" role="alert"></p>
+    <p class="note" id="gemBusy" role="status"></p>
+    <p class="note">The app checks the key with Google, then keeps it on this computer only.</p>
+    <div class="dlg-btns">
+      <button type="button" class="btn" id="gemCancel">Cancel</button>
+      <button type="button" class="btn primary" id="gemDone">Done</button>
+    </div>
+  </dialog>
+
   <section class="card">
     <div class="head">
       <h2>Settings</h2>
@@ -100,6 +133,7 @@
 <script src="js/chart.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/update.js"></script>
+<script src="js/gemini.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

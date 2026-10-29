@@ -114,6 +114,9 @@ pub(crate) struct State {
     // days later, restarts or not.
     #[serde(default)]
     pub(crate) update_checked_at: Option<i64>,
+    // The `cgemini` profile: the user's Gemini key and what goes with it (gemini/).
+    #[serde(default)]
+    pub(crate) gemini: Option<gemini::Config>,
 }
 
 impl Default for State {
@@ -125,6 +128,7 @@ impl Default for State {
             events: vec![],
             desktop: vec![],
             update_checked_at: None,
+            gemini: None,
         }
     }
 }

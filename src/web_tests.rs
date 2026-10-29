@@ -29,7 +29,9 @@ fn serves_the_page() {
 #[test]
 fn serves_every_file_the_page_loads() {
     let page = asset("/").unwrap().0;
-    let (css, links): (Vec<_>, Vec<_>) = attrs(page, "href").into_iter().partition(|h| h.ends_with(".css"));
+    // Links to other sites (Google AI Studio) are not ours to serve.
+    let local = attrs(page, "href").into_iter().filter(|h| !h.starts_with("https://"));
+    let (css, links): (Vec<_>, Vec<_>) = local.partition(|h| h.ends_with(".css"));
     let js = attrs(page, "src");
     assert!(!css.is_empty() && !js.is_empty(), "the page loads its style and scripts from files");
     for href in links {

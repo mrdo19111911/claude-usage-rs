@@ -139,3 +139,60 @@ Nguồn: [Vertex/Gemini docs](https://docs.cloud.google.com/gemini-enterprise-ag
    - Tắt bớt: `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`, `CLAUDE_CODE_ATTRIBUTION_HEADER=0`, `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1`, `ENABLE_TOOL_SEARCH=false`.
    - Cuối file: `claude %*`.
 8. **Model mặc định**: `gemini-3.8-flash` (stable, có free tier). Model nhanh: `gemini-3.5-flash-lite`. Proxy nhận `claude-*`: tên chứa `haiku` → model nhanh, còn lại → model chính.
+
+## Onboarding (dán API key)
+
+Đọc ngày 2026-10-29, mã nguồn trên GitHub:
+
+| Dự án (file) | Cách làm | Hợp với ta | Chi phí |
+|---|---|---|---|
+| Gemini CLI (`packages/cli/src/ui/auth/ApiAuthDialog.tsx`) | Hộp thoại "Enter Gemini API Key", ghi link `https://aistudio.google.com/app/apikey`, ô "Paste your API key here", lỗi hiện ngay dưới ô, Enter gửi / Esc hủy, key vào keychain. | Cao: cùng Google, cùng link, cùng chữ. | Thấp |
+| Cline (`webview-ui/.../common/ApiKeyField.tsx`) | Một ô `type="password"`, nhãn "`<Provider>` API Key", link đăng ký bên dưới; lưu ngay khi gõ, không kiểm key. | Vừa: ô password + link; không kiểm key thì người dùng chỉ biết sai khi chạy. | Thấp |
+| Continue (`gui/src/pages/AddNewModel/configs/providers.ts`) | Thẻ "Google Gemini": một câu "lấy key ở đây rồi dán vào", `apiKeyUrl` = trang AI Studio, ô nhập (text). | Vừa: một câu giải thích + link; ô text lộ key. | Thấp |
+| LibreChat (`client/.../SetKeyDialog/SetKeyDialog.tsx`) | Dialog "key for Google": ô key, chọn hạn dùng (12 h mặc định), Submit, Revoke có hỏi lại; lỗi bằng toast. | Thấp: hạn dùng và toast thừa cho app một người. Lấy ý "Remove có hỏi lại". | Vừa |
+
+Chọn: dialog kiểu Gemini CLI (link AI Studio, ô "Paste your API key here", lỗi ngay dưới ô,
+Enter = Done, Esc = Cancel) + ô `password` có nút Show của Cline + Remove có hỏi lại của
+LibreChat. Thêm: mở sẵn trang AI Studio ở tab mới, ba bước đánh số, app kiểm key với Google
+trước khi lưu (Cline, Continue không kiểm) nên có trạng thái "Checking the key…".
+
+## Proxy và PATH
+
+Đọc mã nguồn ngày 2026-10-29. Hai việc: (a) stream SSE từ tiny_http mà không bị giữ lại, (b) thêm thư mục `bin` vào PATH của người dùng.
+
+| Dự án | Cách làm | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| [skyline69/agcp](https://github.com/skyline69/agcp) `src/server.rs` (Rust, hyper) | Body là một `mpsc` (64 mục), mỗi chunk SSE thành một frame hyper ghi ngay. Token: `Authorization: Bearer` hoặc `x-api-key`, so sánh `!=` thường (không hằng thời gian). Heartbeat `": ping"` mỗi 15 s; ngắt khi upstream im 300 s | Cao về ý: một luồng đọc upstream, một kênh, ping khi im | Cao nếu chép nguyên: cần tokio + hyper, app này dùng tiny_http đồng bộ |
+| [musistudio/claude-code-router](https://github.com/musistudio/claude-code-router) (TS, Node) | Node ghi từng chunk của ReadableStream ra socket ngay. Khóa: `Authorization: Bearer` hoặc `x-api-key` (tài liệu extensions) | Vừa: chỉ xác nhận cách nhận token | Không dùng được mã (Node) |
+| tiny_http 0.12 (`response.rs` `raw_print`, chunked_transfer 1.5 `Encoder::new` = 8192 byte) | `Response` với reader → `io::copy` vào `Encoder` chunk 8 KB, không flush giữa chừng. Đo bằng `sse_tests.rs`: 4 sự kiện cách nhau 500 ms đến cùng lúc ở 2002–2004 ms. Không có issue nào trên GitHub về chuyện này | Thấp: giữ SSE lại | — |
+| tiny_http `Request::into_writer` + tự ghi head và chunk | Ghi `HTTP/1.1 200`, `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: close`, `Transfer-Encoding: chunked`; mỗi sự kiện một chunk rồi `flush`; cuối `0\r\n\r\n`. Đo: sự kiện đến ở 501/1001/1502/2002 ms (sinh ở 500/1000/1500/2000), client đọc được EOF | **Chọn** | Thấp: ~60 dòng (`sse.rs`) |
+| [rustup](https://github.com/rust-lang/rustup) `src/cli/self_update/windows.rs` | Crate `windows_registry`: đọc `PATH` ở HKCU\Environment (thiếu → rỗng, không phải chuỗi → bỏ qua), ghi `REG_EXPAND_SZ`, rỗng thì xóa giá trị. Thêm ở **đầu**, so khớp phân biệt hoa thường. Rồi `SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment", SMTO_ABORTIFHUNG, 5000)` | Cao | Thấp: windows-sys đã có, chỉ thêm feature `Win32_System_Registry` |
+| [ScoopInstaller/Scoop](https://github.com/ScoopInstaller/Scoop) `lib/system.ps1` | .NET registry, đọc với `DoNotExpandEnvironmentNames`; kiểu `ExpandString` nếu có `%`, không thì giữ kiểu cũ. `Add-Path` thêm ở đầu, chỉ khi chưa có (so `-like`, không phân biệt hoa thường). `Publish-EnvVar`: `SendMessageTimeout(0xffff, 0x1a, 0, "Environment", 2, 5000)`. Rỗng thì xóa giá trị | Cao | Không dùng được mã (PowerShell) |
+
+Chọn:
+- Stream: `into_writer`, tự chia chunk và flush từng sự kiện (`src/gemini/sse.rs`). Một luồng đọc dòng SSE của Google vào `sync_channel(16)`; phía ghi `recv_timeout(10 s)`, hết giờ thì gửi `ping` như agcp (`relay.rs`). Client đi mất thì ghi lỗi, luồng đọc gửi thất bại và tự dừng, kết nối tới Google đóng theo.
+- Token: như agcp/CCR (Bearer hoặc `x-api-key`) nhưng so sánh hằng thời gian.
+- PATH: như rustup (HKCU\Environment, `REG_EXPAND_SZ`, xóa giá trị khi rỗng, `SendMessageTimeoutW` … 5000 ms). Khác rustup: thêm ở **cuối** (không che chương trình khác) và so khớp không phân biệt hoa thường, bỏ `\` cuối, như Scoop. Hàm thuần `path_with`/`path_without` có test; phần registry không chạy trong test.
+
+## Ghi chú khi viết code
+
+Phần dịch (`request*.rs`, `schema*.rs`, `sigs.rs`, `stream*.rs`, `errors.rs`), viết ngày 2026-10-29 sau khi đọc lại mã nguồn agcp (`to_google.rs`, `cloudcode/sse.rs`, `format/signature_cache.rs`), CCR `llms` (`gemini.util.ts`), LiteLLM (`vertex_ai/common_utils.py`, `prompt_templates/common_utils.py` `unpack_defs`, `factory.py`). Những điểm bảng trên chưa ghi:
+- **Chữ ký giả**: agcp và tài liệu Google gửi nguyên chuỗi `skip_thought_signature_validator`. LiteLLM gửi bản base64 của chuỗi đó (`factory.py` dòng 1340). Chuỗi gốc dài 32 ký tự và đều là ký tự base64 hợp lệ, nên cả hai cách đều được nhận. Code dùng chuỗi gốc. LiteLLM chỉ gắn chữ ký giả cho Gemini 3 trở lên. Code cũng vậy: model `gemini-1*`/`gemini-2*` không được gắn.
+- **Thứ tự lấy chữ ký** cho functionCall đầu mỗi lượt `model`: cache theo id, rồi `signature` của khối `thinking` cùng lượt (CCR), cuối cùng mới là chữ ký giả. Các call sau trong cùng lượt (gọi song song) chỉ lấy từ cache.
+- **Lúc stream**: chữ ký trên part không phải call (thường là text rỗng) được giữ lại, rồi gán cho call kế tiếp nếu call đó không có chữ ký riêng. Chữ ký trên part thought thành `signature_delta` của khối thinking, như agcp. Text rỗng không mở khối nào.
+- **Usage**: `candidatesTokenCount` **không** gồm `thoughtsTokenCount` (tài liệu generate-content). agcp chỉ lấy candidates. Code lấy `output_tokens = candidates + thoughts`, vì cả hai đều tính tiền như output.
+- **Danh sách finishReason** (generate-content ref) dài hơn bảng trên:
+  - `refusal`: `SAFETY, RECITATION, BLOCKLIST, PROHIBITED_CONTENT, SPII, LANGUAGE, IMAGE_*`, và `promptFeedback.blockReason`.
+  - `event: error`: `MALFORMED_FUNCTION_CALL, MISSING_THOUGHT_SIGNATURE, UNEXPECTED_TOOL_CALL, TOO_MANY_TOOL_CALLS, MALFORMED_RESPONSE`.
+  - Không có finishReason (stream bị cắt): cũng là `event: error`, để câu trả lời dở dang không bị coi là xong.
+- **tool_result mất tool_use** (lịch sử bị cắt khi compact): LiteLLM ném lỗi. Code đổi nó thành text `Tool result (<id>): …` để request vẫn đi được.
+- **Ảnh trong tool_result** (Read một file ảnh): thành part `inlineData` riêng, đặt ngay sau `functionResponse` trong cùng lượt user. agcp bỏ ảnh, chỉ giữ text.
+- **Schema `parameters`**: theo LiteLLM, khi có `anyOf` thì node chỉ giữ `anyOf` (Vertex từ chối khóa đi kèm, LiteLLM #11164). Mô tả của node được chép vào từng nhánh. Thêm vào danh sách chọn:
+  - `enum` chỉ giữ trên string, `format` chỉ trên string;
+  - array thiếu `items` thì thêm `{type:object}`;
+  - `properties` rỗng thì bỏ;
+  - không có `type` thì đặt `object` (hoặc `string` nếu có `enum`).
+  - Riêng `allOf` thì **gộp** `properties`/`required` của các nhánh thay vì bỏ, vì bỏ sẽ mất hết thuộc tính của schema dựng bằng `allOf`.
+  - `$ref` lặp vòng thì dừng ở `{type:object}`, như `unpack_defs` để nguyên ref vòng.
+- **Lỗi**: Google trả key sai là 400 `INVALID_ARGUMENT` kèm `ErrorInfo.reason = API_KEY_INVALID`. Code đổi thành 401 `authentication_error`. `retryDelay` lẻ ("1.2s") được làm tròn lên. 404 → `not_found_error`, 413 → `request_too_large`.
+- **Trang structured-output** của Gemini: nhóm khóa `minLength/maxLength/minProperties/maxProperties/uniqueItems/contains` bị "strip và bỏ qua" chứ không báo lỗi. Trang không nói gì về `$ref`/`$defs`/`const` và không nói quy tắc này có áp cho `parametersJsonSchema` không. Vì vậy `clean` chỉ bỏ những gì đã chọn ở trên, phần còn lại để đường thử lại bằng `parameters` lo.

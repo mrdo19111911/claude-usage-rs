@@ -117,6 +117,7 @@ fn main() {
         login: Mutex::new(None),
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),
+        gemini_sigs: Default::default(),
     });
 
     {
@@ -127,6 +128,7 @@ fn main() {
             *st = s;
         }
     }
+    gemini::start(&app); // cgemini.cmd again, for this run's port
 
     let url = format!("http://127.0.0.1:{port}");
     println!("Claude usage dashboard{}: {url}", if demo { " (demo)" } else { "" });

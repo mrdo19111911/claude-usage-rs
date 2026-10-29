@@ -7,6 +7,10 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
     let method = rq.method().as_str().to_string();
     let url = rq.url().to_string();
     let path = url.split('?').next().unwrap_or("").to_string();
+    // Claude Code (cgemini): its own checks (a token), its own answers (streamed).
+    if path.starts_with("/v1/") {
+        return gemini::serve(app, rq);
+    }
     let mut body = String::new();
     let _ = rq.as_reader().read_to_string(&mut body);
     let body: Value = serde_json::from_str(&body).unwrap_or(json!({}));
@@ -45,6 +49,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         // Only accept writes from the page itself (blocks cross-site form posts).
         if method != "GET" && !from_page {
             return Ok((403, r#"{"error":"forbidden"}"#.into(), "application/json"));
+        }
+        if let Some(answer) = gemini::api(app, &method, &path, &body) {
+            return answer;
         }
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/refresh") | ("POST", "/api/import") => {

@@ -6,7 +6,8 @@
    .tableview .scroll; series colours (:root --s-five --s-week); range filter (.filters .seg);
    .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
    .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
-   top bar and updates (.topbar .upd-pill .upd [hidden]); help page (.help);
+   top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
+   dialog (.gem-add .gem-ready .gem-ok .gem-dlg .steps .gem-key .dlg-btns); help page (.help);
    narrow screens (@media). */
   :root {
     --bg: #0f0f10; --card: #1a1a1b; --row-active: #1d2229; --line: #2c2c2e; --grid: #2a2a2c;
@@ -116,6 +117,27 @@
   .upd a { color: var(--blue); }
   .upd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .upd .btn:disabled { opacity: .5; cursor: default; }
+  /* Claude Code on Gemini: the card (gemini.js) and its three-step dialog. */
+  .gem-add { padding: 10px 20px; font-size: 15px; font-weight: 600; align-self: center; }
+  .gem-add:hover { filter: brightness(1.1); }
+  .gem-ready { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 14px; }
+  .gem-ready select { background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 14px; max-width: 100%; }
+  .gem-model { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 14px; min-width: 0; }
+  .gem-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .gem-ok { background: #16261a; border: 1px solid #2c5a35; border-radius: 10px; padding: 10px 14px; margin: 14px 0 0; }
+  .gem-dlg { width: min(540px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+  .gem-dlg::backdrop { background: rgba(0, 0, 0, .6); }
+  .gem-dlg h3 { margin: 0 0 6px; font-size: 18px; }
+  .gem-dlg a { color: var(--blue); }
+  .gem-dlg label { display: block; font-weight: 600; margin-top: 4px; }
+  .steps { margin: 12px 0 14px; padding-left: 22px; }
+  .steps li { margin: 6px 0; }
+  .gem-key { display: flex; gap: 8px; margin-top: 6px; }
+  .gem-key input { flex: 1; min-width: 0; background: #222; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-family: Consolas, ui-monospace, monospace; }
+  .gem-key input:focus, .gem-ready select:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .gem-dlg .err:empty, .gem-dlg #gemBusy:empty { display: none; }
+  .dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .dlg-btns .btn:disabled { opacity: .6; cursor: default; }
   /* help.html: one <details> per question. */
   .help { max-width: 760px; }
   .help h1 { margin: 6px 0 4px; font-size: 22px; }

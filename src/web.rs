@@ -18,6 +18,7 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
         "/js/chart.js" => Some((include_str!("web/js/chart.js"), JS)),
         "/js/settings.js" => Some((include_str!("web/js/settings.js"), JS)),
         "/js/update.js" => Some((include_str!("web/js/update.js"), JS)),
+        "/js/gemini.js" => Some((include_str!("web/js/gemini.js"), JS)),
         "/js/main.js" => Some((include_str!("web/js/main.js"), JS)),
         _ => None,
     }
@@ -26,3 +27,7 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
 #[cfg(test)]
 #[path = "web_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "web_gemini_tests.rs"]
+mod gemini_tests;

@@ -3,19 +3,29 @@
 // requests to /v1/*; they go to Google's Gemini API with the user's AI Studio key.
 // Parts: request (Anthropic → Gemini body), schema (tool schemas), sigs (thought
 // signatures by tool_use id), stream (Gemini chunks → Anthropic SSE), errors (Google's
-// errors → Anthropic's), proxy (/v1/* and the call to Google), api (/api/gemini/* for
-// the page), script (cgemini.cmd and the user's PATH).
+// errors → Anthropic's), proxy (/v1/*: checks and routes), messages (/v1/messages),
+// upstream (the calls to Google), relay (Google's stream → ours), sse (our streamed
+// answer), models (which Gemini model), api (/api/gemini/* for the page), script
+// (cgemini.cmd), path (its folder on the user's PATH).
 
 use crate::*;
 
 mod api;
 mod errors;
+mod messages;
+mod models;
+mod path;
+#[cfg(all(windows, not(test)))]
+mod path_win;
 mod proxy;
+mod relay;
 mod request;
 mod schema;
 mod script;
 mod sigs;
+mod sse;
 mod stream;
+mod upstream;
 
 pub(crate) use api::{api, public};
 pub(crate) use proxy::serve;
@@ -45,3 +55,22 @@ pub(crate) struct Config {
 pub(crate) fn start(app: &Arc<App>) {
     script::start(app)
 }
+
+#[cfg(test)]
+mod test_app;
+#[cfg(test)]
+mod api_tests;
+#[cfg(test)]
+mod messages_tests;
+#[cfg(test)]
+mod models_tests;
+#[cfg(test)]
+mod path_tests;
+#[cfg(test)]
+mod proxy_tests;
+#[cfg(test)]
+mod relay_tests;
+#[cfg(test)]
+mod script_tests;
+#[cfg(test)]
+mod sse_tests;

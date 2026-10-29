@@ -22,6 +22,8 @@ pub(crate) struct App {
     pub(crate) desktop_expect: Mutex<Option<String>>,
     // Checking for and installing a newer release (update/).
     pub(crate) update: Mutex<update::Status>,
+    // Gemini's thought signatures by tool_use id, for the next request (gemini/sigs.rs).
+    pub(crate) gemini_sigs: gemini::Sigs,
 }
 
 impl App {

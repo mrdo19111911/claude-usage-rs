@@ -46,6 +46,7 @@ impl App {
             "loginFound": self.demo || self.read_live().is_some(),
             "loginEmail": self.read_oauth_account().get("emailAddress").cloned().unwrap_or(Value::Null),
             "claudeJson": self.claude_json.display().to_string(),
+            "gemini": gemini::public(&st),
         })
         .to_string()
     }
