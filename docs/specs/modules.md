@@ -24,7 +24,10 @@ another module needs them.
 - Listens on the port of its last run again (kept in `port` next to state.json), a random
   free one only when that is taken (PORT overrides); so a `cgemini` session open across a
   restart (an update, a sign-out) carries on: seen 2026-10-29, ECONNREFUSED in Claude Code
-  after a restart moved the port. No browser tab at start (`--open` does).
+  after a restart moved the port. The demo (`--demo`, which runs beside the real one with
+  the same data folder) neither reads nor writes that file: always a random free port, so
+  it never takes the real one's port and `cgemini` never reaches the demo. No browser tab
+  at start (`--open` does).
 - Tray icon: two bars (Claude CLI account's 5-hour and weekly use), page colours.
 - Hover the icon: widget above it — Claude CLI, Claude Desktop, other accounts; reset
   times as time left plus this computer's local clock time ("4h39m · 22:20").

@@ -27,11 +27,16 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 - Its setup: the asset named `ClaudeUsage-Setup-X.Y.Z.exe`; `digest` must be
   "sha256:<64 hex>" (no digest: not installable, said so). `pick_asset` returns name, url,
   size, sha256.
-- When: every 3 days by itself, counted from the last answer GitHub gave (saved in
-  state.json as `updateCheckedAt`, so restarts do not check again); looked at 1 minute
-  after start and then hourly, a check only once 3 days have passed (`check_due`); a
-  failed check is tried again at the next hourly look. And on demand (dashboard button, tray
-  menu). Not in the demo.
+- When: every 3 days by itself, counted from the last answer GitHub gave that left
+  nothing to install (saved in state.json as `updateCheckedAt`, so restarts do not check
+  again); looked at 1 minute after start and then hourly, a check only once 3 days have
+  passed (`check_due`); a failed check is tried again at the next hourly look. And on
+  demand (dashboard button, tray menu). Not in the demo.
+- A newer version found while `autoUpdate` is on does not start the 3 days (the time is
+  not saved): it waits to be installed, so each hourly look (and the first look after a
+  restart) checks and tries to install it again, until a switch or sign-in is over, or a
+  failed download works. With `autoUpdate` off the answer is saved as usual: the user
+  installs by hand. (Found 2026-10-30 in review: saving it blocked a retry for 3 days.)
 - Status shown in /api/state:
   `"version": "1.1.0", "update": {"status": S, "latest": "1.2.0"|null, "url": release
   page|null, "checkedAt": ms|null, "error": text|null}`, S one of "idle" (never checked),
@@ -48,7 +53,8 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
   Desktop switch), installs, then starts the new version (`[Run]` entry with
   `skipifnotsilent` and `Check: Relaunch`, `{param:RELAUNCH|0}` = "1").
 - Automatic: when a check finds a newer version and `autoUpdate` is on, it installs at
-  once unless a Claude Desktop switch or a sign-in is under way (then the next check).
+  once unless a Claude Desktop switch or a sign-in is under way (then the next hourly
+  look; a failed install too, see "When").
 - Events log: "Update 1.2.0 found", "Installing update 1.2.0", errors.
 
 ## Where it shows
@@ -74,6 +80,8 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
   App methods); after CheckUpdate the tray reads `update` from the state JSON.
 - Tests first: `newer` (1.10.0 > 1.9.0, equal, "v" prefix, bad text = not newer);
   `pick_asset` (right asset by name, missing digest = error, bad digest = error);
-  `sha256_hex` known value; settings without `autoUpdate` read as true; web: help.html
+  `sha256_hex` known value; settings without `autoUpdate` read as true; a newer version
+  found with `autoUpdate` on leaves `updateCheckedAt` as it was (off, or up to date: saved);
+  web: help.html
   served and linked, update.js served, the top bar shows the version; the iss has the
   relaunch entry.

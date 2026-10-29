@@ -18,6 +18,15 @@ fn safe(s: &str) -> String {
     s.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')).collect()
 }
 
+// Claude Code's switches to another provider (code.claude.com/docs/en/env-vars).
+const PROVIDERS: [&str; 5] = [
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY",
+    "CLAUDE_CODE_USE_MANTLE",
+    "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+];
+
 // Claude Code's variables for this app: in the script and in the profile's settings.json
 // `env` (which Claude Code applies over the terminal's). Only safe characters.
 pub(crate) fn env(port: u16, cfg: &Config) -> Vec<(&'static str, String)> {
@@ -31,6 +40,13 @@ pub(crate) fn env(port: u16, cfg: &Config) -> Vec<(&'static str, String)> {
         ("ANTHROPIC_API_KEY", String::new()),
         ("NO_PROXY", "127.0.0.1,localhost".into()),
     ];
+    // Another provider chosen in the terminal or the user's settings would win over the
+    // link. Empty: the script unsets them (`set NAME=`); in settings.json `env`, Claude
+    // Code's docs (env-vars, "Precedence") treat "" as unset for provider selection. "0"
+    // is not documented as off for these. The list as of 2026-10-30.
+    for n in PROVIDERS {
+        v.push((n, String::new()));
+    }
     for n in ["ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL"] {
         v.push((n, model.clone()));
     }
@@ -54,7 +70,9 @@ pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
         "@echo off".into(),
         "rem Written by Claude Usage at each start (its port changes): edits here are lost.".into(),
         "setlocal".into(),
-        format!("curl.exe -sf -o nul -m 2 http://127.0.0.1:{port}/v1/ping"),
+        // Never through a proxy: NO_PROXY is not set yet, and curl uses HTTP_PROXY or
+        // ALL_PROXY for 127.0.0.1 too.
+        format!(r#"curl.exe -sf --noproxy "*" -o nul -m 2 http://127.0.0.1:{port}/v1/ping"#),
         "if errorlevel 1 (".into(),
         "  echo Claude Usage is not running: start it from the Start menu.".into(),
         "  exit /b 1".into(),

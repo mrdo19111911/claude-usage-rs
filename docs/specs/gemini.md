@@ -81,9 +81,19 @@ screen they shrink to fit. The help page shows the same pictures.
   WM_SETTINGCHANGE broadcast) when the key is first saved; new terminals find `cgemini`.
   Removed from PATH with the key.
 - The script: `setlocal` (so nothing leaks into the terminal after it ends), checks the
-  app answers (`curl -s http://127.0.0.1:<port>/v1/ping`), else prints "Claude Usage is
-  not running: start it from the Start menu" and stops; sets `ANTHROPIC_BASE_URL`, the
-  token and the model variables (see research), runs `claude %*`, `endlocal`.
+  app answers (`curl.exe -sf --noproxy "*" http://127.0.0.1:<port>/v1/ping`), else prints
+  "Claude Usage is not running: start it from the Start menu" and stops; sets
+  `ANTHROPIC_BASE_URL`, the token and the model variables (see research), runs
+  `claude %*`, `endlocal`.
+- The ping never goes through a proxy: it runs before `NO_PROXY` is set, and Windows'
+  curl uses `HTTP_PROXY`/`http_proxy`/`ALL_PROXY` for 127.0.0.1 too (measured 2026-10-30,
+  curl 8.13.0: "Uses proxy env variable http_proxy", then a time-out on a dead proxy).
+- Another provider chosen in the terminal or the user's settings would win over the link:
+  the script clears Claude Code's provider switches (`CLAUDE_CODE_USE_BEDROCK`,
+  `_VERTEX`, `_FOUNDRY`, `_MANTLE`, `_ANTHROPIC_AWS`, the list on
+  code.claude.com/docs/en/env-vars, 2026-10-30) with `set NAME=` (unset), and the
+  profile's `env` sets each to `""`, which those docs ("Precedence") say Claude Code
+  treats as unset for provider selection; `"0"` is not documented as off for these.
 - The token goes in `ANTHROPIC_CUSTOM_HEADERS` as `x-cud-token` as well as in
   `ANTHROPIC_AUTH_TOKEN`: seen 2026-10-29, Claude Code signed in to claude.ai sends its own
   login in `Authorization` and ignores `ANTHROPIC_AUTH_TOKEN` (then retries a 401 eight
@@ -107,7 +117,8 @@ start, key saved, model changed, Use this):
 - `settings.json`: a copy of the user's `~/.claude/settings.json` (hooks, status line,
   their other settings), without `enabledPlugins` and `extraKnownMarketplaces` (the
   plugins are not in this profile: Claude Code would fetch them again) nor
-  `apiKeyHelper`; its `env` holds the same link, token and model variables as the script.
+  `apiKeyHelper`; its `env` holds the same link, token and model variables as the script,
+  and the provider switches set to `""` (above), over the user's own `env`.
   Rewritten each time: edits there are lost.
 - `CLAUDE.md`: a copy of the user's `~/.claude/CLAUDE.md`, if there is one.
 - `.claude.json`: `hasCompletedOnboarding: true` (and `theme: "dark"`) set once, when the
