@@ -40,6 +40,10 @@ project again (name kept) → Create key. Google does not make a key by itself.)
 - /api/state: `geminiWatch: null | {state: "waiting"|"checking"|"error", error, until}`.
   The page asks for the state every second while the dialog is open.
 - Pasting by hand stays, under "Or paste it here".
+- Privacy, said plainly in the dialog and in help (AI Studio's own terms, seen 2026-10-29):
+  with a free key Google may read what is sent (prompts, answers, so the user's code) and
+  use it to improve its models; not for code that must stay private. The note sits as a
+  warning above the steps, not in the small print.
 
 ### Step pictures
 

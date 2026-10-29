@@ -148,3 +148,16 @@ fn help_explains_cgemini() {
         assert!(topic.contains(w), "the topic covers {w}");
     }
 }
+
+#[test]
+fn the_dialog_and_help_warn_that_google_may_use_what_is_sent() {
+    let dlg = dialog();
+    let i = dlg.find("class=\"gem-privacy\"").expect("a privacy note");
+    assert!(i < dlg.find("<ol").unwrap(), "above the steps");
+    let help = asset("/help.html").unwrap().0;
+    for text in [dlg, help] {
+        for w in ["free key", "Google may read", "your code", "improve its models", "private"] {
+            assert!(text.contains(w), "says {w}");
+        }
+    }
+}
