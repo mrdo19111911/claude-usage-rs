@@ -10,8 +10,14 @@ pub(crate) use github::*;
 // One source for the version: Cargo.toml.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const FIRST_CHECK: Duration = Duration::from_secs(60);
-const EVERY: Duration = Duration::from_secs(6 * 3600);
+const FIRST_LOOK: Duration = Duration::from_secs(60);
+const LOOK_EVERY: Duration = Duration::from_secs(3600);
+const CHECK_EVERY_MS: i64 = 3 * 24 * 3_600_000;
+
+// Whether the background checker asks GitHub now: 3 days after its last answer.
+pub(crate) fn check_due(last: Option<i64>, t: i64) -> bool {
+    last.is_none_or(|l| t - l >= CHECK_EVERY_MS)
+}
 
 #[derive(Serialize, Clone, Copy, PartialEq, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -37,23 +43,26 @@ pub(crate) struct Status {
     pub(crate) url: Option<String>,
     pub(crate) checked_at: Option<i64>,
     pub(crate) error: Option<String>,
-    // The newest version already written to the events log, so a check every 6 h does
-    // not repeat "Update X found".
+    // The newest version already written to the events log, so a later check does not
+    // repeat "Update X found".
     #[serde(skip)]
     pub(crate) logged: Option<String>,
 }
 
-// The background checker: a minute after start, then every 6 hours. Errors only go to
-// the status and the log.
+// The background checker: looks a minute after start, then hourly, and checks once 3
+// days have passed since GitHub last answered (saved, so restarts do not check again).
+// Errors only go to the status and the log; the next look tries again.
 pub(crate) fn start(app: Arc<App>) {
     if app.demo {
         return;
     }
     thread::spawn(move || {
-        thread::sleep(FIRST_CHECK);
+        thread::sleep(FIRST_LOOK);
         loop {
-            app.auto_update();
-            thread::sleep(EVERY);
+            if check_due(app.st.lock().unwrap().update_checked_at, now()) {
+                app.auto_update();
+            }
+            thread::sleep(LOOK_EVERY);
         }
     });
 }
@@ -129,11 +138,15 @@ impl App {
                 None
             }
         };
-        if let Some(v) = found {
-            let mut st = self.st.lock().unwrap();
-            self.log(&mut st, format!("Update {v} found"));
-            self.save(&st);
+        let mut st = self.st.lock().unwrap();
+        if res.is_ok() {
+            st.update_checked_at = Some(t);
         }
+        if let Some(v) = found {
+            self.log(&mut st, format!("Update {v} found"));
+        }
+        self.save(&st);
+        drop(st);
         res.map(|_| ())
     }
 

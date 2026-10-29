@@ -121,3 +121,18 @@ fn setup_runs_silently_and_relaunches() {
     assert_eq!(args[5], r"/LOG=C:\Temp\claude-usage-update\setup.log");
     assert_eq!(args.len(), 6);
 }
+
+#[test]
+fn checks_by_itself_every_3_days() {
+    let day = 24 * 3_600_000;
+    assert!(check_due(None, 10 * day), "never checked: now");
+    assert!(!check_due(Some(10 * day), 10 * day + 2 * day), "2 days later: not yet");
+    assert!(check_due(Some(10 * day), 13 * day), "3 days later: due");
+    assert!(!check_due(Some(10 * day), 9 * day), "a clock set back: wait");
+}
+
+#[test]
+fn saved_state_without_a_check_time_reads() {
+    let st: State = serde_json::from_str(r#"{"settings":{"threshold":95,"autoSwitch":true,"pollSeconds":120},"accounts":[],"activeId":null}"#).unwrap();
+    assert_eq!(st.update_checked_at, None);
+}

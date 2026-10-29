@@ -27,7 +27,10 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 - Its setup: the asset named `ClaudeUsage-Setup-X.Y.Z.exe`; `digest` must be
   "sha256:<64 hex>" (no digest: not installable, said so). `pick_asset` returns name, url,
   size, sha256.
-- When: 1 minute after start, then every 6 hours; and on demand (dashboard button, tray
+- When: every 3 days by itself, counted from the last answer GitHub gave (saved in
+  state.json as `updateCheckedAt`, so restarts do not check again); looked at 1 minute
+  after start and then hourly, a check only once 3 days have passed (`check_due`); a
+  failed check is tried again at the next hourly look. And on demand (dashboard button, tray
   menu). Not in the demo.
 - Status shown in /api/state:
   `"version": "1.1.0", "update": {"status": S, "latest": "1.2.0"|null, "url": release

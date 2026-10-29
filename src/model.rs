@@ -102,6 +102,10 @@ pub(crate) struct State {
     pub(crate) events: Vec<Event>,
     #[serde(default)]
     pub(crate) desktop: Vec<DesktopAccount>,
+    // When GitHub last answered a check for updates (ms): the next one by itself is 3
+    // days later, restarts or not.
+    #[serde(default)]
+    pub(crate) update_checked_at: Option<i64>,
 }
 
 impl Default for State {
@@ -112,6 +116,7 @@ impl Default for State {
             active_id: None,
             events: vec![],
             desktop: vec![],
+            update_checked_at: None,
         }
     }
 }
