@@ -21,7 +21,10 @@ another module needs them.
 
 - No console window ever; started from a terminal it prints there, then detaches.
 - One instance (named mutex). A second launch asks the running one to open the dashboard.
-- Listens on a random free port (PORT overrides); no browser tab at start (`--open` does).
+- Listens on the port of its last run again (kept in `port` next to state.json), a random
+  free one only when that is taken (PORT overrides); so a `cgemini` session open across a
+  restart (an update, a sign-out) carries on: seen 2026-10-29, ECONNREFUSED in Claude Code
+  after a restart moved the port. No browser tab at start (`--open` does).
 - Tray icon: two bars (Claude CLI account's 5-hour and weekly use), page colours.
 - Hover the icon: widget above it — Claude CLI, Claude Desktop, other accounts; reset
   times as time left plus this computer's local clock time ("4h39m · 22:20").

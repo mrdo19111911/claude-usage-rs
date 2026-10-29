@@ -75,7 +75,8 @@ screen they shrink to fit. The help page shows the same pictures.
 ## The `cgemini` command
 
 - `%USERPROFILE%\.claude-usage-dashboard\bin\cgemini.cmd`, rewritten at every start of the
-  app (the port changes) and when the key is saved; deleted with the key.
+  app (in case the port changed: the app keeps it when it can, modules.md) and when the
+  key is saved; deleted with the key.
 - That folder is added once to the user's PATH (HKCU\Environment, then a
   WM_SETTINGCHANGE broadcast) when the key is first saved; new terminals find `cgemini`.
   Removed from PATH with the key.
