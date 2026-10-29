@@ -51,6 +51,10 @@ pub type StateFn = Arc<dyn Fn() -> String + Send + Sync>;
 pub enum Act {
     Cli(String),
     Desktop(String),
+    // Ask GitHub for a newer version (the answer is in the state JSON's "update").
+    CheckUpdate,
+    // Download, verify and run the newer setup; the setup then closes this app.
+    InstallUpdate,
 }
 pub type ActFn = Arc<dyn Fn(Act) -> Result<(), String> + Send + Sync>;
 

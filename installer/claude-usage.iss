@@ -48,6 +48,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 ; --open: the first run shows the dashboard; later starts stay in the tray.
 Filename: "{app}\{#AppExe}"; Parameters: "--open"; Description: "Open Claude Usage now"; Flags: nowait postinstall skipifsilent
+; An update from the app itself (/VERYSILENT /RELAUNCH=1): start the new version again.
+Filename: "{app}\{#AppExe}"; Flags: nowait skipifnotsilent; Check: Relaunch
 
 ; User data (%USERPROFILE%\.claude-usage-dashboard, the saved sign-ins) is kept on uninstall.
 
@@ -63,6 +65,11 @@ var
 begin
   if FileExists(Exe) then
     Exec(Exe, '--quit', '', SW_HIDE, ewWaitUntilTerminated, Rc);
+end;
+
+function Relaunch(): Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
