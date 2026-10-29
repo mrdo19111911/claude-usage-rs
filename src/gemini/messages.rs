@@ -33,7 +33,7 @@ fn call(app: &App, cfg: &Config, model: &str, body: &Value, stream: bool) -> Res
 fn call_one(app: &App, cfg: &Config, model: &str, body: &Value, stream: bool) -> Result<ureq::Response, Refusal> {
     let has_tools = body["tools"].as_array().is_some_and(|t| !t.is_empty());
     for legacy in [false, true] {
-        let g = request::to_gemini(body, &app.gemini_sigs, legacy)
+        let g = request::to_gemini(body, model, &app.gemini_sigs, legacy)
             .map_err(|e| (400, errors::error_json("invalid_request_error", &e), None))?;
         match upstream::generate(&cfg.key, model, stream, &g) {
             Ok(r) => return Ok(r),

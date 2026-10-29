@@ -118,6 +118,7 @@ Nguồn: [Vertex/Gemini docs](https://docs.cloud.google.com/gemini-enterprise-ag
    - Lưu `HashMap<tool_use_id,(sig,Instant)>`, TTL 2h, tối đa 1000 mục.
    - Khi dựng request: lấy chữ ký từ cache. Không có thì gắn `skip_thought_signature_validator` cho functionCall đầu mỗi lượt `model`.
    - Tự sinh id `toolu_<24hex>`. Không gửi `id` lên Gemini.
+   - Kết quả của các call song song gửi theo thứ tự call trong lượt `model` trước đó, không theo thứ tự Claude Code gửi (xem "Sửa sau review").
 4. **Request**: làm như mục 2. Tên functionResponse tra theo id. Message `system` giữa hội thoại đổi thành text của lượt user. `maxOutputTokens ≤ 65536`.
 5. **SSE**:
    - Ngay khi Gemini trả 200: `message_start` (usage 0) và `ping`.
@@ -126,7 +127,7 @@ Nguồn: [Vertex/Gemini docs](https://docs.cloud.google.com/gemini-enterprise-ag
    - Gửi `ping` mỗi 10 s khi im lặng.
    - Ánh xạ finish:
      - `STOP` → `end_turn`, hoặc `tool_use` nếu đã có call.
-     - `MAX_TOKENS` → `max_tokens`.
+     - `MAX_TOKENS`, `CONTINUATION` → `max_tokens`.
      - Nhóm an toàn → `refusal`.
      - `MALFORMED_FUNCTION_CALL`/`MISSING_THOUGHT_SIGNATURE` → `event: error` api_error.
 6. **Lỗi HTTP**:
@@ -221,3 +222,37 @@ Tìm ngày 2026-10-29: đọc chữ trong clipboard Windows từ Rust (cho `src/
 | [copypasta](https://github.com/alacritty/copypasta) `src/windows_clipboard.rs` | Gọi thẳng `get_clipboard_string()` của clipboard-win, không tự thử lại | Thấp: chỉ là lớp bọc | Như clipboard-win |
 
 Chọn: tự viết bằng `windows-sys` (đã có trong dự án, thêm feature `Win32_System_DataExchange`, `Win32_System_Memory`, `Win32_System_Ole`), theo đúng các bước của clipboard-win: `OpenClipboard(NULL)` → `IsClipboardFormatAvailable` → `GetClipboardData(CF_UNICODETEXT)` → `GlobalLock` → đọc tới NUL đầu tiên trong `GlobalSize/2` đơn vị → `GlobalUnlock` → `CloseClipboard`. Khác: chỉ thử mở **một lần**, không ngủ; bận thì lần tick sau (0,5 s) đọc lại, nên không chặn và không treo. Chỉ đọc khi `GetClipboardSequenceNumber` đổi. Chép ra tối đa 1024 đơn vị UTF-16 (dài hơn thì không thể là key, bỏ luôn), chuỗi đọc được xóa về 0 ngay sau khi so khớp. So khớp viết tay, không dùng crate regex.
+
+## Sửa sau review
+
+Ngày 2026-10-30, sau review của Codex. Bốn điểm dịch sai; mã đã sửa có test.
+
+### Thứ tự kết quả của call song song
+
+Không gửi `id` thì Gemini ghép các functionResponse cùng tên với functionCall theo vị trí. Claude Code có thể gửi kết quả `Read(b)` trước `Read(a)`, khi đó nội dung hai file bị tráo.
+
+| Dự án | Cách làm | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| [musistudio/llms](https://github.com/musistudio/llms) `src/utils/gemini.util.ts` (dòng ~343–389) | Gửi `id` trên functionCall (tự sinh nếu thiếu). functionResponse không có `id`, nhưng được dựng bằng cách duyệt `tool_calls` của lượt assistant rồi tìm kết quả theo id, nên **luôn theo thứ tự call** | Cao: AI Studio, đúng bài toán | Thấp |
+| [skyline69/agcp](https://github.com/skyline69/agcp) `src/format/to_google.rs` (dòng ~170, ~210) | Gửi `id` trên cả functionCall và functionResponse (= tool_use_id), giữ nguyên thứ tự | Vừa: upstream là Cloud Code, không phải AI Studio | Thấp |
+| [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) `generateContentResponseUtilities.ts` `createFunctionResponsePart` | functionResponse có `id: callId` | Vừa: cho thấy AI Studio nhận `id` trên functionResponse | Thấp |
+
+Tài liệu Gemini API: `FunctionCall.id`, `FunctionResponse.id` là tùy chọn ("populated by the client to match the corresponding function call id"). Git log và spec không ghi Google từng từ chối `id`; ghi chú cũ chỉ nói id của Gemini không phải id của Claude Code.
+Chọn: như CCR, **xếp lại** các functionResponse (kèm ảnh đi sau nó) theo thứ tự call, chỉ trong các chỗ chúng đang chiếm trong lượt `user`; phần text khác giữ chỗ. Chưa gửi `id`: không gọi được Google thật để thử, còn xếp lại thì đủ cho mọi model và không đổi request đang chạy được.
+
+### finishReason `CONTINUATION`
+
+Có thật trong [generate-content ref](https://ai.google.dev/api/generate-content#FinishReason), đọc ngày 2026-10-30: dừng vì chạm giới hạn token của một request nhưng chưa xong, tiếp tục bằng `continuationToken`; `maxOutputTokens` tính dồn qua các lượt. Chỉ xảy ra khi `maxOutputTokens` vượt giới hạn mỗi request (Gemini 4 long decode). Một lượt có thể không có chữ nào (chỉ nghĩ).
+
+| Nguồn | Cách làm | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| [OpenRouter, Gemini 4 migration](https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gemini-4) | API Messages: `stop_reason: "max_tokens"`, token nằm trong khối `redacted_thinking`; client gửi lại nguyên lượt để chạy tiếp | Cao: đúng định dạng Anthropic | Thấp nếu chỉ đổi stop_reason |
+| [buda.im, Gemini 4 Argon continuation](https://buda.im/blog/gemini-4-argon-continuation-protocol) | Client tự lặp: gửi lại nguyên request + token mới nhất, không thêm "continue", cộng usage từng lượt | Vừa: đúng nhất, nhưng phải giữ request, nối stream, tính lại usage | Cao |
+| Code cũ (`Some(_) => Ok(done)`) | Coi là `end_turn` | Sai: câu trả lời dở dang bị coi là xong | — |
+
+Chọn: `CONTINUATION` → `max_tokens`, như OpenRouter. Proxy đã chặn `maxOutputTokens ≤ 65536` nên hiếm gặp; Claude Code thấy câu bị cắt và tự xin phần còn lại. Tự chạy tiếp bằng token thì để sau, khi có model cần.
+
+### Hai lỗi còn lại (không cần so sánh)
+
+- Dịch theo model **thật sự được gọi**: `to_gemini` nhận model, không đọc `body.model` (tên `claude-*`), nên lần thử lại bằng model kia (vd. Gemini 2.5) không mang `thinkingLevel`.
+- Đường `parameters`: `$ref` tới schema boolean (`true`) làm app sập (`panic = "abort"`), nay coi là schema rỗng. `anyOf` nhận khóa chung của node cha (properties, required, giới hạn) vào từng nhánh trước khi dịch, như cách `allOf` đã gộp.

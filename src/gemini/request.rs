@@ -6,6 +6,9 @@ use super::Sigs;
 
 #[path = "request_parts.rs"]
 mod parts;
+// Tool results in the order of their calls.
+#[path = "request_order.rs"]
+mod order;
 
 // Gemini's output ceiling; more is refused rather than cut (agcp caps the same way).
 const MAX_OUT: u64 = 65536;
@@ -29,11 +32,13 @@ fn older(model: &str) -> bool {
     m.starts_with("gemini-1") || m.starts_with("gemini-2")
 }
 
-// `legacy`: tool schemas in the older `parameters` form (the retry after Google refuses a
-// schema), else `parametersJsonSchema`.
-pub(crate) fn to_gemini(req: &Value, sigs: &Sigs, legacy: bool) -> Result<Value, String> {
+// `model`: the Gemini model this body goes to, not the name Claude Code sent (a Claude
+// name, or the other model on a retry): thinking and signatures follow it (spec, "The
+// proxy"). `legacy`: tool schemas in the older `parameters` form (the retry after Google
+// refuses a schema), else `parametersJsonSchema`.
+pub(crate) fn to_gemini(req: &Value, model: &str, sigs: &Sigs, legacy: bool) -> Result<Value, String> {
     let msgs = req["messages"].as_array().ok_or("`messages` is missing")?;
-    let old = older(req["model"].as_str().unwrap_or(""));
+    let old = older(model);
     let contents = parts::contents(msgs, sigs, !old);
     if contents.is_empty() {
         return Err("`messages` has nothing to send".into());
@@ -42,7 +47,7 @@ pub(crate) fn to_gemini(req: &Value, sigs: &Sigs, legacy: bool) -> Result<Value,
     if let Some(s) = system(&req["system"]) {
         body["systemInstruction"] = s;
     }
-    body["generationConfig"] = generation(req, old);
+    body["generationConfig"] = generation(req, model);
     if let Some(decls) = declarations(&req["tools"], legacy) {
         body["tools"] = json!([{ "functionDeclarations": decls }]);
         // Only with tools: a toolConfig alone is refused.
@@ -67,7 +72,7 @@ fn system(s: &Value) -> Option<Value> {
     (!parts.is_empty()).then(|| json!({ "parts": parts }))
 }
 
-fn generation(req: &Value, old: bool) -> Value {
+fn generation(req: &Value, model: &str) -> Value {
     let max = req["max_tokens"].as_u64().unwrap_or(MAX_OUT).min(MAX_OUT);
     let mut g = json!({ "maxOutputTokens": max });
     for (from, to) in [("temperature", "temperature"), ("top_p", "topP"), ("top_k", "topK"), ("stop_sequences", "stopSequences")] {
@@ -76,7 +81,7 @@ fn generation(req: &Value, old: bool) -> Value {
             g[to] = v.clone();
         }
     }
-    if let Some(t) = thinking(req, old) {
+    if let Some(t) = thinking(req, model) {
         g["thinkingConfig"] = t;
     }
     g
@@ -85,14 +90,14 @@ fn generation(req: &Value, old: bool) -> Value {
 // Thinking on (enabled or adaptive) → thoughts included. Gemini 3 takes a level, from
 // Claude Code's effort; Gemini 2.x a budget within its range (CCR's numbers). Off or
 // absent → the model's own default.
-fn thinking(req: &Value, old: bool) -> Option<Value> {
+fn thinking(req: &Value, model: &str) -> Option<Value> {
     if !matches!(req["thinking"]["type"].as_str(), Some("enabled" | "adaptive")) {
         return None;
     }
     let mut t = json!({ "includeThoughts": true });
-    if old {
+    if older(model) {
         if let Some(b) = req["thinking"]["budget_tokens"].as_u64() {
-            let (lo, hi) = if req["model"].as_str().unwrap_or("").contains("pro") { (128, 32768) } else { (0, 24576) };
+            let (lo, hi) = if model.contains("pro") { (128, 32768) } else { (0, 24576) };
             t["thinkingBudget"] = json!(b.clamp(lo, hi));
         }
     } else if let Some(e) = req["output_config"]["effort"].as_str() {

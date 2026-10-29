@@ -5,7 +5,7 @@ use super::*;
 const SKIP: &str = "skip_thought_signature_validator";
 
 fn tr(req: Value) -> Value {
-    to_gemini(&req, &Sigs::default(), false).unwrap()
+    to_gemini(&req, req["model"].as_str().unwrap_or(""), &Sigs::default(), false).unwrap()
 }
 
 fn msgs(m: Value) -> Value {
@@ -100,6 +100,28 @@ fn a_result_without_its_call_becomes_text() {
 }
 
 #[test]
+fn parallel_results_follow_the_order_of_the_calls() {
+    // No ids go to Gemini: it pairs same-name responses by position.
+    let read = |id: &str, path: &str| json!({ "type": "tool_use", "id": id, "name": "Read", "input": { "path": path } });
+    let img = json!({ "type": "image", "source": { "type": "base64", "media_type": "image/png", "data": "B" } });
+    let c = msgs(json!([
+        { "role": "user", "content": "read both" },
+        { "role": "assistant", "content": [read("t_a", "a.txt"), read("t_b", "b.txt")] },
+        { "role": "user", "content": [
+            { "type": "tool_result", "tool_use_id": "t_b", "content": [{ "type": "text", "text": "B text" }, img] },
+            { "type": "text", "text": "note" }
+        ]},
+        { "role": "user", "content": [{ "type": "tool_result", "tool_use_id": "t_a", "content": "A text" }] }
+    ]));
+    assert_eq!(c[2]["parts"], json!([
+        { "functionResponse": { "name": "Read", "response": { "result": "A text" } } },
+        { "text": "note" },
+        { "functionResponse": { "name": "Read", "response": { "result": "B text" } } },
+        { "inlineData": { "mimeType": "image/png", "data": "B" } }
+    ]));
+}
+
+#[test]
 fn the_signature_comes_from_the_cache_by_id() {
     let sigs = Sigs::default();
     sigs.put("toolu_1", "REAL_SIG");
@@ -108,7 +130,7 @@ fn the_signature_comes_from_the_cache_by_id() {
         { "role": "assistant", "content": [{ "type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {} }] },
         { "role": "user", "content": [{ "type": "tool_result", "tool_use_id": "toolu_1", "content": "ok" }] }
     ]});
-    let c = &to_gemini(&req, &sigs, false).unwrap()["contents"];
+    let c = &to_gemini(&req, "gemini-3.8-flash", &sigs, false).unwrap()["contents"];
     assert_eq!(c[1]["parts"][0]["thoughtSignature"], "REAL_SIG");
     assert!(c[1]["parts"][0]["functionCall"].get("id").is_none());
     assert!(c[2]["parts"][0]["functionResponse"].get("id").is_none());

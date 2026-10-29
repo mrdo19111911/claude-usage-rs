@@ -11,14 +11,20 @@ const KEEP: &[&str] = &["type", "format", "description", "nullable", "enum", "pr
 const MAX_DEPTH: usize = 40;
 
 // The definition a `$ref` names ("#/$defs/X" → X), with the ref's own keys (a
-// description, say) laid over it.
+// description, say) laid over it; two allOf lists are joined. A boolean schema (true:
+// anything, false: nothing) has no keys: {} here, as `parameters` cannot say "nothing".
 fn deref(node: &Map<String, Value>, defs: &Map<String, Value>) -> Option<(String, Value)> {
     let name = node.get("$ref")?.as_str()?.rsplit('/').next()?.to_string();
-    let mut d = defs.get(&name)?.clone();
+    let mut d = defs.get(&name)?.as_object().cloned().unwrap_or_default();
     for (k, v) in node.iter().filter(|(k, _)| *k != "$ref") {
-        d[k] = v.clone();
+        match (d.get_mut(k), v) {
+            (Some(Value::Array(a)), Value::Array(more)) if k == "allOf" => a.extend(more.iter().cloned()),
+            _ => {
+                d.insert(k.clone(), v.clone());
+            }
+        }
     }
-    Some((name, d))
+    Some((name, Value::Object(d)))
 }
 
 // One schema node → the whitelisted form. `chain`: the refs being inlined above.
@@ -109,18 +115,17 @@ fn merge_all_of(o: &mut Map<String, Value>, all: &[Value], defs: &Map<String, Va
 }
 
 // anyOf/oneOf: the null branch becomes `nullable`; one branch left is the node itself;
-// several stay anyOf, alone on the node (Vertex refuses siblings, LiteLLM #11164).
+// several stay anyOf, alone on the node (Vertex refuses siblings, LiteLLM #11164). The
+// node's own keys (properties, required, description, limits) go into each branch first,
+// under the branch's own: a branch of only `required` keeps the tool's parameters.
 fn any_of(o: &Map<String, Value>, mut out: Map<String, Value>, any: &[Value], defs: &Map<String, Value>, chain: &mut Vec<String>, depth: usize) -> Value {
     let real: Vec<&Value> = any.iter().filter(|b| b["type"] != "null").collect();
     let nullable = real.len() < any.len() || out.contains_key("nullable");
-    let desc = o.get("description").cloned();
-    let mut branches: Vec<Value> = real.iter().map(|b| conv(b, defs, chain, depth + 1)).collect();
+    let shared: Map<String, Value> = o.iter().filter(|(k, _)| !matches!(k.as_str(), "anyOf" | "oneOf")).map(|(k, v)| (k.clone(), v.clone())).collect();
+    let mut branches: Vec<Value> = real.iter().map(|b| conv(&with_parent(b, &shared), defs, chain, depth + 1)).collect();
     for b in &mut branches {
         if nullable {
             b["nullable"] = json!(true);
-        }
-        if let (Some(d), None) = (&desc, b.get("description")) {
-            b["description"] = d.clone();
         }
     }
     match branches.len() {
@@ -131,6 +136,22 @@ fn any_of(o: &Map<String, Value>, mut out: Map<String, Value>, any: &[Value], de
         1 => branches.remove(0),
         _ => json!({ "anyOf": branches }),
     }
+}
+
+// A branch with its parent's keys as one more allOf member, so merge_all_of joins
+// properties and required and keeps the branch's own keys first. A `$ref` branch keeps
+// its ref, so conv still stops at a loop.
+fn with_parent(b: &Value, shared: &Map<String, Value>) -> Value {
+    let mut m = b.as_object().cloned().unwrap_or_default();
+    if !shared.is_empty() {
+        match m.get_mut("allOf") {
+            Some(Value::Array(a)) => a.push(Value::Object(shared.clone())),
+            _ => {
+                m.insert("allOf".into(), json!([shared]));
+            }
+        }
+    }
+    Value::Object(m)
 }
 
 // What Gemini checks: a type always; enum and format only on strings; items on arrays;

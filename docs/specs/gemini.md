@@ -133,6 +133,21 @@ start, key saved, model changed, Use this):
   20 requests a day and 5 a minute, Flash Lite 500 a day and 15 a minute, each model its
   own count; Gemma's 16K tokens a minute is less than one Claude Code request; Pro models
   0. A key without the default: the newest stable Flash Lite it has, else Flash.
+- Translation points settled after review (2026-10-30; why: `docs/SO_SANH_GEMINI_PROXY.md`
+  → "Sửa sau review"):
+  - Each call to Google is translated for the model it goes to (thinking level or budget,
+    signature stand-ins), never for the name Claude Code sent, so the other model's try
+    below is a valid request too.
+  - Results of parallel calls go in the order of the calls in the model turn before them,
+    whatever order Claude Code sends them in: no ids are sent, and Gemini pairs
+    same-name responses by position (CCR does the same).
+  - The `parameters` form (the retry): a `$ref` to a boolean schema (`true`/`false`) is
+    an empty schema, never a crash; each `anyOf`/`oneOf` branch gets the parent's own
+    keys (properties, required, limits) under its own, so a branch holding only
+    `required` keeps the tool's parameters.
+  - finishReason `CONTINUATION` (Gemini 4: the per-request limit hit before the end) →
+    `max_tokens`: the answer is cut and Claude Code asks for the rest. The proxy does
+    not resume with `continuationToken`.
 - Google busy or the model's count used up (503, 429): the same request once more with
   the other model of the two (main ↔ fast), when it differs. Its own error otherwise.
 - `GET /v1/ping` needs no token (the script's check; it answers `{}` only).

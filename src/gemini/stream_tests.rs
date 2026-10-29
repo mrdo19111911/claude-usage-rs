@@ -114,6 +114,8 @@ fn finish_reasons() {
         ev.iter().find(|(n, _)| n == "message_delta").map(|(_, d)| d["delta"]["stop_reason"].clone())
     };
     assert_eq!(stop("MAX_TOKENS"), Some(json!("max_tokens")));
+    // Gemini 4 hit its per-request limit before the end: a cut answer, not a whole one.
+    assert_eq!(stop("CONTINUATION"), Some(json!("max_tokens")));
     assert_eq!(stop("SAFETY"), Some(json!("refusal")));
     assert_eq!(stop("PROHIBITED_CONTENT"), Some(json!("refusal")));
     for bad in ["MALFORMED_FUNCTION_CALL", "MISSING_THOUGHT_SIGNATURE"] {
