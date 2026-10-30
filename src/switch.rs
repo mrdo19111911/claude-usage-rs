@@ -42,10 +42,17 @@ impl App {
             if self.switching.swap(true, Ordering::SeqCst) {
                 return Err("A switch is running already.".into());
             }
+            // Every account's Code sessions in its sidebar (docs/specs/desktop-sessions.md).
+            let share = (!self.demo && self.st.lock().unwrap().settings.share_desktop_sessions).then(|| self.data_dir().join("desktop-sessions"));
             let app = self.clone();
             thread::spawn(move || {
-                let res = desktop::switch(&dir, &app.desktop_store, target.as_deref(), &real, now());
+                let res = desktop::switch(&dir, &app.desktop_store, target.as_deref(), &real, now(), share.as_deref());
                 let mut st = app.st.lock().unwrap();
+                match res.as_ref().ok().and_then(|s| s.shared.as_ref()) {
+                    Some(Ok(n)) if n.any() => app.log(&mut st, format!("Claude Desktop: Code sessions shared ({} added, {} updated, {} removed)", n.added, n.updated, n.removed)),
+                    Some(Err(e)) => app.log(&mut st, format!("Claude Desktop: Code sessions not shared: {e}")),
+                    _ => {}
+                }
                 let name = |st: &State, u: &str| st.desktop.iter().find(|d| d.uuid == u).map(|d| d.label.clone()).unwrap_or_else(|| u[..8].to_string());
                 let msg = match (&res, &target) {
                     (Ok(_), Some(t)) => format!("Claude Desktop: switched to {}", name(&st, t)),

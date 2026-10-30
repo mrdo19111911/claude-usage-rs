@@ -1,6 +1,6 @@
 // Switching Claude Desktop between saved accounts.
 
-use super::{copy_cookies, is_sign_in_key, read_config, signed_in_of, valid_account_id, write_config, App, Store};
+use super::{copy_cookies, is_sign_in_key, read_config, sessions, signed_in_of, valid_account_id, write_config, App, Store};
 use serde_json::{Map, Value};
 use std::fs;
 use std::path::Path;
@@ -15,11 +15,20 @@ fn put_sign_in(config: &mut Map<String, Value>, auth: Option<&Map<String, Value>
     }
 }
 
+/// What a switch did: the account whose sign-in was saved on the way out, and the
+/// Code sessions shared on the way (None: not asked for).
+pub struct Switched {
+    #[allow(dead_code)] // only the tests read it
+    pub saved: Option<String>,
+    pub shared: Option<Result<sessions::Counts, String>>,
+}
+
 /// The switch itself. `target`: the account to sign in to, or None to leave the app
-/// signed out (its sign-in screen then adds another account). Returns the account
-/// whose sign-in was saved on the way out. A failure after the backup puts the app's
-/// sign-in back as it was; the app is started again whatever happened.
-pub fn switch(dir: &Path, store: &Store, target: Option<&str>, app: &dyn App, stamp: i64) -> Result<Option<String>, String> {
+/// signed out (its sign-in screen then adds another account). `share`: where the
+/// session sync keeps its state, None when the setting is off (docs/specs/desktop-sessions.md).
+/// A failure after the backup puts the app's sign-in back as it was; the app is
+/// started again whatever happened, a failed sync included.
+pub fn switch(dir: &Path, store: &Store, target: Option<&str>, app: &dyn App, stamp: i64, share: Option<&Path>) -> Result<Switched, String> {
     let target_auth = match target {
         Some(t) => {
             if !valid_account_id(t) {
@@ -59,8 +68,13 @@ pub fn switch(dir: &Path, store: &Store, target: Option<&str>, app: &dyn App, st
             }
         })
     });
+    // Code sessions are shared while the app is closed; a failure is only reported.
+    let shared = match (&res, share) {
+        (Ok(_), Some(state_dir)) => Some(sessions::sync(dir, state_dir, stamp)),
+        _ => None,
+    };
     let started = app.start();
     let saved = res?;
     started?;
-    Ok(saved)
+    Ok(Switched { saved, shared })
 }

@@ -18,6 +18,10 @@ pub(crate) struct Settings {
     // Install a newer release as soon as a check finds it (absent in older saved state: on).
     #[serde(default = "yes")]
     pub(crate) auto_update: bool,
+    // A Desktop switch shares the Code session list between accounts
+    // (docs/specs/desktop-sessions.md; absent in older saved state: on).
+    #[serde(default = "yes")]
+    pub(crate) share_desktop_sessions: bool,
 }
 
 fn yes() -> bool {
@@ -122,7 +126,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true },
+            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true },
             accounts: vec![],
             active_id: None,
             events: vec![],
