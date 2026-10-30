@@ -5,6 +5,8 @@ function renderSettings() {
   const s = S.settings;
   if (document.activeElement?.tagName !== 'INPUT') {
     $('#autoSwitch').checked = s.autoSwitch;
+    // Missing on an older backend: on, its default.
+    $('#shareDesktopSessions').checked = s.shareDesktopSessions !== false;
     $('#threshold').value = s.threshold;
     $('#weekThreshold').value = s.weekThreshold;
     $('#pollSeconds').value = s.pollSeconds;
