@@ -26,6 +26,8 @@ pub(crate) struct App {
     pub(crate) gemini_sigs: gemini::Sigs,
     // Copy to add: the clipboard watch while the add dialog is open (gemini/watch.rs).
     pub(crate) gemini_watch: gemini::Watch,
+    // The long record of usage answers, next to state.json (usage_log.rs).
+    pub(crate) usage_log: usage_log::Log,
 }
 
 impl App {

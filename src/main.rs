@@ -29,6 +29,8 @@ mod state_json;
 mod switch;
 mod sync;
 mod update;
+mod usage_export;
+mod usage_log;
 mod util;
 use anthropic::*;
 use app::*;
@@ -120,6 +122,7 @@ fn main() {
         update: Mutex::new(update::Status::default()),
         gemini_sigs: Default::default(),
         gemini_watch: Default::default(),
+        usage_log: Default::default(),
     });
 
     {
@@ -129,6 +132,7 @@ fn main() {
         } else if let Some(s) = fs::read_to_string(&app.data_file).ok().and_then(|s| serde_json::from_str(&s).ok()) {
             *st = s;
         }
+        app.start_usage_log(&mut st); // trims it to 60 days or seeds it (usage_log.rs)
     }
     gemini::start(&app); // cgemini.cmd again, for this run's port
 
