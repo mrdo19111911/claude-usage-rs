@@ -58,3 +58,7 @@ mod gemini_dialog_tests;
 #[cfg(test)]
 #[path = "web_usage_log_tests.rs"]
 mod usage_log_tests;
+
+#[cfg(test)]
+#[path = "web_desktop_sessions_tests.rs"]
+mod desktop_sessions_tests;
