@@ -116,6 +116,7 @@
   .upd-pill:hover { background: var(--green); color: #111; }
   .upd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
   .upd a { color: var(--blue); }
+  .upd a.btn { color: var(--text); text-decoration: none; }
   .upd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .upd .btn:disabled { opacity: .5; cursor: default; }
   /* Claude Code on Gemini: the card (gemini.js) and its three-step dialog. */
