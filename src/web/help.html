@@ -74,6 +74,11 @@
       <p>To remove it: click <b>Remove</b> on the card. The key is deleted from this computer and <code>cgemini</code> stops working. To revoke the key itself, delete it in Google AI Studio.</p>
     </details>
 
+    <details><summary>What is the usage log?</summary>
+      <p>Every few minutes the app writes down, for every account, the 5-hour and weekly % used and when each one resets. Nothing else: no conversation, no email. It keeps 60 days, in <code>%USERPROFILE%\.claude-usage-dashboard\usage-log.jsonl</code>.</p>
+      <p><b>Export</b> in Settings downloads a copy you can share: the accounts are named acc1, acc2… and emails are left out.</p>
+    </details>
+
     <details><summary>Where is my data kept?</summary>
       <p>Everything stays on this computer, in <code>%USERPROFILE%\.claude-usage-dashboard</code>. Sign-in tokens are only ever sent to Anthropic.</p>
     </details>
