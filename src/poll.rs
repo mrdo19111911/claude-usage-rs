@@ -31,7 +31,9 @@ impl App {
             self.get_profile(fresh.unwrap_or(&creds)).ok()
         };
         let mut st = self.st.lock().unwrap();
+        let active_now = st.active_id.as_deref() == Some(id);
         let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) else { return };
+        let mut logged = None;
         if let Some((uuid, email)) = who {
             if a.email != email {
                 println!("{} is {email}'s login; renamed", a.email);
@@ -56,6 +58,7 @@ impl App {
                 let u = Usage { five, week, fetched_at: t, scoped: to_scoped(&j) };
                 a.next_check = next_check_at(&u, base, t);
                 a.usage = Some(u);
+                logged = usage_log::figures(a, active_now);
                 a.error = None;
                 a.raw = j;
                 a.slow_strikes = 0;
@@ -72,6 +75,11 @@ impl App {
                 a.error = Some(e.text());
                 a.next_check = now() + base;
             }
+        }
+        // The usage log, after the state's lock is let go (usage_log.rs).
+        drop(st);
+        if let Some(fig) = logged {
+            self.log_usage(fig);
         }
     }
 

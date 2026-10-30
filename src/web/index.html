@@ -133,6 +133,10 @@
       <span class="upd-btns"><button class="btn" id="updCheck">Check for updates</button><button class="btn primary" id="updInstall" hidden></button></span>
       <label class="note"><input type="checkbox" id="autoUpdate"> Install updates automatically</label>
     </div>
+    <div class="upd" id="logRow" hidden>
+      <span><b>Usage log</b> <span class="note" id="logStatus"></span></span>
+      <a class="btn" id="logExport" download hidden>Export</a>
+    </div>
     <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.<br>Checks: every account at that pace; from 70% used twice as often, from 85% four times, from 95% eight times (at most every 15 s). An account at a 100% limit is not checked again until that limit resets.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
@@ -147,6 +151,7 @@
 <script src="js/chart.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/update.js"></script>
+<script src="js/usage_log.js"></script>
 <script src="js/gemini.js"></script>
 <script src="js/gemini_dialog.js"></script>
 <script src="js/main.js"></script>

@@ -4,6 +4,8 @@ A Windows tray app that shows Claude usage (5-hour and weekly limits) for severa
 accounts and switches the Claude CLI and Claude Desktop sign-in between them.
 It can also run Claude Code on Google's free Gemini (add an AI Studio key on the
 dashboard, then press *Use this* or type `cgemini` in a new terminal).
+It keeps a usage log (each account's 5-hour and weekly % with reset times, no
+conversation, no email) that Settings → Usage log → Export saves as `.jsonl`.
 
 ## Install
 

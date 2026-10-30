@@ -1,9 +1,9 @@
 // Loaded last: drawing, buttons and the load loop.
-// Parts: render (renderUpdate is in update.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
+// Parts: render (renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
 // autoSwitch/threshold/weekThreshold/pollSeconds onchange; loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run, #accts change; load() and the two timers.
 
-function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); renderUpdate(); renderGemini(); }
+function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
