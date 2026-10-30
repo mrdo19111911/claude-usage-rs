@@ -1,6 +1,6 @@
 // Loaded last: drawing, buttons and the load loop.
 // Parts: render (renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
-// autoSwitch/threshold/weekThreshold/pollSeconds onchange; loginUrl, signIn, #cliAdd onclick;
+// autoSwitch/threshold/weekThreshold/pollSeconds/shareDesktopSessions onchange; loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run, #accts change; load() and the two timers.
 
 function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
@@ -17,10 +17,11 @@ $('#exit').onclick = () => {
     document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start claude-usage.exe again to bring it back.</p></section>';
   }).catch(e => alert(e.message));
 };
-for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'pollSeconds']) {
+for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'pollSeconds', 'shareDesktopSessions']) {
   $('#' + id).onchange = () => act(api('/api/settings', { method: 'POST', body: JSON.stringify({
     autoSwitch: $('#autoSwitch').checked, threshold: +$('#threshold').value,
-    weekThreshold: +$('#weekThreshold').value, pollSeconds: +$('#pollSeconds').value }) }));
+    weekThreshold: +$('#weekThreshold').value, pollSeconds: +$('#pollSeconds').value,
+    shareDesktopSessions: $('#shareDesktopSessions').checked }) }));
 }
 // The sign-in page opens in the default browser; the account is added when it comes back.
 // Claude Code keeps the login it uses now.

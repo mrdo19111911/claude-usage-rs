@@ -38,6 +38,11 @@
       <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches 95% of its 5-hour limit or 99% of its weekly limit (both set in Settings). The weekly one is higher because 1% of a week is about five times as much use as 1% of five hours. It never touches Claude Desktop. Accounts switched off are skipped.</p>
     </details>
 
+    <details><summary>Why do I see the same Code sessions on every Claude Desktop account?</summary>
+      <p>Switching Claude Desktop copies its list of Code sessions, so every account shows the same sessions (turn it off in Settings). The conversations were never lost: they are on this computer.</p>
+      <p>The first message in a session after a switch rebuilds its context, which uses some quota. Do not switch while a reply is running.</p>
+    </details>
+
     <details><summary>How do I add an account?</summary>
       <p>Claude CLI: click <b>+ Add account</b> and sign in on the page that opens in your browser. The account shows up here by itself within about 10 s.</p>
       <p>Claude Desktop: click its <b>+ Add account</b>. Claude Desktop opens again signed out; whichever account you sign in with is saved, and later switches need no sign-in.</p>

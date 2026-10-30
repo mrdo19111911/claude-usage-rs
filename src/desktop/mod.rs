@@ -11,6 +11,9 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub mod sessions;
+mod sessions_io;
+mod sessions_rules;
 mod store;
 mod switch;
 

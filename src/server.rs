@@ -95,6 +95,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["autoUpdate"].as_bool() {
                     st.settings.auto_update = v;
                 }
+                if let Some(v) = body["shareDesktopSessions"].as_bool() {
+                    st.settings.share_desktop_sessions = v;
+                }
                 app.save(&st);
             }
             // Both reach GitHub (the install downloads a setup): in the background; the
