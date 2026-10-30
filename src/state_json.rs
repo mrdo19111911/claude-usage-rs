@@ -48,6 +48,7 @@ impl App {
             "claudeJson": self.claude_json.display().to_string(),
             "gemini": gemini::public(&st),
             "geminiWatch": self.gemini_watch.public(),
+            "usageLog": self.usage_log.stats(),
         })
         .to_string()
     }

@@ -28,6 +28,10 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         let _ = rq.respond(resp);
         return;
     }
+    // A download (Content-Disposition): a GET, so a plain link on the page works.
+    if host_ok && method == "GET" && path == "/api/usage-log/export" {
+        return usage_export::respond(app, rq);
+    }
     let result: Result<(u16, String, &str), String> = (|| {
         if !host_ok {
             return Ok((403, r#"{"error":"forbidden host"}"#.into(), "application/json"));

@@ -27,6 +27,7 @@ fn app(auto_update: bool) -> App {
         update: Mutex::new(Status::default()),
         gemini_sigs: Default::default(),
         gemini_watch: Default::default(),
+        usage_log: Default::default(),
     };
     app.st.lock().unwrap().settings.auto_update = auto_update;
     app
