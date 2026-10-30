@@ -8,7 +8,9 @@ Set-Location $root
 $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
 
 # The running app locks its exe when started from target\release: ask it to exit first.
-if (Test-Path target\release\claude-usage.exe) { & target\release\claude-usage.exe --quit | Out-Null }
+# Only that one: --quit ends any copy, and the installed one must keep running.
+$dev = (Resolve-Path target\release\claude-usage.exe -ErrorAction SilentlyContinue).Path
+if ($dev -and (Get-Process claude-usage -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $dev })) { & $dev --quit | Out-Null }
 # Rust keeps source paths for its panic messages: hide this computer's (user name, folders).
 # The encoded form (0x1f between flags): the paths may hold spaces.
 $env:CARGO_ENCODED_RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~" + [char]0x1f + "--remap-path-prefix=$root=."
