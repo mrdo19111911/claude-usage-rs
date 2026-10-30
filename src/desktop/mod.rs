@@ -109,5 +109,7 @@ pub use win::RealApp;
 #[cfg(windows)]
 mod win;
 
+mod ancestry;
+
 #[cfg(test)]
 mod tests;

@@ -80,22 +80,8 @@ impl RealApp {
     /// Whether this dashboard runs inside the app's process tree: closing the app
     /// would then end the dashboard half-way through a switch.
     pub fn inside_claude(&self) -> bool {
-        let all = processes();
-        let parent: HashMap<u32, u32> = all.iter().map(|p| (p.pid, p.parent)).collect();
-        let claude = self.claude_pids();
-        let mut pid = std::process::id();
-        for _ in 0..64 {
-            match parent.get(&pid) {
-                Some(&p) if p != 0 && p != pid => {
-                    if claude.contains(&p) {
-                        return true;
-                    }
-                    pid = p;
-                }
-                _ => break,
-            }
-        }
-        false
+        let parent: HashMap<u32, u32> = processes().iter().map(|p| (p.pid, p.parent)).collect();
+        super::ancestry::descends_from(&parent, super::ancestry::started_at, std::process::id(), &self.claude_pids())
     }
 
     fn wait_gone(&self, d: Duration) -> bool {
