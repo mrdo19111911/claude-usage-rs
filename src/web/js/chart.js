@@ -34,13 +34,13 @@ function winChart(a, k, now) {
   const lim = week ? (S.settings.weekThreshold ?? 99) : S.settings.threshold;
   const col = week ? 'var(--s-week)' : 'var(--s-five)';
   const pts = winPoints(a, k, start, now, w && w.u);
-  const W = 400, Ht = 140, L = 30, R = 14, T = 14, B = 22;
+  const W = 300, Ht = 104, L = 24, R = 10, T = 13, B = 18;
   const x = t => L + (t - start) / (end - start) * (W - L - R);
   const y = u => T + (1 - u / 100) * (Ht - T - B);
   let g = '';
   for (const v of [0, 50, 100]) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
   for (const [t, lab] of ticks(start, end, week))
-    g += `<line x1="${x(t)}" x2="${x(t)}" y1="${y(0)}" y2="${y(0) + 4}" stroke="var(--grid)"/><text x="${x(t)}" y="${Ht - 5}" text-anchor="middle">${lab}</text>`;
+    g += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${y(0)}" stroke="var(--grid)"/><text x="${x(t)}" y="${Ht - 5}" text-anchor="middle">${lab}</text>`;
   // The auto-switch line of this window, in its colour.
   g += `<line x1="${L}" x2="${W - R}" y1="${y(lim)}" y2="${y(lim)}" stroke="${col}" stroke-opacity=".55" stroke-dasharray="4 4"/>`;
   if (!w) {
@@ -52,8 +52,8 @@ function winChart(a, k, now) {
       g += `<line x1="${x(start)}" x2="${x(end)}" y1="${y(0)}" y2="${y(100)}" stroke="var(--muted)" stroke-opacity=".7" stroke-dasharray="2 4"/>`;
       const deg = Math.atan2(y(100) - y(0), x(end) - x(start)) * 180 / Math.PI;
       g += `<text transform="translate(${x(start + span / 2)},${y(50)}) rotate(${deg.toFixed(1)})" dy="-5" text-anchor="middle">even pace</text>`;
-      g += `<line x1="${x(now)}" x2="${x(now)}" y1="${T - 6}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="2 3"/>`;
-      g += `<text x="${x(now)}" y="${T - 4}" text-anchor="middle">now</text>`;
+      g += `<line x1="${x(now)}" x2="${x(now)}" y1="${T - 4}" y2="${y(0)}" stroke="var(--red)" stroke-dasharray="4 3" stroke-width="1.5"/>`;
+      g += `<text x="${x(now)}" y="${T - 4}" text-anchor="middle" style="fill:var(--red)">now</text>`;
     }
     // Anthropic gives only the figures now: the line starts when recording did.
     const first = a.history[0];

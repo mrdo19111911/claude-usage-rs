@@ -35,7 +35,7 @@ fn the_two_logins_are_equal_peers() {
     let f = c.find("function login(").expect("one login() for both");
     let calls = c.matches("login('code'").count() + c.matches("login('desk'").count();
     assert_eq!(calls, 2, "called once for Claude CLI, once for Claude Desktop");
-    let body = &c[f..f + c[f..].find("\n}\n").unwrap()];
+    let body = &c[f..f + c[f..].find("\n}").unwrap()];
     for part in ["class=\"login ", "class=\"switch\"", "✓ In use"] {
         assert!(body.contains(part), "login() draws {part}");
     }
@@ -67,4 +67,29 @@ fn a_window_whose_reset_passed_shows_zero() {
     let b = asset("/js/base.js").unwrap().0;
     assert!(b.contains("function effWin(w)") && b.contains("w = effWin(w);"), "bars use the effective %");
     assert!(js("chart.js").contains("effWin(week ? a.usage.week : a.usage.five)"), "charts too");
+}
+
+#[test]
+fn cards_sit_two_to_a_row_on_a_wide_screen() {
+    let css = asset("/style.css").unwrap().0;
+    assert!(css.contains("#cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr))"), "two columns, one on a phone");
+    // A chart half as wide keeps its text readable: a smaller drawing, not a scaled one.
+    assert!(js("chart.js").contains("const W = 300, Ht = 104"), "compact chart");
+}
+
+#[test]
+fn ticks_have_faint_columns_and_now_is_a_red_dashed_line() {
+    let c = js("chart.js");
+    assert!(c.contains("y1=\"${T}\" y2=\"${y(0)}\" stroke=\"var(--grid)\""), "a faint column at each tick");
+    assert!(c.contains("stroke=\"var(--red)\" stroke-dasharray=\"4 3\""), "now: red, dashed");
+}
+
+#[test]
+fn plan_status_and_checks_sit_on_the_right_of_the_email() {
+    let c = js("card.js");
+    let w = c.find("function who(").unwrap();
+    let body = &c[w..w + c[w..].find("\n}").unwrap()];
+    let (l, r) = (body.find("class=\"who-l\"").expect("left: email"), body.find("class=\"who-r\"").expect("right: plan, state, checks"));
+    assert!(l < r && body[r..].contains("checkLine(a)") && body[r..].contains("a.plan"));
+    assert!(asset("/style.css").unwrap().0.contains(".who-r { text-align: right;"));
 }

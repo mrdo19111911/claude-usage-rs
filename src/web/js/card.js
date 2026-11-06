@@ -35,7 +35,8 @@ function deskLogin(a, d) {
     auto: ['data-dauto', d.uuid, d.auto, 'Auto-switch may move Claude Desktop to this account when the one in use reaches a limit'] };
 }
 
-// The account: email (dot when in use anywhere), ✕, plan and state, error, checks.
+// The account: on the left email (dot when in use anywhere), ✕, error; on the right
+// plan and state, checks.
 // ✕ removes the Claude CLI login and the saved Desktop sign-in, each where not in use.
 function who(a, d) {
   const email = (a && a.email) || (d && (d.email || d.label)) || '';
@@ -43,9 +44,9 @@ function who(a, d) {
   const rmCli = a && a.id !== S.activeId, rmDesk = d && !d.signedIn && !S.demo;
   const rm = rmCli || rmDesk ? `<button class="btn x" ${rmCli ? `data-remove="${a.id}"` : ''} ${rmDesk ? `data-dremove="${d.uuid}"` : ''} title="Remove">✕</button>` : '';
   const [icon, label] = a ? status(a) : ['', ''];
-  return `<div class="who"><div class="email">${inUse ? '<span class="dot"></span>' : ''}${esc(email)}${rm}</div>
-    <div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>
-    ${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}${a ? checkLine(a) : ''}</div>`;
+  return `<div class="who"><div class="who-l"><div class="email">${inUse ? '<span class="dot"></span>' : ''}${esc(email)}${rm}</div>
+    ${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}</div>
+    <div class="who-r"><div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>${a ? checkLine(a) : ''}</div></div>`;
 }
 
 // One window: its chart over the window, then its bar (and, weekly, the model chips).

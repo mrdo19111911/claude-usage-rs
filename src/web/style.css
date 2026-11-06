@@ -82,29 +82,33 @@
   .add.code { --c: var(--code); } .add.desk { --c: var(--desk); }
   .add:hover:not(:disabled) { background: var(--c); color: #111; }
   .add:disabled { opacity: .45; cursor: default; }
-  #cards { display: grid; gap: 12px; margin-top: 14px; }
-  .acard { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  #cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); gap: 12px; margin-top: 14px; }
+  .acard { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; min-width: 0; }
+  .acard .meta { font-size: 12.5px; }
   .acard.inuse { border-color: #3a4a5e; background: var(--row-active); }
   .acard.muted { opacity: .75; }
+  .who { display: flex; justify-content: space-between; align-items: flex-start; gap: 2px 12px; flex-wrap: wrap; }
+  .who-l { min-width: 0; } .who-r { text-align: right; margin-left: auto; }
   .who .x { margin-left: 8px; padding: 0 8px; font-size: 12px; vertical-align: 1px; }
-  .logins { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-  .login { --c: var(--code); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 10px; padding: 8px 12px; min-width: 0; }
+  .logins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .login { --c: var(--code); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 10px; padding: 6px 10px; min-width: 0; }
   .login.desk { --c: var(--desk); }
   .login.here { background: color-mix(in srgb, var(--c) 9%, transparent); }
-  .login-top { display: flex; align-items: center; gap: 10px; min-height: 30px; }
-  .login .name { color: var(--c); font-weight: 600; font-size: 14px; flex: 1; }
+  .login-top { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+  .login .name { color: var(--c); font-weight: 600; font-size: 13.5px; flex: 1; }
   .login .on { color: var(--c); padding: 0; }
-  .login .btn { padding: 3px 12px; font-size: 13px; border-color: var(--c); color: var(--c); background: transparent; }
+  .login .btn { padding: 2px 10px; font-size: 12.5px; border-color: var(--c); color: var(--c); background: transparent; }
   .login .btn:disabled { opacity: .5; cursor: default; }
-  .auto { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-height: 22px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .auto { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-height: 20px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
   .auto .switch { display: inline-block; width: 36px; height: 20px; }
   .auto .switch span::before { width: 14px; height: 14px; }
   .auto .switch input:checked + span::before { transform: translateX(16px); }
-  .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 12px; }
+  .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 10px; }
   .pane { position: relative; min-width: 0; }
-  .pane-t { font-size: 12.5px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
-  .pane svg { display: block; width: 100%; margin: 4px 0 6px; }
-  .pane svg text { font-size: 11px; }
+  .pane-t { font-size: 11.5px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  .pane svg { display: block; width: 100%; margin: 2px 0 4px; }
+  .pane svg text { font-size: 10px; }
+  .pane .left { font-size: 12.5px; } .pane .pct { width: 38px; font-size: 13px; } .pane .track { min-width: 0; height: 8px; }
   /* Top bar (name, version, Help, "Update to X") and the Settings card's "Updates" row. */
   [hidden] { display: none !important; }
   .topbar { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; margin: 0 6px 14px; }
