@@ -22,6 +22,10 @@ pub(crate) struct Settings {
     // (docs/specs/desktop-sessions.md; absent in older saved state: on).
     #[serde(default = "yes")]
     pub(crate) share_desktop_sessions: bool,
+    // Auto-switch uses the account whose weekly limit resets soonest first, and the
+    // accounts are shown in that order (docs/specs/auto-switch-deadline.md; absent: on).
+    #[serde(default = "yes")]
+    pub(crate) use_soonest_reset: bool,
 }
 
 fn yes() -> bool {
@@ -126,7 +130,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true },
+            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true, use_soonest_reset: true },
             accounts: vec![],
             active_id: None,
             events: vec![],

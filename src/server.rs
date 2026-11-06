@@ -98,6 +98,9 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["shareDesktopSessions"].as_bool() {
                     st.settings.share_desktop_sessions = v;
                 }
+                if let Some(v) = body["useSoonestReset"].as_bool() {
+                    st.settings.use_soonest_reset = v;
+                }
                 app.save(&st);
             }
             // Both reach GitHub (the install downloads a setup): in the background; the

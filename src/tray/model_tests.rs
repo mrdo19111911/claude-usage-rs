@@ -150,6 +150,11 @@ fn split_others_orders_both_lists() {
     assert_eq!(names, ["b@x", "a@x", "tie1@x", "tie2@x", "none@x"]);
     let f: Vec<(&str, i64)> = full.iter().map(|(o, t)| (o.email.as_str(), *t)).collect();
     assert_eq!(f, [("same@x", 300), ("soon@x", 300), ("late@x", 900)]);
+    // In auto-switch's order already: kept.
+    let m = Model { ranked: true, ..m };
+    let (open, _) = split_others(&m);
+    let names: Vec<&str> = open.iter().map(|o| o.email.as_str()).collect();
+    assert_eq!(names, ["none@x", "b@x", "a@x", "tie2@x", "tie1@x"]);
 }
 
 #[test]

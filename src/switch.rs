@@ -2,6 +2,10 @@
 
 use crate::*;
 
+// The ranking it switches by, also the order accounts are shown in.
+#[path = "rank.rs"]
+pub(crate) mod rank;
+
 impl App {
     // The tray's two hooks: the state its widget shows, and the switches its buttons ask
     // for (the same calls as the dashboard's buttons).
@@ -115,27 +119,22 @@ impl App {
         Ok(())
     }
 
-    // The account automatic switching moves to, with the reason; None to stay.
+    // The account automatic switching moves to, with the reason; None to stay
+    // (docs/specs/auto-switch-deadline.md).
     pub(crate) fn pick_auto(&self, st: &mut State) -> Option<(String, String)> {
-        if !st.settings.auto_switch {
-            return None;
-        }
-        let s = st.settings.clone();
-        let active = st.active_id.as_ref().and_then(|id| st.accounts.iter().find(|a| &a.id == id)).cloned()?;
-        let which = switch_reason(active.usage.as_ref()?, &s)?;
-        let room = |a: &Account| a.usage.as_ref().map(|u| (100 - u.five.u).min(100 - u.week.u)).unwrap_or(0);
-        let next = st.accounts.iter()
-            .filter(|a| a.enabled && a.id != active.id && a.error.is_none())
-            .filter(|a| a.usage.as_ref().is_some_and(|u| has_room(u, &s)))
-            .max_by_key(|a| room(a))
-            .map(|a| a.id.clone());
-        if next.is_none() {
-            let msg = format!("{} hit {which} but no other account has room", active.email);
-            if st.events.first().map(|e| &e.msg) != Some(&msg) {
-                self.log(st, msg);
+        let active = st.active_id.clone()?;
+        match self::rank::pick(&st.accounts, &active, &st.settings, now()) {
+            self::rank::Pick::Switch(id, why) => Some((id, why)),
+            self::rank::Pick::Stay => None,
+            self::rank::Pick::NoRoom(which) => {
+                let email = st.accounts.iter().find(|a| a.id == active).map(|a| a.email.clone()).unwrap_or_default();
+                let msg = format!("{email} hit {which} but no other account has room");
+                if st.events.first().map(|e| &e.msg) != Some(&msg) {
+                    self.log(st, msg);
+                }
+                None
             }
         }
-        next.map(|id| (id, format!("auto: {which}")))
     }
 }
 

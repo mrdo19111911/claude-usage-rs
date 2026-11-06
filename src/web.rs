@@ -62,3 +62,7 @@ mod usage_log_tests;
 #[cfg(test)]
 #[path = "web_desktop_sessions_tests.rs"]
 mod desktop_sessions_tests;
+
+#[cfg(test)]
+#[path = "web_soonest_reset_tests.rs"]
+mod soonest_reset_tests;

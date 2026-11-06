@@ -7,6 +7,7 @@ function renderSettings() {
     $('#autoSwitch').checked = s.autoSwitch;
     // Missing on an older backend: on, its default.
     $('#shareDesktopSessions').checked = s.shareDesktopSessions !== false;
+    $('#useSoonestReset').checked = s.useSoonestReset !== false;
     $('#threshold').value = s.threshold;
     $('#weekThreshold').value = s.weekThreshold;
     $('#pollSeconds').value = s.pollSeconds;
