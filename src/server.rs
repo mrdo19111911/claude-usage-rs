@@ -132,6 +132,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 }
                 match (method.as_str(), parts.get(1).copied()) {
                     ("POST", Some("switch")) => app.start_desktop_switch(Some(uuid.to_string()))?,
+                    ("POST", Some("auto")) => app.set_desktop_auto(uuid, body["enabled"].as_bool().ok_or("enabled required")?)?,
                     ("POST", Some("rename")) => {
                         let label = body["label"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or("name required")?;
                         let mut st = app.st.lock().unwrap();

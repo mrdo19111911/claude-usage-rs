@@ -5,6 +5,9 @@ use crate::*;
 // The ranking it switches by, also the order accounts are shown in.
 #[path = "rank.rs"]
 pub(crate) mod rank;
+// Claude Desktop's auto-switch, by the same ranking.
+#[path = "desktop_auto.rs"]
+pub(crate) mod desktop_auto;
 
 impl App {
     // The tray's two hooks: the state its widget shows, and the switches its buttons ask

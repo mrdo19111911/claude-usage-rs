@@ -157,7 +157,7 @@ pub(crate) fn test_app(dir: &Path) -> App {
         port: 0,
         desktop_dir: None,
         desktop_store: desktop::Store { root: dir.join("desktop") },
-        switching: AtomicBool::new(false),
+        switching: AtomicBool::new(false), desktop_auto_at: AtomicI64::new(0),
         login: Mutex::new(None),
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),

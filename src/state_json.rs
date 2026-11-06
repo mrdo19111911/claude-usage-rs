@@ -17,7 +17,7 @@ impl App {
             // Usage is per account: the terminal login of the same account shows it.
             let cli = st.accounts.iter().find(|a| a.account_uuid.as_deref() == Some(d.uuid.as_str()));
             json!({
-                "uuid": d.uuid, "label": d.label,
+                "uuid": d.uuid, "label": d.label, "auto": d.auto,
                 "email": cli.map(|a| a.email.clone()).or_else(|| noted_email(self.data_dir(), &d.uuid)),
                 "usage": cli.and_then(|a| a.usage.clone()),
                 "hasSignIn": self.desktop_store.has_sign_in(&d.uuid),

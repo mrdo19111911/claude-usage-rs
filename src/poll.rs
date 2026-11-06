@@ -84,7 +84,7 @@ impl App {
     }
 
     // `force`: every account now (Refresh now); else only those whose next check is due.
-    pub(crate) fn poll_all(&self, force: bool) {
+    pub(crate) fn poll_all(self: &Arc<Self>, force: bool) {
         if self.demo || self.polling.swap(true, Ordering::SeqCst) {
             return;
         }
@@ -110,6 +110,8 @@ impl App {
                 self.log(&mut st, format!("Auto-switch failed: {e}"));
             }
         }
+        // Then Claude Desktop's, when its account is at 100% (desktop_auto.rs).
+        self.desktop_auto();
         self.save(&self.st.lock().unwrap());
         self.last_poll.store(now(), Ordering::Relaxed);
         self.polling.store(false, Ordering::SeqCst);

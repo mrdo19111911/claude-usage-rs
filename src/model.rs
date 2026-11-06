@@ -106,6 +106,9 @@ pub(crate) struct Event {
 pub(crate) struct DesktopAccount {
     pub(crate) uuid: String,
     pub(crate) label: String,
+    // Auto-switch may move Claude Desktop here (it restarts Desktop: never on unasked).
+    #[serde(default)]
+    pub(crate) auto: bool,
 }
 
 #[derive(Serialize, Deserialize)]

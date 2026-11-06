@@ -28,7 +28,7 @@ fn eff(w: &Win, now: i64) -> Win {
     }
 }
 
-fn usage_now(a: &Account, now: i64) -> Option<Usage> {
+pub(crate) fn usage_now(a: &Account, now: i64) -> Option<Usage> {
     a.usage.as_ref().map(|u| Usage {
         five: eff(&u.five, now),
         week: eff(&u.week, now),
@@ -46,7 +46,7 @@ fn eligible(a: &Account, s: &Settings, now: i64) -> Option<Usage> {
     usage_now(a, now).filter(|u| usable(a) && has_room(u, s))
 }
 
-fn useful(u: &Usage, s: &Settings) -> bool {
+pub(crate) fn useful(u: &Usage, s: &Settings) -> bool {
     u.five.u <= s.threshold - MIN_FIVE_ROOM
 }
 
@@ -66,7 +66,7 @@ fn rank(a: (&Account, &Usage), b: (&Account, &Usage)) -> Ord {
 }
 
 // The eligible accounts, ranked.
-fn ranked<'a>(v: &'a [Account], s: &Settings, now: i64) -> Vec<(usize, Usage)> {
+pub(crate) fn ranked<'a>(v: &'a [Account], s: &Settings, now: i64) -> Vec<(usize, Usage)> {
     let mut r: Vec<(usize, Usage)> = v
         .iter()
         .enumerate()
