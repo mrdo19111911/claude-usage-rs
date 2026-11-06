@@ -1,6 +1,6 @@
 // Shared by the page's scripts (loaded first): helpers, the API call, formatting.
 // Parts: $, H, globals S/tableView/clockSkew, api, hhmm, resetLabel, ago, color, esc,
-// status, bar.
+// status, effWin, bar.
 
 const $ = s => document.querySelector(s);
 const H = 3600e3;
@@ -43,7 +43,12 @@ function status(a) {
   return ['<span class="dot" style="margin:0;background:var(--blue)"></span>', 'Ready'];
 }
 
+// A window whose reset has passed counts as 0% (it has reset; the figure is from before),
+// as auto-switch counts it (docs/specs/auto-switch-deadline.md, "Effective %").
+function effWin(w) { return w && w.resetsAt && w.resetsAt <= Date.now() - clockSkew ? { u: 0, resetsAt: null } : w; }
+
 function bar(w, showReset = true) {
+  w = effWin(w);
   const u = w.u;
   return `<div class="bar"><div class="track"><div class="fill" style="width:${Math.max(u, u > 0 ? 3 : 0)}%;background:${color(u)}"></div></div><div class="pct">${u}%</div></div>
     <div class="left"><b>${100 - u}% left</b>${!showReset ? '' : w.resetsAt ? ' · resets ' + resetLabel(w.resetsAt) : ' · not started yet'}</div>`;

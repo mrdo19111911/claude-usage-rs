@@ -1,6 +1,5 @@
-// The "Claude accounts" section: shared parts of its two lists, and drawing it.
-// Parts: accountRows, checkLine, usageBars, listRow, renderRows.
-// The lists themselves: list_cli.js (renderCli), list_desk.js (renderDesk).
+// The "Claude accounts" section: its accounts, shared parts, and drawing it.
+// Parts: accountRows, checkLine, chips, usageBars, renderRows. The cards: card.js.
 
 // One entry per account: the terminal logins, plus Claude Desktop accounts with none.
 function accountRows() {
@@ -19,23 +18,19 @@ function checkLine(a) {
   return parts.length ? `<div class="meta">${parts.join(' · ')}</div>` : '';
 }
 
-// The 5-hour and weekly bars side by side (also the "In use now" panels'), then a small
-// chip per model with a weekly limit of its own ("Fable 0%").
-function usageBars(u) {
-  const chips = (u.scoped || []).map(s => `<span class="scoped" style="--c:${color(s.u)}" title="${esc(s.name)} weekly limit${s.resetsAt ? ' · resets ' + resetLabel(s.resetsAt) : ''}">${esc(s.name)} <b>${s.u}%</b></span>`).join('');
-  return `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}${chips}</div></div>`;
+// A small chip per model with a weekly limit of its own ("Fable 0%").
+function chips(u) {
+  return (u.scoped || []).map(s => `<span class="scoped" style="--c:${color(s.u)}" title="${esc(s.name)} weekly limit${s.resetsAt ? ' · resets ' + resetLabel(s.resetsAt) : ''}">${esc(s.name)} <b>${s.u}%</b></span>`).join('');
 }
 
-// One row of either list: `cls` is "inuse", "muted" or ""; `left` the account, `right`
-// its buttons, `u` its usage (bars under both, or none).
-function listRow(cls, left, right, u) {
-  return `<div class="lrow ${cls}"><div class="lacct">${left}</div><div class="use">${right}</div>${u ? usageBars(u) : ''}</div>`;
+// The 5-hour and weekly bars side by side (the "In use now" panels).
+function usageBars(u) {
+  return `<div class="side-bars"><div><div class="note">5-hour</div>${bar(u.five)}</div><div><div class="note">Weekly</div>${bar(u.week)}${chips(u)}</div></div>`;
 }
 
 function renderRows() {
   const th = S.settings.threshold, thW = S.settings.weekThreshold ?? 99;
-  $('#cliRows').innerHTML = renderCli();
-  $('#deskRows').innerHTML = renderDesk();
+  renderCards();
 
   const on = S.accounts.filter(a => a.enabled && a.usage);
   const ready = on.filter(a => a.usage.five.u < th && a.usage.week.u < thW).length;

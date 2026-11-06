@@ -60,20 +60,7 @@ fn the_page_has_no_inline_style_or_script() {
 }
 
 #[test]
-fn the_accounts_are_two_lists_cli_left_desktop_right() {
-    let page = asset("/").unwrap().0;
-    let cli = page.find("id=\"cliRows\"").expect("a Claude CLI list");
-    let desk = page.find("id=\"deskRows\"").expect("a Claude Desktop list");
-    assert!(cli < desk, "Claude CLI comes first (left)");
-    assert!(page.contains("id=\"accts\""), "one section holds both lists");
-    assert!(!page.contains("<th>Claude Desktop</th>"), "the shared six-column table is gone");
-    for js in ["js/list_cli.js", "js/list_desk.js"] {
-        assert!(page.contains(&format!("src=\"{js}\"")), "{js} loaded");
-    }
-}
-
-#[test]
-fn both_lists_have_an_add_button() {
+fn both_logins_have_an_add_button() {
     let page = asset("/").unwrap().0;
     for id in ["cliAdd", "deskAdd"] {
         assert!(page.contains(&format!("id=\"{id}\"")), "{id} in the page");
@@ -88,14 +75,6 @@ fn a_new_account_chart_shows_its_figures_now() {
     let chart = asset("/js/chart.js").unwrap().0;
     assert!(chart.contains("Recording since"), "says why the line is short");
     assert!(!chart.contains("Not enough figures in this range yet"), "figures are never hidden");
-}
-
-#[test]
-fn the_chart_opens_on_5_hours() {
-    let chart = asset("/js/chart.js").unwrap().0;
-    assert!(chart.contains("let rangeH = 5;"), "5h by default");
-    // A choice saved under the old key (24h default) must not override the new default.
-    assert!(!chart.contains("'cud-range'"), "old saved range ignored");
 }
 
 #[test]

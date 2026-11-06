@@ -2,10 +2,10 @@
    Parts: colour tokens (:root); page and cards (* body main .card .head h2 .sub);
    buttons (button.link .btn); svg text; table (table th td tr.active); account cell
    (.acct .email .meta .dot .pill); usage bars (.bar .track .fill .pct .left); .err;
-   toggle (.switch); .row-actions .use .on .wait; settings (.settings .events .note code);
-   .tableview .scroll; series colours (:root --s-five --s-week); range filter (.filters .seg);
-   .legend; small multiples (.grid .mini .tip); the two logins (:root --code --desk,
-   .sides .side .side-head .side-bars .side-switch .tag); account lists (.add .lrow .lacct);
+   toggle (.switch); .on .wait; settings (.settings .events .note code);
+   .tableview .scroll; series colours (:root --s-five --s-week); .filters; chart tooltip (.tip);
+   the two logins (:root --code --desk, .sides .side .side-head .side-bars .side-switch .tag);
+   account cards (.add .acard .who .x .logins .login .auto .panes .pane);
    top bar and updates (.topbar .upd-pill .upd [hidden]); Claude Code on Gemini card and
    dialog (.gem-add .gem-ready .gem-warn .gem-adv .gem-ok .gem-dlg .steps .gem-key .dlg-btns .gem-watch
    .gem-pulse .gem-spin .copy-ic .gem-paste .note.small .shot .gem-privacy); help page (.help);
@@ -50,10 +50,6 @@
   .switch span::before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
   .switch input:checked + span { background: var(--blue); }
   .switch input:checked + span::before { transform: translateX(20px); }
-  .row-actions { display: flex; gap: 6px; margin-top: 6px; }
-  .row-actions .btn { padding: 3px 10px; font-size: 12.5px; }
-  .use { display: flex; flex-direction: column; gap: 6px; min-width: 170px; }
-  .use .btn { padding: 5px 10px; font-size: 13px; text-align: left; }
   .on { color: var(--green); font-size: 13.5px; font-weight: 600; padding: 5px 0; }
   .wait { background: #2b2614; border: 1px solid #5c4d1a; border-radius: 10px; padding: 10px 14px; margin-top: 12px; }
   .settings { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 14px; }
@@ -64,22 +60,7 @@
   .tableview td, .tableview th { padding: 6px 10px; font-size: 14px; }
   .scroll { overflow-x: auto; }
   :root { --s-five: #3987e5; --s-week: #d95926; }
-  .filters { display: flex; gap: 12px; align-items: center; }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .seg button { background: none; border: 0; color: var(--muted); padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; }
-  .seg button + button { border-left: 1px solid var(--line); }
-  .seg button.on { background: #2a2a2d; color: var(--text); }
-  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; color: var(--muted); font-size: 13.5px; }
-  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-  .legend i.dash { background: none; border-top: 2px dashed var(--muted); height: 0; }
-  .legend b { font-weight: 400; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
-  .mini { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 8px; position: relative; }
-  .mini.inuse { border-color: #3a4a5e; background: var(--row-active); }
-  .mini h3 { margin: 0; font-size: 14.5px; font-weight: 600; word-break: break-all; }
-  .mini .meta { font-size: 12.5px; }
-  .mini svg { display: block; width: 100%; margin-top: 6px; }
-  .mini svg text { font-size: 11px; }
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .tip { position: absolute; pointer-events: none; background: #0d0d0e; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; display: none; z-index: 2; }
   .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
   /* The two separate logins: Claude CLI (terminal + VS Code) and Claude Desktop. */
@@ -94,19 +75,36 @@
   .tag { display: inline-block; border: 1px solid var(--c); color: var(--c); border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
   .tag.code { --c: var(--code); } .tag.desk { --c: var(--desk); }
   .tag.sm { font-size: 11.5px; padding: 0 8px; margin-right: 4px; }
-  /* The two account lists (Claude accounts section): one .lrow per account. */
-  .side-head .add { margin-left: auto; align-self: center; padding: 8px 18px; font-size: 15px; font-weight: 600; background: transparent; border: 1.5px solid var(--c); color: var(--c); }
-  .side-head .add:hover:not(:disabled) { background: var(--c); color: #111; }
   .scoped { display: inline-block; margin-top: 6px; padding: 2px 8px; border: 1px solid var(--c); border-radius: 999px; font-size: 12.5px; color: var(--muted); }
   .scoped b { color: var(--c); font-weight: 600; }
-  .side-head .add:disabled { opacity: .45; cursor: default; }
-  .lrow { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 12px 10px; margin: 0 -10px; border-top: 1px solid var(--line); }
-  .side-head + .lrow, .side-head + div .lrow:first-child, .sub + div .lrow:first-child { margin-top: 8px; }
-  .lrow.inuse { background: var(--row-active); border-radius: 10px; }
-  .lrow.muted { opacity: .7; }
-  .lrow .side-bars { grid-column: 1 / -1; margin-top: 4px; }
-  .lacct { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
-  .lrow .use { min-width: 0; align-items: flex-end; }
+  /* Account cards (card.js): the account, its two logins as equal peers, its two windows. */
+  .add { background: transparent; border: 1.5px solid var(--c); color: var(--c); font-weight: 600; }
+  .add.code { --c: var(--code); } .add.desk { --c: var(--desk); }
+  .add:hover:not(:disabled) { background: var(--c); color: #111; }
+  .add:disabled { opacity: .45; cursor: default; }
+  #cards { display: grid; gap: 12px; margin-top: 14px; }
+  .acard { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .acard.inuse { border-color: #3a4a5e; background: var(--row-active); }
+  .acard.muted { opacity: .75; }
+  .who .x { margin-left: 8px; padding: 0 8px; font-size: 12px; vertical-align: 1px; }
+  .logins { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .login { --c: var(--code); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 10px; padding: 8px 12px; min-width: 0; }
+  .login.desk { --c: var(--desk); }
+  .login.here { background: color-mix(in srgb, var(--c) 9%, transparent); }
+  .login-top { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+  .login .name { color: var(--c); font-weight: 600; font-size: 14px; flex: 1; }
+  .login .on { color: var(--c); padding: 0; }
+  .login .btn { padding: 3px 12px; font-size: 13px; border-color: var(--c); color: var(--c); background: transparent; }
+  .login .btn:disabled { opacity: .5; cursor: default; }
+  .auto { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-height: 22px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .auto .switch { display: inline-block; width: 36px; height: 20px; }
+  .auto .switch span::before { width: 14px; height: 14px; }
+  .auto .switch input:checked + span::before { transform: translateX(16px); }
+  .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 12px; }
+  .pane { position: relative; min-width: 0; }
+  .pane-t { font-size: 12.5px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  .pane svg { display: block; width: 100%; margin: 4px 0 6px; }
+  .pane svg text { font-size: 11px; }
   /* Top bar (name, version, Help, "Update to X") and the Settings card's "Updates" row. */
   [hidden] { display: none !important; }
   .topbar { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; margin: 0 6px 14px; }
@@ -173,7 +171,7 @@
   .help summary { cursor: pointer; font-weight: 600; }
   .help details p { margin: 8px 0 0; }
   @media (max-width: 760px) {
-    .sides, .side-bars { grid-template-columns: 1fr; }
+    .sides, .side-bars, .panes { grid-template-columns: 1fr; }
     .card { padding: 16px; }
     thead { display: none; }
     tr { display: block; border-bottom: 1px solid var(--line); }

@@ -1,9 +1,9 @@
 // Loaded last: drawing, buttons and the load loop.
-// Parts: render (renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
+// Parts: render (renderCards is in card.js, renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
 // autoSwitch/threshold/weekThreshold/pollSeconds/shareDesktopSessions/useSoonestReset onchange; loginUrl, signIn, #cliAdd onclick;
-// #accts click, #sides click, run, #accts change; load() and the two timers.
+// #accts click, #sides click, run (its ✕ removes both logins), #accts change (both switches); load() and the two timers.
 
-function render() { if (!S) return; renderSides(); renderChart(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
+function render() { if (!S) return; renderSides(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
@@ -53,15 +53,21 @@ function run(ds) {
   } else if (ds.dfirst !== undefined) {
     if (confirm(`Claude Desktop will close and open signed out (running tasks stop). Then click “Continue with Google” in it and choose ${ds.dfirst || 'the account'}. Go on?`))
       act(api('/api/desktop/add', { method: 'POST', body: JSON.stringify({ email: ds.dfirst }) }));
-  } else if (ds.remove) {
-    if (confirm('Remove this account from the dashboard?')) act(api(`/api/accounts/${ds.remove}`, { method: 'DELETE' }));
-  } else if (ds.dremove && confirm('Forget this account’s saved Claude Desktop sign-in?')) {
-    act(api(`/api/desktop/${ds.dremove}`, { method: 'DELETE' }));
+  } else if (ds.remove || ds.dremove) {
+    // A card's ✕: its Claude CLI login and its saved Desktop sign-in, each where not in use.
+    const what = [ds.remove && 'its Claude CLI login', ds.dremove && 'its saved Claude Desktop sign-in'].filter(Boolean).join(' and ');
+    if (!confirm(`Remove ${what} from the dashboard?`)) return;
+    let p = Promise.resolve();
+    if (ds.remove) p = p.then(() => api(`/api/accounts/${ds.remove}`, { method: 'DELETE' }));
+    if (ds.dremove) p = p.then(() => api(`/api/desktop/${ds.dremove}`, { method: 'DELETE' }));
+    act(p);
   }
 }
+// The cards' switches: may auto-switch move Claude CLI / Claude Desktop to this account.
 $('#accts').addEventListener('change', e => {
-  const id = e.target.dataset.toggle;
-  if (id) act(api(`/api/accounts/${id}/toggle`, { method: 'POST', body: JSON.stringify({ enabled: e.target.checked }) }));
+  const id = e.target.dataset.toggle, uuid = e.target.dataset.dauto, body = JSON.stringify({ enabled: e.target.checked });
+  if (id) act(api(`/api/accounts/${id}/toggle`, { method: 'POST', body }));
+  else if (uuid) act(api(`/api/desktop/${uuid}/auto`, { method: 'POST', body }));
 });
 
 load();
