@@ -6,7 +6,9 @@ function accountRows() {
   const D = S.desktop;
   const rows = S.accounts.map(a => ({ a, d: D.accounts.find(d => a.uuid && d.uuid === a.uuid) }));
   for (const d of D.accounts) if (!rows.some(r => r.d === d)) rows.push({ a: null, d });
-  return rows;
+  // An account at 100% of a limit goes last, after those with only a Desktop sign-in.
+  const full = r => !!(r.a && r.a.usage && [r.a.usage.five, r.a.usage.week].some(w => effWin(w).u >= 100));
+  return rows.filter(r => !full(r)).concat(rows.filter(full));
 }
 
 // When the figures are from, and when Anthropic is asked next (sooner near a limit,
