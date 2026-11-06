@@ -93,3 +93,15 @@ fn plan_status_and_checks_sit_on_the_right_of_the_email() {
     assert!(l < r && body[r..].contains("checkLine(a)") && body[r..].contains("a.plan"));
     assert!(asset("/style.css").unwrap().0.contains(".who-r { text-align: right;"));
 }
+
+#[test]
+fn the_reset_is_a_green_line_with_its_time_under_the_axis() {
+    let c = js("chart.js");
+    // A known reset: a green line at the window's end, "reset" on top, its time below.
+    assert!(c.contains("const rx = x(end)"), "the reset sits at the window's end");
+    assert!(c.contains("x1=\"${rx}\" x2=\"${rx}\" y1=\"${T - 4}\" y2=\"${y(0)}\" stroke=\"var(--green)\" stroke-width=\"2\""), "a green line");
+    assert!(c.contains(">reset</text>"), "labelled reset");
+    assert!(c.contains("const rlab = week ? `${day(end)} ${hhmm(end)}` : hhmm(end)"), "its time under the axis");
+    // A tick label that would sit under the reset's time is left out (its column stays).
+    assert!(c.contains("x(t) < rx - rw"), "no tick label under the reset's");
+}
