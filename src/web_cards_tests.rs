@@ -105,3 +105,10 @@ fn the_reset_is_a_green_line_with_its_time_under_the_axis() {
     // A tick label that would sit under the reset's time is left out (its column stays).
     assert!(c.contains("x(t) < rx - rw"), "no tick label under the reset's");
 }
+
+#[test]
+fn cards_at_100_go_last_after_desktop_only_ones() {
+    let r = asset("/js/rows.js").unwrap().0;
+    assert!(r.contains("some(w => effWin(w).u >= 100)"), "100% of either limit, a passed reset as 0");
+    assert!(r.contains("rows.filter(r => !full(r)).concat(rows.filter(full))"), "full ones last, order kept");
+}

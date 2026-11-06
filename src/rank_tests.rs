@@ -161,7 +161,21 @@ fn the_order_shown_follows_the_ranking() {
         .into_iter()
         .map(|i| v[i].id.as_str())
         .collect();
-    assert_eq!(ids, ["soon", "late", "ff", "fw", "off"]);
+    assert_eq!(ids, ["soon", "late", "ff", "off", "fw"], "100% last, even after disabled ones");
     let saved: Vec<usize> = order(&v, &settings(false), NOW);
-    assert_eq!(saved, [0, 1, 2, 3, 4], "setting off: the saved order");
+    assert_eq!(saved, [0, 1, 3, 4, 2], "setting off: the saved order, 100% last");
+}
+
+#[test]
+fn accounts_at_100_go_last_soonest_free_first() {
+    let mut late = acc("late", 100, 40, 50);
+    late.usage.as_mut().unwrap().five.resets_at = Some(NOW + 4 * HOUR);
+    let soon = acc("soon", 100, 40, 50); // 5-hour back in 2 h
+    let mut gone = acc("gone", 100, 40, 50); // its 5-hour reset passed: 0%, not full
+    gone.usage.as_mut().unwrap().five.resets_at = Some(NOW - HOUR);
+    let v = vec![late, soon, gone];
+    for on in [true, false] {
+        let ids: Vec<&str> = order(&v, &settings(on), NOW).into_iter().map(|i| v[i].id.as_str()).collect();
+        assert_eq!(ids, ["gone", "soon", "late"], "setting {on}");
+    }
 }

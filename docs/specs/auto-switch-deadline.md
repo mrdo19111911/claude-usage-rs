@@ -41,7 +41,9 @@ when a 5-hour window fills or reopens, a weekly window resets, or a threshold is
 The same ranking, top to bottom: the eligible accounts as in step 1; then the enabled
 accounts at a threshold, soonest usable again first (the latest reset among the windows
 at a threshold; unknown last); then the disabled, errored and unchecked ones. With the
-setting off: as before (the saved order).
+setting off: as before (the saved order). Either way the accounts at 100% of a limit
+(effective %) go last, soonest free again first (the latest reset among the windows at
+100%; unknown last).
 
 ## Page
 

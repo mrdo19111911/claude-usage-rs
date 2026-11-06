@@ -138,12 +138,26 @@ fn old_room(u: &Usage) -> i64 {
     (100 - u.five.u).min(100 - u.week.u)
 }
 
-// The order accounts are shown in (indexes into `v`): the ranking, then the accounts at a
-// threshold (soonest usable again first), then disabled, errored and unchecked ones.
+// The order accounts are shown in (indexes into `v`): the ranking (or, setting off, the
+// saved order), with the accounts at 100% of a limit last, soonest free again first.
 pub(crate) fn order(v: &[Account], s: &Settings, now: i64) -> Vec<usize> {
-    if !s.use_soonest_reset {
-        return (0..v.len()).collect();
-    }
+    let shown = if s.use_soonest_reset { ranked_order(v, s, now) } else { (0..v.len()).collect() };
+    let full = |i: &usize| usage_now(&v[*i], now).and_then(|u| full_until(&u));
+    let (mut out, mut last): (Vec<usize>, Vec<usize>) = shown.into_iter().partition(|i| full(i).is_none());
+    last.sort_by_key(|i| full(i));
+    out.extend(last);
+    out
+}
+
+// When an account at 100% of a limit is free again: the latest reset among its windows at
+// 100% (i64::MAX when unknown); None when no window is at 100%.
+fn full_until(u: &Usage) -> Option<i64> {
+    [&u.five, &u.week].into_iter().filter(|w| w.u >= 100).map(|w| w.resets_at.unwrap_or(i64::MAX)).max()
+}
+
+// The ranking, then the accounts at a threshold (soonest usable again first), then
+// disabled, errored and unchecked ones.
+fn ranked_order(v: &[Account], s: &Settings, now: i64) -> Vec<usize> {
     let mut out: Vec<usize> = ranked(v, s, now).into_iter().map(|(i, _)| i).collect();
     let mut held: Vec<(i64, usize)> = vec![];
     let mut rest = vec![];

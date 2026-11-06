@@ -7,7 +7,8 @@ from "Claude accounts"; the weekly limit needs the days left until its reset; co
 
 The "Usage over time" section goes. "Claude accounts" holds one card per account, in the
 order of /api/state `accounts` (auto-switch's order, docs/specs/auto-switch-deadline.md),
-then the Claude Desktop accounts with no Claude CLI login. A card:
+then the Claude Desktop accounts with no Claude CLI login; last, the accounts at 100% of
+a limit (5-hour or weekly, a passed reset counting as 0), in /api/state's order. A card:
 
 - Header, left: email (dot when in use anywhere), plan, ✕ (removes the CLI login and the
   saved Desktop sign-in, each only where it is not in use; asks first).
