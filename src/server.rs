@@ -89,9 +89,6 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["autoSwitch"].as_bool() {
                     st.settings.auto_switch = v;
                 }
-                if let Some(v) = body["pollSeconds"].as_f64() {
-                    st.settings.poll_seconds = (v as u64).max(30);
-                }
                 if let Some(v) = body["autoUpdate"].as_bool() {
                     st.settings.auto_update = v;
                 }

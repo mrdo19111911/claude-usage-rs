@@ -82,6 +82,7 @@ impl App {
                 slow_until: 0,
                 slow_strikes: 0,
                 next_check: 0,
+                in_use: false,
             });
             format!("Added {email} (signed in in the browser)")
         };

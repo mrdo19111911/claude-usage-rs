@@ -10,7 +10,6 @@ function renderSettings() {
     $('#useSoonestReset').checked = s.useSoonestReset !== false;
     $('#threshold').value = s.threshold;
     $('#weekThreshold').value = s.weekThreshold;
-    $('#pollSeconds').value = s.pollSeconds;
   }
   $('#events').innerHTML = S.events.map(e => `<li>${hhmm(e.t)} — ${esc(e.msg)}</li>`).join('');
   $('#import').style.display = S.demo ? 'none' : '';
