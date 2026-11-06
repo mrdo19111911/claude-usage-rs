@@ -83,7 +83,7 @@ impl App {
             return;
         }
         let label = noted_email(self.data_dir(), &uuid).unwrap_or_else(|| format!("Account {}", &uuid[..8]));
-        st.desktop.push(DesktopAccount { uuid, label: label.clone() });
+        st.desktop.push(DesktopAccount { uuid, label: label.clone(), auto: false });
         self.log(st, format!("Claude Desktop: added {label} (signed in now)"));
         self.save(st);
     }

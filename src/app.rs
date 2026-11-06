@@ -17,6 +17,8 @@ pub(crate) struct App {
     pub(crate) desktop_dir: Option<PathBuf>,
     pub(crate) desktop_store: desktop::Store,
     pub(crate) switching: AtomicBool,
+    // When auto-switch last moved Claude Desktop (ms; docs/specs/account-cards.md).
+    pub(crate) desktop_auto_at: AtomicI64,
     pub(crate) login: Mutex<Option<login::Pending>>,
     // The email Claude Desktop is to be signed in to next, after a sign-out for it.
     pub(crate) desktop_expect: Mutex<Option<String>>,

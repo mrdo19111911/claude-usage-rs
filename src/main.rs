@@ -116,7 +116,7 @@ fn main() {
         port,
         desktop_dir: if demo { None } else { desktop::find_data_dir() },
         desktop_store: desktop::Store { root: data_dir.join("desktop") },
-        switching: AtomicBool::new(false),
+        switching: AtomicBool::new(false), desktop_auto_at: AtomicI64::new(0),
         login: Mutex::new(None),
         desktop_expect: Mutex::new(None),
         update: Mutex::new(update::Status::default()),

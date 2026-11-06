@@ -47,6 +47,8 @@ pub(super) struct Model {
     pub(super) others: Vec<Other>,
     // When the newest figures were fetched (any account): "· 2 min ago" in the header.
     pub(super) checked: Option<i64>,
+    // The accounts come in auto-switch's order (setting useSoonestReset): kept as they are.
+    pub(super) ranked: bool,
 }
 
 pub(super) const FIVE_MS: i64 = 5 * 3_600_000;
@@ -64,7 +66,7 @@ pub(super) fn full_until(u: &Use) -> Option<i64> {
     [&u.five, &u.week].into_iter().filter(|w| w.u >= 100).map(|w| w.reset.unwrap_or(i64::MAX)).max()
 }
 
-// The "Switch to" rows (not full; most room first, no figures last) and the "Full · free
+// The "Switch to" rows (not full; auto-switch's order, else most room first, no figures last) and the "Full · free
 // again" rows (soonest free first, with that time).
 pub(super) fn split_others(m: &Model) -> (Vec<&Other>, Vec<(&Other, i64)>) {
     let (mut open, mut full) = (vec![], vec![]);
@@ -75,7 +77,9 @@ pub(super) fn split_others(m: &Model) -> (Vec<&Other>, Vec<(&Other, i64)>) {
         }
     }
     let key = |o: &Other| o.usage.as_ref().map(|u| (u.five.u.max(u.week.u), u.week.u));
-    open.sort_by(|a, b| (key(a).is_none(), key(a), &a.email).cmp(&(key(b).is_none(), key(b), &b.email)));
+    if !m.ranked {
+        open.sort_by(|a, b| (key(a).is_none(), key(a), &a.email).cmp(&(key(b).is_none(), key(b), &b.email)));
+    }
     full.sort_by(|a, b| (a.1, &a.0.email).cmp(&(b.1, &b.0.email)));
     (open, full)
 }
@@ -101,6 +105,7 @@ pub(super) fn model(state: &str) -> Model {
     let found = d["found"].as_bool() == Some(true) && v["demo"].as_bool() != Some(true);
     let desk: &[Value] = if found { d["accounts"].as_array().map_or(&[], |l| l.as_slice()) } else { &[] };
     let active = v["activeId"].as_str();
+    m.ranked = v["settings"]["useSoonestReset"].as_bool() == Some(true);
     for a in v["accounts"].as_array().into_iter().flatten() {
         let email = a["email"].as_str().unwrap_or("?").to_string();
         let uuid = a["uuid"].as_str();

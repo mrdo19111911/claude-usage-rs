@@ -6,7 +6,8 @@ impl App {
     pub(crate) fn public_state(&self) -> String {
         let st = self.st.lock().unwrap();
         let t = now();
-        let accounts: Vec<Value> = st.accounts.iter().map(|a| json!({
+        // Shown in auto-switch's order (docs/specs/auto-switch-deadline.md).
+        let accounts: Vec<Value> = crate::switch::rank::order(&st.accounts, &st.settings, t).into_iter().map(|i| &st.accounts[i]).map(|a| json!({
             "id": a.id, "uuid": a.account_uuid, "email": a.email, "plan": a.plan, "enabled": a.enabled, "nextCheck": a.next_check,
             "usage": a.usage, "error": a.error, "raw": a.raw,
             "history": thin_history(&a.history, t),
@@ -16,7 +17,7 @@ impl App {
             // Usage is per account: the terminal login of the same account shows it.
             let cli = st.accounts.iter().find(|a| a.account_uuid.as_deref() == Some(d.uuid.as_str()));
             json!({
-                "uuid": d.uuid, "label": d.label,
+                "uuid": d.uuid, "label": d.label, "auto": d.auto,
                 "email": cli.map(|a| a.email.clone()).or_else(|| noted_email(self.data_dir(), &d.uuid)),
                 "usage": cli.and_then(|a| a.usage.clone()),
                 "hasSignIn": self.desktop_store.has_sign_in(&d.uuid),
