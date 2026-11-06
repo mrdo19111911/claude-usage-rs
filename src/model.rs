@@ -14,6 +14,8 @@ pub(crate) struct Settings {
     #[serde(default = "week_99")]
     pub(crate) week_threshold: i64,
     pub(crate) auto_switch: bool,
+    // No longer used (docs/specs/check-schedule.md); kept so saved state still loads.
+    #[serde(default)]
     pub(crate) poll_seconds: u64,
     // Install a newer release as soon as a check finds it (absent in older saved state: on).
     #[serde(default = "yes")]
@@ -91,6 +93,9 @@ pub(crate) struct Account {
     // When to ask for this account's usage next (ms): see next_check_at.
     #[serde(default)]
     pub(crate) next_check: i64,
+    // In use now (the Claude CLI login, or Claude Desktop's account): set by mark_in_use.
+    #[serde(skip)]
+    pub(crate) in_use: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

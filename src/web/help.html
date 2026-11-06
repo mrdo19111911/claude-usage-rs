@@ -50,7 +50,7 @@
     </details>
 
     <details><summary>How often are the figures checked? What does 429 mean?</summary>
-      <p>Every account every 2 minutes by default (change it in Settings). Near a limit more often: from 70% used twice as often, from 85% four times, from 95% eight times, at most every 15 s. An account at a 100% limit is not checked again until that limit resets.</p>
+      <p>An account in use (by Claude CLI or Claude Desktop) is checked every 10 minutes when little is used, more often as it nears a limit, and every minute from 90% of its 5-hour limit (a weekly limit counts too: 1% of a week is about 6.7% of five hours). An account not in use is checked every 10 minutes: its figures only move when it is used somewhere else. An account at a 100% limit is not checked again until that limit resets. Switching to an account checks it at once; <b>Refresh now</b> checks them all.</p>
       <p><b>HTTP 429</b> means Anthropic asked us to slow down. The app waits before asking again: 5 minutes, then twice as long each time, up to 1 hour.</p>
     </details>
 

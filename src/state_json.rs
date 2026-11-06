@@ -72,6 +72,7 @@ pub(crate) fn demo_state(app: &App) -> State {
         slow_until: 0,
         slow_strikes: 0,
         next_check: 0,
+        in_use: false,
     };
     let start = t - 126 * 60_000;
     let pts = [(0, 0), (75, 2), (79, 3), (82, 3), (90, 5), (99, 7), (108, 7), (118, 7), (125, 9)]

@@ -2,13 +2,18 @@
 
 use crate::*;
 
+// When each account is checked next (docs/specs/check-schedule.md).
+#[path = "schedule.rs"]
+pub(crate) mod schedule;
+pub(crate) use schedule::*;
+
 impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
-        let (creds, is_active, known, slow_until, base) = {
+        let (creds, is_active, known, slow_until, in_use) = {
             let st = self.st.lock().unwrap();
             match st.accounts.iter().find(|a| a.id == id) {
                 Some(a) if force || now() >= a.next_check => {
-                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until, st.settings.poll_seconds as i64 * 1000)
+                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until, a.in_use)
                 }
                 _ => return,
             }
@@ -56,7 +61,7 @@ impl App {
                 a.history.retain(|p| p.0 > t - 8 * 24 * HOUR);
                 a.history.push((t, five.u, week.u));
                 let u = Usage { five, week, fetched_at: t, scoped: to_scoped(&j) };
-                a.next_check = next_check_at(&u, base, t);
+                a.next_check = next_check_at(&u, in_use || is_live, t);
                 a.usage = Some(u);
                 logged = usage_log::figures(a, active_now);
                 a.error = None;
@@ -73,7 +78,7 @@ impl App {
             }
             Err(e) => {
                 a.error = Some(e.text());
-                a.next_check = now() + base;
+                a.next_check = now() + RETRY_MS;
             }
         }
         // The usage log, after the state's lock is let go (usage_log.rs).
@@ -93,6 +98,8 @@ impl App {
             let mut st = self.st.lock().unwrap();
             self.sync_desktop(&mut st);
             let t = now();
+            let (active, desk) = (st.active_id.clone(), self.desktop_dir.as_deref().and_then(desktop::signed_in));
+            mark_in_use(&mut st.accounts, active.as_deref(), desk.as_deref(), t);
             st.accounts.iter().filter(|a| force || t >= a.next_check).map(|a| a.id.clone()).collect()
         };
         if ids.is_empty() {
@@ -144,25 +151,4 @@ pub(crate) fn thin_history(h: &[(i64, i64, i64)], t: i64) -> Vec<(i64, i64, i64)
         }
     }
     out
-}
-
-// When to ask for an account's usage next, after figures fetched at `t`.
-// A window at 100% cannot change until it resets: no question before then (plus a
-// minute, so Anthropic has reset it). Otherwise every `base`, more often near a limit:
-// from 70% half of it, from 85% a quarter, from 95% an eighth; never under 15 s.
-pub(crate) fn next_check_at(u: &Usage, base_ms: i64, t: i64) -> i64 {
-    let full: Vec<i64> = [&u.five, &u.week].iter().filter(|w| w.u >= 100).filter_map(|w| w.resets_at).collect();
-    if let Some(r) = full.into_iter().max() {
-        if r > t {
-            return r + 60_000;
-        }
-    }
-    let used = u.five.u.max(u.week.u);
-    let every = match used {
-        ..=69 => base_ms,
-        70..=84 => base_ms / 2,
-        85..=94 => base_ms / 4,
-        _ => base_ms / 8,
-    };
-    t + every.max(15_000)
 }

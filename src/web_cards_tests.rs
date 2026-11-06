@@ -112,3 +112,11 @@ fn cards_at_100_go_last_after_desktop_only_ones() {
     assert!(r.contains("some(w => effWin(w).u >= 100)"), "100% of either limit, a passed reset as 0");
     assert!(r.contains("rows.filter(r => !full(r)).concat(rows.filter(full))"), "full ones last, order kept");
 }
+
+#[test]
+fn the_check_schedule_is_set_by_the_app_not_a_setting() {
+    // docs/specs/check-schedule.md: no "check every N s" any more; help says the rule.
+    assert!(!page().contains("pollSeconds") && !js("main.js").contains("pollSeconds") && !js("settings.js").contains("pollSeconds"));
+    let help = asset("/help.html").unwrap().0;
+    assert!(help.contains("every 10 minutes") && help.contains("every minute"), "help explains the schedule");
+}

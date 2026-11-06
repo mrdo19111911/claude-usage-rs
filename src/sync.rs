@@ -62,6 +62,7 @@ impl App {
                 slow_until: 0,
                 slow_strikes: 0,
                 next_check: 0,
+                in_use: false,
             };
             keep_oauth_account(&mut a, oa);
             st.accounts.push(a);

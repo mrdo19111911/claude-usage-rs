@@ -18,28 +18,6 @@ fn thins_old_history_only() {
 }
 
 #[test]
-fn checks_less_when_far_from_a_limit_and_not_at_all_while_one_is_full() {
-    use super::{next_check_at, Usage, Win};
-    let w = |u, r| Win { u, resets_at: r };
-    let at = |five, week| Usage { five, week, fetched_at: 0, scoped: vec![] };
-    let (base, t, h) = (120_000, 1_000_000, 3_600_000);
-    // New account, little used: every base.
-    assert_eq!(next_check_at(&at(w(5, None), w(10, None)), base, t), t + 120_000);
-    // Nearer a limit (either window): more often.
-    assert_eq!(next_check_at(&at(w(72, None), w(10, None)), base, t), t + 60_000);
-    assert_eq!(next_check_at(&at(w(10, None), w(90, None)), base, t), t + 30_000);
-    assert_eq!(next_check_at(&at(w(96, None), w(10, None)), base, t), t + 15_000);
-    assert_eq!(next_check_at(&at(w(99, None), w(10, None)), 60_000, t), t + 15_000, "never under 15 s");
-    // Weekly full, resets in 3 h: nothing until then (the 5-hour figure cannot help).
-    assert_eq!(next_check_at(&at(w(0, Some(t + 2 * h)), w(100, Some(t + 3 * h))), base, t), t + 3 * h + 60_000);
-    // 5-hour full: until it resets.
-    assert_eq!(next_check_at(&at(w(100, Some(t + h)), w(40, Some(t + 50 * h))), base, t), t + h + 60_000);
-    // Full but its reset time unknown or past: ask again soon, as near a limit.
-    assert_eq!(next_check_at(&at(w(100, None), w(40, None)), base, t), t + 15_000);
-    assert_eq!(next_check_at(&at(w(100, Some(t - 1)), w(40, None)), base, t), t + 15_000);
-}
-
-#[test]
 fn notes_desktop_session_names() {
     let d = std::env::temp_dir().join(format!("cud-names-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
