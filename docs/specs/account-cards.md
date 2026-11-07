@@ -31,6 +31,44 @@ a limit (5-hour or weekly, a passed reset counting as 0), in /api/state's order.
 - Table view (#viewToggle): the card shows a table of the figures instead of the charts.
 - Phone width: header buttons wrap under the email; the two charts stack.
 
+## Pace line on the 5-hour chart
+
+Asked 2026-11-07: a line from the last checks to show when the limit is expected.
+
+- Pace = the slope of a least-squares line through the 5-hour checks of the last 20 min
+  (`PACE_MS`) of this window, the figure carried to "now" left out. Needs 2 checks or
+  more and a slope above 0; else no line (a slope of 0 would put the limit at infinity).
+- No line either when the % has not moved in the last 10 min (2 checks or more, all the
+  same): use has paused and a pace from before would be stale. Not "the last 2 checks
+  are the same": near a limit the checks are a minute apart and mostly the same, so that
+  hid the line 78% of the time in the last 15 min before 95% (59% at 15-45 min); the
+  10-min rule hid it 0-4% of the time, with the same error (table below, "LS20, hide if
+  flat 10 min": 2.2 / 8.8, 4.9 / 15.4, 13.6 / 35.9).
+- Hover right of "now": the tooltip says "Expected limit at 21:20, in 32 min" (or "in
+  1h05m"), or "Expected ~91% at reset (23:50)"; the crosshair moves to that time. The
+  label at the line's end is short: "~21:20" or "~91%".
+- Drawn from the current point at that pace (dotted, the 5-hour colour) to 100%, or to the
+  reset if it does not get there first. No line at 100%, with an unknown reset, or on the
+  weekly chart.
+- Why 20 min and least squares, and why not weekly: replay of the 7-day usage log
+  (scratch `proj.py`; checks under docs/specs/check-schedule.md; predicted vs actual
+  time the 5-hour % reached 95; |error| median / p90, minutes):
+
+  | Rule | <15 min ahead | 15-45 min | 45-120 min | no line (<15 min) |
+  |---|---|---|---|---|
+  | last 2 checks | 5.3 / 11.0 | 11.5 / 22.7 | 29.4 / 75.4 | 78% |
+  | first/last 20 min | 2.5 / 9.8 | 5.7 / 19.8 | 14.7 / 40.8 | 0% |
+  | least squares 20 min | 2.2 / 8.8 | 5.0 / 16.2 | 13.7 / 36.6 | 0% |
+  | least squares 60 min | 2.9 / 8.7 | 6.4 / 14.7 | 16.3 / 45.2 | 0% |
+  | since the window started | 2.2 / 10.7 | 5.9 / 22.5 | 25.7 / 67.6 | 0% |
+
+  The % is whole numbers: two checks a minute apart mostly differ by 0, so "last 2 checks"
+  gives no line most of the time. On the weekly limit (to 99%) no rule did well: 1-4 h
+  ahead the best median error was 35 min with no line 45% of the time, and errors of hours
+  further out (a 20-min pace does not hold for days). The even-pace line stays the guide
+  there.
+- Prior art compared in docs/specs/pace-prior-art.md.
+
 ## Claude Desktop auto-switch (backend)
 
 - `DesktopAccount.auto: bool`, serde default false (Desktop restarts: never on unasked).

@@ -107,6 +107,27 @@ fn the_reset_is_a_green_line_with_its_time_under_the_axis() {
 }
 
 #[test]
+fn the_5_hour_chart_shows_the_pace_of_the_last_20_minutes() {
+    // docs/specs/account-cards.md, "Pace line": least squares over the checks of the last
+    // 20 min, the carried "now" figure left out; 5-hour chart only.
+    let c = js("chart.js");
+    assert!(c.contains("const PACE_MS = 20 * 60000"), "20 minutes");
+    assert!(c.contains("function pace(history, k, start, now)"), "a pace from the history");
+    assert!(c.contains("p[0] >= Math.max(start, now - PACE_MS) && p[0] <= now"), "the window's checks of the last 20 min only");
+    assert!(c.contains("if (pts.length < 2 || !d) return null"), "2 checks or more");
+    assert!(c.contains("return s > 0 ? s : null"), "rising only");
+    // Unchanged for the last 10 min: use has paused, the pace from before is stale.
+    assert!(c.contains("FLAT_MS = 10 * 60000"));
+    assert!(c.contains("if (flat.length >= 2 && flat.every(p => p[k] === flat[0][k])) return null"), "no line after 10 min unchanged");
+    assert!(c.contains("if (!week && end > now && w.u < 100)"), "5-hour chart, a known reset, not yet full");
+    assert!(c.contains("te < end ? `~${hhmm(te)}` : `~${Math.round(ue)}%`"), "a short label at its end");
+    // Hover right of now: the expectation in full.
+    assert!(c.contains("const f = c.proj && sx > c.x(c.proj.now) ? c.proj : null"), "right of now");
+    assert!(c.contains("`Expected limit at ${hhmm(f.te)}, in ${inm}`"), "when the limit is expected");
+    assert!(c.contains("`Expected ~${Math.round(f.ue)}% at reset (${hhmm(f.end)})`"), "or the % at the reset");
+}
+
+#[test]
 fn cards_at_100_go_last_after_desktop_only_ones() {
     let r = asset("/js/rows.js").unwrap().0;
     assert!(r.contains("some(w => effWin(w).u >= 100)"), "100% of either limit, a passed reset as 0");
