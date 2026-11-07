@@ -128,6 +128,19 @@ fn the_5_hour_chart_shows_the_pace_of_the_last_20_minutes() {
 }
 
 #[test]
+fn the_auto_switch_setting_says_which_app_each_threshold_is_for() {
+    // Asked 2026-11-07: "Auto-switch at 95% 5-hour, 99% weekly" read as if Claude Desktop
+    // moved there too, and the Desktop panel said auto-switch never changes it.
+    let at = crate::switch::desktop_auto::DESKTOP_AT;
+    let p = page();
+    assert!(p.contains("Claude CLI at <input type=\"number\" id=\"threshold\""), "the thresholds are Claude CLI's");
+    assert!(p.contains(&format!("Claude Desktop at {at}% of either")), "and Desktop's is said");
+    let s = js("sides.js");
+    assert!(s.contains(&format!("at {at}% (5-hour or weekly)")), "the Desktop panel says when");
+    assert!(!s.contains("auto-switch never changes it"));
+}
+
+#[test]
 fn cards_at_100_go_last_after_desktop_only_ones() {
     let r = asset("/js/rows.js").unwrap().0;
     assert!(r.contains("some(w => effWin(w).u >= 100)"), "100% of either limit, a passed reset as 0");

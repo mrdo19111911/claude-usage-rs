@@ -35,7 +35,7 @@
 
     <details><summary>How do I switch accounts? What is auto-switch?</summary>
       <p>Click <b>Use here</b> on an account. Claude CLI switches at once. Claude Desktop closes and opens again on that account, so tasks running in it stop.</p>
-      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches 95% of its 5-hour limit or 99% of its weekly limit (both set in Settings). The weekly one is higher because 1% of a week is about five times as much use as 1% of five hours. Accounts switched off are skipped. It moves Claude Desktop only when the account it is signed in to reaches 100% of a limit (Claude has stopped answering then), and only to accounts whose "Auto-switch may move Claude Desktop here" switch is on, at most once in 10 minutes.</p>
+      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches 95% of its 5-hour limit or 99% of its weekly limit (both set in Settings). The weekly one is higher because 1% of a week is about five times as much use as 1% of five hours. Accounts switched off are skipped. It moves Claude Desktop when the account it is signed in to reaches 98% of its 5-hour or weekly limit (this closes and reopens Claude Desktop, so a reply under way is cut off), and only to accounts whose "Auto-switch may move Claude Desktop here" switch is on, at most once in 10 minutes.</p>
       <p>It uses first the account whose weekly limit resets soonest: what is left of a week at its reset is lost, so it may switch before a limit when another account's quota would expire unused. The accounts are listed in that order, top to bottom: the next one auto-switch would use comes first. Turn it off in Settings to keep the old rule (most room left).</p>
     </details>
 

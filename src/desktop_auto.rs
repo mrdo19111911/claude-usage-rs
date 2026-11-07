@@ -1,12 +1,14 @@
-// Claude Desktop's auto-switch: when the account it is signed in to reaches a limit
-// (100%: Claude has stopped answering, so closing it loses no running work), move it to
-// the first ranked account it may use (docs/specs/account-cards.md).
+// Claude Desktop's auto-switch: when the account it is signed in to reaches DESKTOP_AT
+// of a limit, move it to the first ranked account it may use (docs/specs/account-cards.md).
+// The switch closes and reopens Desktop, so it waits longer than Claude CLI's threshold.
 
 use crate::switch::rank::{ranked, useful, usage_now, Pick};
 use crate::*;
 
 // The least time between two Desktop auto-switches (each closes and restarts Desktop).
 pub(crate) const GAP_MS: i64 = 10 * 60_000;
+// From this % of the 5-hour or weekly limit (asked 2026-11-07; it was 100).
+pub(crate) const DESKTOP_AT: i64 = 98;
 
 // The account Claude Desktop moves to from `signed_in`, with the log line. `has_sign_in`:
 // whether a Desktop sign-in is saved for a uuid; `last`: the last Desktop auto-switch (ms).
@@ -17,9 +19,9 @@ pub(crate) fn pick_desktop(v: &[Account], desk: &[DesktopAccount], signed_in: Op
     }
     // Its figures: the Claude CLI login of the same account.
     let Some(u) = v.iter().find(|a| a.account_uuid.as_deref() == Some(cur)).and_then(|a| usage_now(a, now)) else { return Pick::Stay };
-    let which = if u.five.u >= 100 {
+    let which = if u.five.u >= DESKTOP_AT {
         format!("5-hour {}%", u.five.u)
-    } else if u.week.u >= 100 {
+    } else if u.week.u >= DESKTOP_AT {
         format!("weekly {}%", u.week.u)
     } else {
         return Pick::Stay;

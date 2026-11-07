@@ -34,6 +34,8 @@ function renderSides() {
     const email = (a && a.email) || (d && (d.email || d.label)) || '';
     return d && d.hasSignIn ? [`dswitch:${d.uuid}`, email + usageHint(a ? a.usage : d.usage)] : [`dfirst:${email}`, email + ' · first time: sign in once'];
   });
-  $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in: auto-switch never changes it', dcur && (dcur.email || dcur.label), dcur && dcur.usage,
-    D.switching ? 'Closing and opening again on the new account…' : 'Switching closes the app and opens it again (running tasks stop).', deskOpts, D.switching);
+  // Its auto-switch point is desktop_auto.rs DESKTOP_AT.
+  const dnote = (s.autoSwitch ? 'Auto-switch moves it at 98% (5-hour or weekly), to accounts whose Desktop auto-switch is on. ' : 'Auto-switch is off. ') + 'Switching closes the app and opens it again (running tasks stop).';
+  $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', dcur && (dcur.email || dcur.label), dcur && dcur.usage,
+    D.switching ? 'Closing and opening again on the new account…' : dnote, deskOpts, D.switching);
 }

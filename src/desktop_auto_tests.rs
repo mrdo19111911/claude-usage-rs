@@ -64,11 +64,22 @@ fn at_100_switches_to_the_first_ranked_with_the_reason() {
 }
 
 #[test]
-fn under_100_stays_even_past_the_cli_threshold() {
+fn at_98_switches_too() {
+    // Asked 2026-11-07: Desktop moves from 98%, not only at 100%.
     let (mut v, d) = three();
-    v[0].usage.as_mut().unwrap().five.u = 99;
+    v[0].usage.as_mut().unwrap().five.u = 98;
+    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: auto-switch (5-hour 98%)"));
+    v[0].usage.as_mut().unwrap().five.u = 20;
+    v[0].usage.as_mut().unwrap().week.u = 98;
+    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: auto-switch (weekly 98%)"));
+}
+
+#[test]
+fn under_98_stays_even_past_the_cli_threshold() {
+    let (mut v, d) = three();
+    v[0].usage.as_mut().unwrap().five.u = 97;
     assert!(matches!(run(&v, &d, &settings(), 0), Pick::Stay));
-    v[0].usage.as_mut().unwrap().week.u = 99;
+    v[0].usage.as_mut().unwrap().week.u = 97;
     assert!(matches!(run(&v, &d, &settings(), 0), Pick::Stay));
 }
 

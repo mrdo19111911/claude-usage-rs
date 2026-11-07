@@ -73,15 +73,22 @@ Asked 2026-11-07: a line from the last checks to show when the limit is expected
 
 - `DesktopAccount.auto: bool`, serde default false (Desktop restarts: never on unasked).
   /api/state `desktop.accounts[].auto`. `POST /api/desktop/<uuid>/auto {enabled}`.
-- Each poll, after Claude CLI's auto-switch: Claude Desktop's account (signed in now) has
-  reached a limit: its effective 5-hour or weekly % is at 100 (Claude has stopped
-  answering anyway, so closing it loses no running work). Then switch Desktop to the first
+- Each poll, after Claude CLI's auto-switch: Claude Desktop's account (signed in now) is
+  at or over `DESKTOP_AT` = 98% of its 5-hour or weekly limit (effective %). Asked
+  2026-11-07 ("cứ trên 98% tự chuyển") after Desktop sat at 98% with the CLI already
+  moved: it was 100% (Claude has stopped answering then, so closing it loses no running
+  work); at 98% a reply under way may be cut off by the restart. Then switch Desktop to the first
   account in auto-switch's ranking that has `auto` on, a saved Desktop sign-in and is
   useful (rank.rs), via `start_desktop_switch`. Reason in the log:
-  "Claude Desktop: auto-switch (5-hour 100%)".
+  "Claude Desktop: auto-switch (5-hour 98%)".
 - Not when: setting `autoSwitch` off; a Desktop switch is running; Desktop is not here,
   signed out, or this is the demo; the last Desktop auto-switch was under 10 minutes ago;
   no candidate (logged once, as for the CLI: "Claude Desktop hit <which> but no other
   account has room").
+- The page says whose thresholds are whose: Settings reads "Auto-switch · Claude CLI at
+  [95] % 5-hour [99] % weekly · Claude Desktop at 98% of either (it closes and opens
+  again)", and the Claude Desktop panel says when auto-switch moves it (it used to say
+  "auto-switch never changes it"). Asked 2026-11-07: without it, Desktop at 98% with the
+  CLI moved looked like a broken app.
 - Tests first (pure): the pick from accounts + Desktop list + signed-in uuid + settings +
   now + last auto time.
