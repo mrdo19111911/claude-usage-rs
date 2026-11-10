@@ -153,6 +153,9 @@ fn the_in_use_now_panels_show_both_charts() {
     let c = js("chart.js");
     assert!(c.contains("for (const root of [$('#cards'), $('#sides')])"), "hover on the panels' charts too");
     assert!(c.contains("root.querySelectorAll('.tip')"), "each place hides its own tooltips");
+    // At phone width the switch menu's long options pushed the panel off the screen.
+    let css = asset("/style.css").unwrap().0;
+    assert!(css.contains(".side { min-width: 0;"), "a panel shrinks to its column");
 }
 
 #[test]

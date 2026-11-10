@@ -45,6 +45,12 @@ in use meant scrolling to its card.
   no figures yet, or in table view, the panel keeps the bars as before.
 - Hover works there as on the cards (crosshair, tooltip, pace tooltip right of "now");
   while the pointer is on a chart neither the panels nor the cards redraw.
+- No wider than the screen (asked 2026-11-10 with a phone-width screenshot: the panel ran
+  off the right edge, cutting the reset and the %). Measured at 375 px: the panel's column
+  was 509 px in a 309 px space, pushed by the switch menu, whose options are long ("email ·
+  5h 0% · week 48%"); hiding the charts changed nothing, hiding the menu fixed it. So a
+  panel may shrink below its content (`.side { min-width: 0 }`) and the menu shortens its
+  text instead.
 
 ## Pace line on the 5-hour chart
 

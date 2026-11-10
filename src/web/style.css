@@ -66,7 +66,8 @@
   /* The two separate logins: Claude CLI (terminal + VS Code) and Claude Desktop. */
   :root { --code: #2bb5a8; --desk: #a37cf0; }
   .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
-  .side { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; border-top: 3px solid var(--c); }
+  /* min-width 0: the switch menu's long options would push the panel off a phone screen. */
+  .side { min-width: 0; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; border-top: 3px solid var(--c); }
   .side.code { --c: var(--code); } .side.desk { --c: var(--desk); }
   .side-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .side-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
