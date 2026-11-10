@@ -9,15 +9,16 @@ pub(crate) use schedule::*;
 
 impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
-        let (creds, is_active, known, slow_until, in_use) = {
+        let (creds, is_active, account_uuid, slow_until, in_use) = {
             let st = self.st.lock().unwrap();
             match st.accounts.iter().find(|a| a.id == id) {
                 Some(a) if force || now() >= a.next_check => {
-                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.is_some(), a.slow_until, a.in_use)
+                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use)
                 }
                 _ => return,
             }
         };
+        let known = account_uuid.is_some();
         // Anthropic asked this login to slow down: its last figures stand until then.
         if now() < slow_until {
             return;
@@ -25,7 +26,15 @@ impl App {
         // Also the live login when it is not identified yet (active_id is then None).
         let rt = creds.get("refreshToken").filter(|v| v.is_string());
         let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
-        let res = self.fetch_usage(&creds, !is_live);
+        // The live Claude CLI token is never refreshed here; when it has expired, read the
+        // figures from Claude Desktop's own token for this account (docs/specs/desktop-token.md).
+        let res = match self.fetch_usage(&creds, !is_live) {
+            Err(ApiErr::Other(m)) if is_live && m.contains("Claude Code renews") => match self.desktop_usage(account_uuid.as_deref()) {
+                Some(j) => Ok((j, None)),
+                None => Err(ApiErr::Other(m)),
+            },
+            other => other,
+        };
         // Accounts saved by older versions were named after ~/.claude.json, which can
         // be another account's: ask once whose the token is. Not tied to the usage
         // answer: the usage endpoint can be rate-limited (429) while this one answers.

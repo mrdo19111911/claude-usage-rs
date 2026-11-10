@@ -1,8 +1,8 @@
 // An account card's two charts (docs/specs/account-cards.md): its 5-hour and weekly
 // windows, each from the window's start to its reset (a green line, the right edge), with
 // even pace and now, and on the 5-hour one the pace of the last 20 min.
-// Parts: winSpan, winPoints, ticks, pace, paceTip, winChart, hovering, charts, #cards mousemove /
-// mouseleave handlers.
+// Parts: winSpan, winPoints, ticks, pace, paceTip, winChart, hovering, charts, mousemove /
+// mouseleave handlers on #cards and #sides (the "In use now" panels show the same panes).
 
 // The window shown, [start, end]: a known reset, from reset - span to the reset; not
 // started (or the reset passed): the last `span` up to now.
@@ -53,14 +53,16 @@ function paceTip(f, col) {
     <div><i style="background:${col}"></i>${f.te < f.end ? `Expected limit at ${hhmm(f.te)}, in ${inm}` : `Expected ~${Math.round(f.ue)}% at reset (${hhmm(f.end)})`}</div>`;
 }
 
-function winChart(a, k, now) {
+// W: the drawing's width; 300 on the cards, the pane's width in pixels in "In use now"
+// (docs/specs/account-cards.md, "Less space" 4), so it stays 104 px tall there.
+function winChart(a, k, now, W = 300) {
   const week = k === 2, span = week ? 7 * 24 * H : 5 * H;
   const w = a.usage && effWin(week ? a.usage.week : a.usage.five);
   const [start, end] = winSpan(w, span, now);
   const lim = week ? (S.settings.weekThreshold ?? 99) : S.settings.threshold;
   const col = week ? 'var(--s-week)' : 'var(--s-five)';
   const pts = winPoints(a, k, start, now, w && w.u);
-  const W = 300, Ht = 104, L = 24, R = 10, T = 13, B = 18;
+  const Ht = 104, L = 24, R = 10, T = 13, B = 18;
   const x = t => L + (t - start) / (end - start) * (W - L - R);
   const y = u => T + (1 - u / 100) * (Ht - T - B);
   let g = '', proj = null;
@@ -122,14 +124,15 @@ function winChart(a, k, now) {
   return { svg: `<svg viewBox="0 0 ${W} ${Ht}" data-key="${a.id}:${k}" role="img" aria-label="${week ? 'Weekly' : '5-hour'} limit used over its window">${g}</svg>`, pts, x, W, week, col, proj };
 }
 
-// A redraw would drop the tooltip under the pointer: cards wait while it is on a chart.
+// A redraw would drop the tooltip under the pointer: cards and panels wait while it is on a chart.
 let hovering = false, charts = {};
 // Crosshair and tooltip: the figure in force at the pointer's time.
-$('#cards').addEventListener('mousemove', e => {
+for (const root of [$('#cards'), $('#sides')]) {
+root.addEventListener('mousemove', e => {
   const svg = e.target.closest('svg[data-key]');
   hovering = !!svg;
-  document.querySelectorAll('#cards .tip').forEach(t => { if (!svg || t.parentNode !== svg.parentNode) t.style.display = 'none'; });
-  document.querySelectorAll('#cards .cross').forEach(l => { if (!svg || l.ownerSVGElement !== svg) l.style.display = 'none'; });
+  root.querySelectorAll('.tip').forEach(t => { if (!svg || t.parentNode !== svg.parentNode) t.style.display = 'none'; });
+  root.querySelectorAll('.cross').forEach(l => { if (!svg || l.ownerSVGElement !== svg) l.style.display = 'none'; });
   if (!svg) return;
   const c = charts[svg.dataset.key];
   if (!c || c.pts.length < 2) return;
@@ -148,8 +151,9 @@ $('#cards').addEventListener('mousemove', e => {
   tip.style.left = Math.min(e.clientX - host.left + 14, host.width - tip.offsetWidth - 6) + 'px';
   tip.style.top = (box.top - host.top + 4) + 'px';
 });
-$('#cards').addEventListener('mouseleave', () => {
+root.addEventListener('mouseleave', () => {
   hovering = false;
-  document.querySelectorAll('#cards .tip').forEach(t => (t.style.display = 'none'));
-  document.querySelectorAll('#cards .cross').forEach(l => (l.style.display = 'none'));
+  root.querySelectorAll('.tip').forEach(t => (t.style.display = 'none'));
+  root.querySelectorAll('.cross').forEach(l => (l.style.display = 'none'));
 });
+}

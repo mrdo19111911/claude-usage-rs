@@ -59,6 +59,15 @@ impl App {
             .map_err(|e| ureq::Error::from(e))
     }
 
+    // Usage for the live login read from Claude Desktop's own long-lived token, when
+    // Claude Code's has expired (docs/specs/desktop-token.md). Read only: the token is
+    // never refreshed or written back. None when there is no usable Desktop token.
+    pub(crate) fn desktop_usage(&self, uuid: Option<&str>) -> Option<Value> {
+        let dir = self.desktop_dir.as_deref()?;
+        let creds = desktop::desktop_access_token(dir, uuid?)?;
+        self.get_usage(&creds).ok()
+    }
+
     // The account a token belongs to: (uuid, email).
     pub(crate) fn get_profile(&self, creds: &Value) -> Result<(String, String), ApiErr> {
         let j = self.get_profile_json(creds)?;

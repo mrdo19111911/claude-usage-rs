@@ -1,5 +1,6 @@
 // The "Claude accounts" section: one card per account (docs/specs/account-cards.md).
-// Parts: login, cliLogin, deskLogin, who, pane, tablePanes, card, renderCards.
+// Parts: login, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, cardPaneWidth,
+// renderCards.
 
 // One login of the account, drawn the same way for Claude CLI and Claude Desktop (equal
 // peers): its name and "✓ In use" or the button that uses it there, then under them its
@@ -49,12 +50,20 @@ function who(a, d) {
     <div class="who-r"><div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>${a ? checkLine(a) : ''}</div></div>`;
 }
 
-// One window: its chart over the window, then its bar (and, weekly, the model chips).
-function pane(a, k, now) {
-  const c = winChart(a, k, now);
+// What is left of a window, for its title row: "57% left · in 1d 14h" (the clock time is
+// under the chart's axis), in the bar colours.
+function paneLeft(w) {
+  return `<span class="pane-l"><b style="color:${color(w.u)}">${100 - w.u}% left</b> · ${w.resetsAt ? 'in ' + timeLeft(w.resetsAt) : 'not started'}</span>`;
+}
+
+// One window: its title row (the name, weekly with the model chips, and what is left),
+// then its chart over the window; `W` as winChart's. No bar: the chart's dot and its reset
+// line say the same (docs/specs/account-cards.md, "Less space").
+function pane(a, k, now, W) {
+  const c = winChart(a, k, now, W);
   charts[`${a.id}:${k}`] = c;
-  const w = k === 1 ? a.usage.five : a.usage.week;
-  return `<div class="pane"><div class="pane-t">${k === 1 ? '5-hour' : 'Weekly'}</div>${c.svg}<div class="tip"></div>${bar(w)}${k === 2 ? chips(a.usage) : ''}</div>`;
+  const w = effWin(k === 1 ? a.usage.five : a.usage.week);
+  return `<div class="pane"><div class="pane-t"><span class="pane-n">${k === 1 ? '5-hour' : 'Weekly'}${k === 2 ? chips(a.usage) : ''}</span>${paneLeft(w)}</div>${c.svg}<div class="tip"></div></div>`;
 }
 
 // Table view: the figures of the weekly window, newest first.
@@ -66,20 +75,28 @@ function tablePanes(a, now) {
     pts.map(p => `<tr><td>${day(p[0])} ${hhmm(p[0])}</td><td>${p[1]}%</td><td>${p[2]}%</td></tr>`).join('')}</tbody></table></div>`;
 }
 
-function card(a, d, now) {
+function card(a, d, now, W) {
   const inUse = (a && a.id === S.activeId) || (d && d.signedIn);
   const body = a && a.usage
-    ? (tableView ? tablePanes(a, now) : `<div class="panes">${pane(a, 1, now)}${pane(a, 2, now)}</div>`)
+    ? (tableView ? tablePanes(a, now) : `<div class="panes">${pane(a, 1, now, W)}${pane(a, 2, now, W)}</div>`)
     : a ? '<div class="note">Waiting for figures</div>' : '';
   return `<div class="acard${inUse ? ' inuse' : ''}${a ? '' : ' muted'}">${who(a, d)}
     <div class="logins">${login('code', 'Claude CLI', cliLogin(a, d))}${login('desk', 'Claude Desktop', deskLogin(a, d))}</div>
     ${body}</div>`;
 }
 
+// A card pane's width in pixels: the grid's column less the card's padding and border,
+// halved less the gap when the panes sit side by side (docs/specs/account-cards.md, "Less
+// space" 6). The charts are drawn that wide, so they stay 104 px tall.
+function cardPaneWidth() {
+  const inner = (parseFloat(getComputedStyle($('#cards')).gridTemplateColumns) || 0) - 30;
+  return Math.round(matchMedia('(max-width: 760px)').matches ? inner : (inner - 14) / 2);
+}
+
 function renderCards(force) {
   if (hovering && !force) return;
-  const now = Date.now() - clockSkew;
+  const now = Date.now() - clockSkew, W = Math.max(300, cardPaneWidth());
   charts = {};
-  $('#cards').innerHTML = accountRows().map(({ a, d }) => card(a, d, now)).join('')
+  $('#cards').innerHTML = accountRows().map(({ a, d }) => card(a, d, now, W)).join('')
     || '<p class="note">No accounts yet. Click “+ Add account” and sign in.</p>';
 }

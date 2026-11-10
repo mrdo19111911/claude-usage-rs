@@ -1,5 +1,5 @@
 // Loaded last: drawing, buttons and the load loop.
-// Parts: render (renderCards is in card.js, renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
+// Parts: render, the width watcher (renderCards is in card.js, renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
 // autoSwitch/threshold/weekThreshold/shareDesktopSessions/useSoonestReset onchange; loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run (its ✕ removes both logins), #accts change (both switches); load() and the two timers.
 
@@ -7,6 +7,15 @@ function render() { if (!S) return; renderSides(); renderRows(); renderSettings(
 function setState(j) { S = j; clockSkew = Date.now() - j.now; render(); }
 const load = () => api('/api/state').then(setState).catch(() => {});
 const act = p => p.then(setState).catch(e => alert(e.message));
+// The charts are drawn at their width (docs/specs/account-cards.md, "Less space" 4, 6):
+// draw them again when the page's width changes (not always sent as a resize event).
+let drawnWidth = 0;
+new ResizeObserver(([e]) => {
+  const w = Math.round(e.contentRect.width);
+  if (w === drawnWidth) return;
+  drawnWidth = w;
+  if (S) { renderSides(); renderCards(); }
+}).observe($('main'));
 
 $('#viewToggle').onclick = () => { tableView = !tableView; $('#viewToggle').textContent = tableView ? 'Chart view' : 'Table view'; render(); };
 $('#refresh').onclick = () => act(api('/api/refresh', { method: 'POST' }));
