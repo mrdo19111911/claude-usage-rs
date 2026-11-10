@@ -47,3 +47,27 @@ fn the_notes_are_one_short_line_with_the_rest_in_a_tooltip() {
     }
     assert!(s.contains("<div class=\"note\" title=\"${esc(note[1])}\">${note[0]}</div>"), "full text in the tooltip");
 }
+
+#[test]
+fn the_panels_charts_are_drawn_at_their_width_so_they_stay_low() {
+    let c = js("chart.js");
+    assert!(c.contains("function winChart(a, k, now, W = 300)"), "cards keep 300");
+    let s = js("sides.js");
+    assert!(s.contains("function paneWidth()"), "the pane's width in pixels");
+    assert!(s.contains("const W = Math.max(300, paneWidth())"), "at least 300");
+    assert!(s.contains("pane(a, 1, now, W)") && s.contains("pane(a, 2, now, W)"));
+    assert!(s.contains("addEventListener('resize', () => S && renderSides())"), "redrawn on resize, once there is a state");
+    assert!(js("card.js").contains("function pane(a, k, now, W)"));
+}
+
+#[test]
+fn the_model_chips_sit_in_the_weekly_title_row() {
+    let c = js("card.js");
+    let f = c.find("function pane(").unwrap();
+    let body = &c[f..f + c[f..].find("
+}").unwrap()];
+    assert!(body.contains("<span class=\"pane-n\">${k === 1 ? '5-hour' : 'Weekly'}${k === 2 ? chips(a.usage) : ''}</span>"), "chips after Weekly");
+    assert_eq!(body.matches("chips(").count(), 1, "not again under the chart");
+    let css = asset("/style.css").unwrap().0;
+    assert!(css.contains(".pane-t .scoped {"), "a chip sized for the title row");
+}

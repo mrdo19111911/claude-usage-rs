@@ -1,6 +1,7 @@
 // The "In use now" panels: Claude CLI and Claude Desktop, or one panel when both use one
 // account (docs/specs/account-cards.md, "Less space").
-// Parts: whereTags, usageHint, sideBody, emailLine, control, side, both, renderSides.
+// Parts: whereTags, usageHint, paneWidth, sideBody, emailLine, control, side, both, renderSides,
+// the window's resize handler.
 
 // Where an account is in use, one colored tag per login.
 function whereTags(code, desk) {
@@ -9,11 +10,18 @@ function whereTags(code, desk) {
 
 function usageHint(u) { return u ? ` · 5h ${u.five.u}% · week ${u.week.u}%` : ''; }
 
+// A pane's width in pixels: the panel's inside, halved when the two panes sit side by side.
+function paneWidth() {
+  const inner = $('#sideCode').clientWidth - 32;
+  return Math.round(matchMedia('(max-width: 760px)').matches ? inner : (inner - 14) / 2);
+}
+
 // Its account's two charts, as on its card (docs/specs/account-cards.md, "Charts in In
-// use now"); the bars only with no history here (a Desktop-only account), no figures yet,
-// or in table view.
+// use now"), drawn at the pane's width so they stay low ("Less space" 4); the bars only
+// with no history here (a Desktop-only account), no figures yet, or in table view.
 function sideBody(a, u, now) {
-  if (a && a.usage && !tableView) return `<div class="panes">${pane(a, 1, now)}${pane(a, 2, now)}</div>`;
+  const W = Math.max(300, paneWidth());
+  if (a && a.usage && !tableView) return `<div class="panes">${pane(a, 1, now, W)}${pane(a, 2, now, W)}</div>`;
   return u ? usageBars(u) : '';
 }
 
@@ -80,3 +88,6 @@ function renderSides() {
   $('#sideCode').innerHTML = codeSide();
   $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', dcur && (dcur.email || dcur.label), sideBody(da, dcur && dcur.usage, now), ...desk);
 }
+
+// The panels' charts are drawn at their width: draw them again at the new one.
+addEventListener('resize', () => S && renderSides());

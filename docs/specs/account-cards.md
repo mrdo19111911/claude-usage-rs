@@ -75,6 +75,14 @@ with Claude CLI and Claude Desktop on one account the same charts showed three t
    Claude CLI "Auto-switch at 95% 5-hour · 99% weekly"; Claude Desktop "Auto-switch at
    98% · switching restarts it"; off: "Auto-switch is off" (Desktop: "Auto-switch is off ·
    switching restarts it"). While Desktop switches, the note says so, as before.
+4. Asked next ("đúng" to capping the shared panel's charts; "Fable 0% đặt ngang hàng với
+   chữ 5-Hour"). Measured: across both columns a chart was 152 px tall at 1024 px (its
+   drawing is 300 x 104 and was scaled up 1.5 times). In "In use now" a chart's drawing is
+   now as wide as its pane in pixels (`winChart(a, k, now, W)`, W at least 300), so it is
+   104 px tall at any width, its text at its real size; the cards keep W = 300. Redrawn
+   when the window is resized.
+5. The model chips ("Fable 0%") sit in the weekly pane's title row, after "Weekly", level
+   with "5-hour" when the two panes are side by side; the row wraps when too narrow.
 
 ## Pace line on the 5-hour chart
 

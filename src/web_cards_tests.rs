@@ -74,7 +74,8 @@ fn cards_sit_two_to_a_row_on_a_wide_screen() {
     let css = asset("/style.css").unwrap().0;
     assert!(css.contains("#cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr))"), "two columns, one on a phone");
     // A chart half as wide keeps its text readable: a smaller drawing, not a scaled one.
-    assert!(js("chart.js").contains("const W = 300, Ht = 104"), "compact chart");
+    let c = js("chart.js");
+    assert!(c.contains("function winChart(a, k, now, W = 300)") && c.contains("const Ht = 104"), "compact chart");
 }
 
 #[test]
@@ -146,7 +147,7 @@ fn the_in_use_now_panels_show_both_charts() {
     // place of the bars; bars only with no history (Desktop-only account) or in table view.
     let s = js("sides.js");
     assert!(s.contains("function sideBody(a, u, now)"), "one body for both panels");
-    assert!(s.contains("if (a && a.usage && !tableView) return `<div class=\"panes\">${pane(a, 1, now)}${pane(a, 2, now)}</div>`"), "5-hour and weekly charts");
+    assert!(s.contains("if (a && a.usage && !tableView) return `<div class=\"panes\">${pane(a, 1, now, W)}${pane(a, 2, now, W)}</div>`"), "5-hour and weekly charts");
     assert!(s.contains("return u ? usageBars(u) : ''"), "else the bars");
     assert!(s.contains("S.accounts.find(a => a.uuid && a.uuid === dcur.uuid)"), "Desktop's account: the CLI login with its uuid");
     assert!(s.contains("if (hovering || $('#sides').contains(document.activeElement)) return"), "no redraw under the pointer");

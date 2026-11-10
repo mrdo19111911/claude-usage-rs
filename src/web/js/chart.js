@@ -53,14 +53,16 @@ function paceTip(f, col) {
     <div><i style="background:${col}"></i>${f.te < f.end ? `Expected limit at ${hhmm(f.te)}, in ${inm}` : `Expected ~${Math.round(f.ue)}% at reset (${hhmm(f.end)})`}</div>`;
 }
 
-function winChart(a, k, now) {
+// W: the drawing's width; 300 on the cards, the pane's width in pixels in "In use now"
+// (docs/specs/account-cards.md, "Less space" 4), so it stays 104 px tall there.
+function winChart(a, k, now, W = 300) {
   const week = k === 2, span = week ? 7 * 24 * H : 5 * H;
   const w = a.usage && effWin(week ? a.usage.week : a.usage.five);
   const [start, end] = winSpan(w, span, now);
   const lim = week ? (S.settings.weekThreshold ?? 99) : S.settings.threshold;
   const col = week ? 'var(--s-week)' : 'var(--s-five)';
   const pts = winPoints(a, k, start, now, w && w.u);
-  const W = 300, Ht = 104, L = 24, R = 10, T = 13, B = 18;
+  const Ht = 104, L = 24, R = 10, T = 13, B = 18;
   const x = t => L + (t - start) / (end - start) * (W - L - R);
   const y = u => T + (1 - u / 100) * (Ht - T - B);
   let g = '', proj = null;

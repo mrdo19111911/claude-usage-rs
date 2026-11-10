@@ -55,14 +55,14 @@ function paneLeft(w) {
   return `<span class="pane-l"><b style="color:${color(w.u)}">${100 - w.u}% left</b> · ${w.resetsAt ? 'in ' + timeLeft(w.resetsAt) : 'not started'}</span>`;
 }
 
-// One window: its title row with what is left, its chart over the window (and, weekly, the
-// model chips). No bar: the chart's dot and its reset line say the same (docs/specs/
-// account-cards.md, "Less space").
-function pane(a, k, now) {
-  const c = winChart(a, k, now);
+// One window: its title row (the name, weekly with the model chips, and what is left),
+// then its chart over the window; `W` as winChart's. No bar: the chart's dot and its reset
+// line say the same (docs/specs/account-cards.md, "Less space").
+function pane(a, k, now, W) {
+  const c = winChart(a, k, now, W);
   charts[`${a.id}:${k}`] = c;
   const w = effWin(k === 1 ? a.usage.five : a.usage.week);
-  return `<div class="pane"><div class="pane-t">${k === 1 ? '5-hour' : 'Weekly'}${paneLeft(w)}</div>${c.svg}<div class="tip"></div>${k === 2 ? chips(a.usage) : ''}</div>`;
+  return `<div class="pane"><div class="pane-t"><span class="pane-n">${k === 1 ? '5-hour' : 'Weekly'}${k === 2 ? chips(a.usage) : ''}</span>${paneLeft(w)}</div>${c.svg}<div class="tip"></div></div>`;
 }
 
 // Table view: the figures of the weekly window, newest first.
