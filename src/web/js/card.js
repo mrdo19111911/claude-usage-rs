@@ -1,5 +1,5 @@
 // The "Claude accounts" section: one card per account (docs/specs/account-cards.md).
-// Parts: login, cliLogin, deskLogin, who, pane, tablePanes, card, renderCards.
+// Parts: login, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, renderCards.
 
 // One login of the account, drawn the same way for Claude CLI and Claude Desktop (equal
 // peers): its name and "✓ In use" or the button that uses it there, then under them its
@@ -49,12 +49,20 @@ function who(a, d) {
     <div class="who-r"><div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>${a ? checkLine(a) : ''}</div></div>`;
 }
 
-// One window: its chart over the window, then its bar (and, weekly, the model chips).
+// What is left of a window, for its title row: "57% left · in 1d 14h" (the clock time is
+// under the chart's axis), in the bar colours.
+function paneLeft(w) {
+  return `<span class="pane-l"><b style="color:${color(w.u)}">${100 - w.u}% left</b> · ${w.resetsAt ? 'in ' + timeLeft(w.resetsAt) : 'not started'}</span>`;
+}
+
+// One window: its title row with what is left, its chart over the window (and, weekly, the
+// model chips). No bar: the chart's dot and its reset line say the same (docs/specs/
+// account-cards.md, "Less space").
 function pane(a, k, now) {
   const c = winChart(a, k, now);
   charts[`${a.id}:${k}`] = c;
-  const w = k === 1 ? a.usage.five : a.usage.week;
-  return `<div class="pane"><div class="pane-t">${k === 1 ? '5-hour' : 'Weekly'}</div>${c.svg}<div class="tip"></div>${bar(w)}${k === 2 ? chips(a.usage) : ''}</div>`;
+  const w = effWin(k === 1 ? a.usage.five : a.usage.week);
+  return `<div class="pane"><div class="pane-t">${k === 1 ? '5-hour' : 'Weekly'}${paneLeft(w)}</div>${c.svg}<div class="tip"></div>${k === 2 ? chips(a.usage) : ''}</div>`;
 }
 
 // Table view: the figures of the weekly window, newest first.

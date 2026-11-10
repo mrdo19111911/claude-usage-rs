@@ -69,3 +69,7 @@ mod soonest_reset_tests;
 #[cfg(test)]
 #[path = "web_cards_tests.rs"]
 mod cards_tests;
+
+#[cfg(test)]
+#[path = "web_space_tests.rs"]
+mod space_tests;

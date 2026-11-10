@@ -1,6 +1,6 @@
 // Shared by the page's scripts (loaded first): helpers, the API call, formatting.
 // Parts: $, H, globals S/tableView/clockSkew, api, hhmm, resetLabel, ago, color, esc,
-// status, effWin, bar.
+// status, effWin, bar, timeLeft.
 
 const $ = s => document.querySelector(s);
 const H = 3600e3;
@@ -11,13 +11,16 @@ const api = (p, opt = {}) =>
     .then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; });
 
 function hhmm(t) { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
+// The time left until t: "1d 7h", "19h15m", "12m".
+function timeLeft(t) {
+  const m = Math.max(0, Math.round((t - (Date.now() - clockSkew)) / 60000));
+  return m >= 1440 ? `${Math.floor(m / 1440)}d ${Math.floor(m % 1440 / 60)}h` : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m` : `${m}m`;
+}
 // Time left first ("in 19h15m"), then the clock time with its day.
 function resetLabel(t) {
   if (!t) return '';
-  const m = Math.max(0, Math.round((t - (Date.now() - clockSkew)) / 60000));
-  const left = m >= 1440 ? `${Math.floor(m / 1440)}d ${Math.floor(m % 1440 / 60)}h` : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m` : `${m}m`;
   const day = new Date(t).toDateString() === new Date().toDateString() ? 'today' : new Date(t).toLocaleDateString('en-US', { weekday: 'short' });
-  return `in ${left} (${day} ${hhmm(t)})`;
+  return `in ${timeLeft(t)} (${day} ${hhmm(t)})`;
 }
 function ago(t) {
   const s = Math.max(0, Math.round((Date.now() - clockSkew - t) / 1000));

@@ -52,6 +52,30 @@ in use meant scrolling to its card.
   panel may shrink below its content (`.side { min-width: 0 }`) and the menu shortens its
   text instead.
 
+## Less space: one panel when both use one account; no bar under a chart; short notes
+
+Asked 2026-11-10 ("làm sao để tiết kiệm không gian", then "làm cả 1, 2, 3"). Measured at
+1024 px: a panel was 394 px tall (panes 182, of which the chart 70 and the rest its bar,
+"57% left · resets …" and the chips; the auto-switch note 39; the switch menu 36), and
+with Claude CLI and Claude Desktop on one account the same charts showed three times.
+
+1. Claude CLI and Claude Desktop on the same account (the CLI login and the Desktop
+   account signed in share a uuid): one panel across both columns (`.sides.both`), its
+   top line half CLI colour, half Desktop colour; the header has both tags and "Both on
+   this account"; then the email and the account's panes once; then, side by side (stacked
+   on a phone), each app's note and switch menu, each with its small tag. Different
+   accounts, or Desktop absent, signed out or in the demo: the two panels as before.
+2. Each pane (on the cards and in the panels) drops its bar and the "57% left · resets
+   in …" line under the chart: the chart's dot and the reset line show the same. The
+   pane's title row says it instead, right of "5-hour" / "Weekly": "57% left · in 1d 14h"
+   (the clock time is under the chart's axis), "100% left · not started" with no reset;
+   the % left in the bar's colour (green, amber under 30% left, red under 3%). The
+   weekly pane keeps the model chips. Desktop-only accounts, with no chart, keep the bars.
+3. Each note is one short line, the full text in its tooltip (`title`):
+   Claude CLI "Auto-switch at 95% 5-hour · 99% weekly"; Claude Desktop "Auto-switch at
+   98% · switching restarts it"; off: "Auto-switch is off" (Desktop: "Auto-switch is off ·
+   switching restarts it"). While Desktop switches, the note says so, as before.
+
 ## Pace line on the 5-hour chart
 
 Asked 2026-11-07: a line from the last checks to show when the limit is expected.
