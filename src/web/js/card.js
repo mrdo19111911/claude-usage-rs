@@ -1,5 +1,6 @@
 // The "Claude accounts" section: one card per account (docs/specs/account-cards.md).
-// Parts: login, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, renderCards.
+// Parts: login, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, cardPaneWidth,
+// renderCards.
 
 // One login of the account, drawn the same way for Claude CLI and Claude Desktop (equal
 // peers): its name and "✓ In use" or the button that uses it there, then under them its
@@ -74,20 +75,28 @@ function tablePanes(a, now) {
     pts.map(p => `<tr><td>${day(p[0])} ${hhmm(p[0])}</td><td>${p[1]}%</td><td>${p[2]}%</td></tr>`).join('')}</tbody></table></div>`;
 }
 
-function card(a, d, now) {
+function card(a, d, now, W) {
   const inUse = (a && a.id === S.activeId) || (d && d.signedIn);
   const body = a && a.usage
-    ? (tableView ? tablePanes(a, now) : `<div class="panes">${pane(a, 1, now)}${pane(a, 2, now)}</div>`)
+    ? (tableView ? tablePanes(a, now) : `<div class="panes">${pane(a, 1, now, W)}${pane(a, 2, now, W)}</div>`)
     : a ? '<div class="note">Waiting for figures</div>' : '';
   return `<div class="acard${inUse ? ' inuse' : ''}${a ? '' : ' muted'}">${who(a, d)}
     <div class="logins">${login('code', 'Claude CLI', cliLogin(a, d))}${login('desk', 'Claude Desktop', deskLogin(a, d))}</div>
     ${body}</div>`;
 }
 
+// A card pane's width in pixels: the grid's column less the card's padding and border,
+// halved less the gap when the panes sit side by side (docs/specs/account-cards.md, "Less
+// space" 6). The charts are drawn that wide, so they stay 104 px tall.
+function cardPaneWidth() {
+  const inner = (parseFloat(getComputedStyle($('#cards')).gridTemplateColumns) || 0) - 30;
+  return Math.round(matchMedia('(max-width: 760px)').matches ? inner : (inner - 14) / 2);
+}
+
 function renderCards(force) {
   if (hovering && !force) return;
-  const now = Date.now() - clockSkew;
+  const now = Date.now() - clockSkew, W = Math.max(300, cardPaneWidth());
   charts = {};
-  $('#cards').innerHTML = accountRows().map(({ a, d }) => card(a, d, now)).join('')
+  $('#cards').innerHTML = accountRows().map(({ a, d }) => card(a, d, now, W)).join('')
     || '<p class="note">No accounts yet. Click “+ Add account” and sign in.</p>';
 }

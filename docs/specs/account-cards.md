@@ -79,8 +79,16 @@ with Claude CLI and Claude Desktop on one account the same charts showed three t
    chữ 5-Hour"). Measured: across both columns a chart was 152 px tall at 1024 px (its
    drawing is 300 x 104 and was scaled up 1.5 times). In "In use now" a chart's drawing is
    now as wide as its pane in pixels (`winChart(a, k, now, W)`, W at least 300), so it is
-   104 px tall at any width, its text at its real size; the cards keep W = 300. Redrawn
-   when the window is resized.
+   104 px tall at any width, its text at its real size. Redrawn when the page's width
+   changes, watched with a ResizeObserver on `main` (it also sees width changes that are
+   not window resizes, such as a scrollbar appearing). Not checked live: the test browser
+   pane was hidden, and a hidden page runs neither resize events nor ResizeObserver;
+   calling the redraw by hand drew the charts at the new width (440 px, 104 px tall).
+6. The cards too (asked next, "làm luôn"): at 1024 px a card's charts were 152 px tall.
+   A card pane's width is the grid's column (`#cards` grid-template-columns, as computed)
+   less the card's padding and border (30 px), halved less the 14 px gap when the panes
+   sit side by side; measured 923 px column, 439.5 px pane. W = 300 stays the least, so
+   a narrow card is as before.
 5. The model chips ("Fable 0%") sit in the weekly pane's title row, after "Weekly", level
    with "5-hour" when the two panes are side by side; the row wraps when too narrow.
 

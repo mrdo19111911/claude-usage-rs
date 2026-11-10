@@ -1,7 +1,6 @@
 // The "In use now" panels: Claude CLI and Claude Desktop, or one panel when both use one
 // account (docs/specs/account-cards.md, "Less space").
-// Parts: whereTags, usageHint, paneWidth, sideBody, emailLine, control, side, both, renderSides,
-// the window's resize handler.
+// Parts: whereTags, usageHint, paneWidth, sideBody, emailLine, control, side, both, renderSides.
 
 // Where an account is in use, one colored tag per login.
 function whereTags(code, desk) {
@@ -88,6 +87,3 @@ function renderSides() {
   $('#sideCode').innerHTML = codeSide();
   $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', dcur && (dcur.email || dcur.label), sideBody(da, dcur && dcur.usage, now), ...desk);
 }
-
-// The panels' charts are drawn at their width: draw them again at the new one.
-addEventListener('resize', () => S && renderSides());

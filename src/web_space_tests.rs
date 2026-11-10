@@ -56,8 +56,20 @@ fn the_panels_charts_are_drawn_at_their_width_so_they_stay_low() {
     assert!(s.contains("function paneWidth()"), "the pane's width in pixels");
     assert!(s.contains("const W = Math.max(300, paneWidth())"), "at least 300");
     assert!(s.contains("pane(a, 1, now, W)") && s.contains("pane(a, 2, now, W)"));
-    assert!(s.contains("addEventListener('resize', () => S && renderSides())"), "redrawn on resize, once there is a state");
+    let m = js("main.js");
+    assert!(m.contains("new ResizeObserver(") && m.contains(".observe($('main'))"), "redrawn when the page's width changes");
+    assert!(m.contains("if (w === drawnWidth) return;"), "not when only the height changes");
+    assert!(m.contains("if (S) { renderSides(); renderCards(); }"), "once there is a state");
     assert!(js("card.js").contains("function pane(a, k, now, W)"));
+}
+
+#[test]
+fn the_cards_charts_are_drawn_at_their_width_too() {
+    let c = js("card.js");
+    assert!(c.contains("function cardPaneWidth()"));
+    assert!(c.contains("parseFloat(getComputedStyle($('#cards')).gridTemplateColumns)"), "the grid's column");
+    assert!(c.contains("W = Math.max(300, cardPaneWidth())"), "at least 300");
+    assert!(c.contains("card(a, d, now, W)") && c.contains("pane(a, 1, now, W)") && c.contains("pane(a, 2, now, W)"));
 }
 
 #[test]
