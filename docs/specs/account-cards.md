@@ -31,6 +31,21 @@ a limit (5-hour or weekly, a passed reset counting as 0), in /api/state's order.
 - Table view (#viewToggle): the card shows a table of the figures instead of the charts.
 - Phone width: header buttons wrap under the email; the two charts stack.
 
+## Charts in "In use now"
+
+Asked 2026-11-10 ("trong cái In use now, sao không có đồ thị?", then "cả đồ thị week
+nữa"): the two panels at the top showed only the bars, so seeing the chart of the account
+in use meant scrolling to its card.
+
+- Each panel (Claude CLI, Claude Desktop) shows its account's two panes as on the card
+  (`pane(a, 1, now)`, `pane(a, 2, now)`: 5-hour chart with its pace line, weekly chart,
+  each with its bar; weekly with the model chips), in place of the bars.
+- Claude Desktop's account is the Claude CLI login with the same uuid as the Desktop
+  account signed in. With none (a Desktop-only account: no history is kept for it), or
+  no figures yet, or in table view, the panel keeps the bars as before.
+- Hover works there as on the cards (crosshair, tooltip, pace tooltip right of "now");
+  while the pointer is on a chart neither the panels nor the cards redraw.
+
 ## Pace line on the 5-hour chart
 
 Asked 2026-11-07: a line from the last checks to show when the limit is expected.

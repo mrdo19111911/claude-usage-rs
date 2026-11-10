@@ -141,6 +141,21 @@ fn the_auto_switch_setting_says_which_app_each_threshold_is_for() {
 }
 
 #[test]
+fn the_in_use_now_panels_show_both_charts() {
+    // docs/specs/account-cards.md, "Charts in In use now": the two panes of the card in
+    // place of the bars; bars only with no history (Desktop-only account) or in table view.
+    let s = js("sides.js");
+    assert!(s.contains("function sideBody(a, u, now)"), "one body for both panels");
+    assert!(s.contains("if (a && a.usage && !tableView) return `<div class=\"panes\">${pane(a, 1, now)}${pane(a, 2, now)}</div>`"), "5-hour and weekly charts");
+    assert!(s.contains("return u ? usageBars(u) : ''"), "else the bars");
+    assert!(s.contains("S.accounts.find(a => a.uuid && a.uuid === dcur.uuid)"), "Desktop's account: the CLI login with its uuid");
+    assert!(s.contains("if (hovering || $('#sides').contains(document.activeElement)) return"), "no redraw under the pointer");
+    let c = js("chart.js");
+    assert!(c.contains("for (const root of [$('#cards'), $('#sides')])"), "hover on the panels' charts too");
+    assert!(c.contains("root.querySelectorAll('.tip')"), "each place hides its own tooltips");
+}
+
+#[test]
 fn cards_at_100_go_last_after_desktop_only_ones() {
     let r = asset("/js/rows.js").unwrap().0;
     assert!(r.contains("some(w => effWin(w).u >= 100)"), "100% of either limit, a passed reset as 0");
