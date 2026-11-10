@@ -36,6 +36,9 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_DataExchange",
     "Win32_System_Memory",
     "Win32_System_Ole",
+    # Reading Claude Desktop's safeStorage token for usage figures (desktop/safe_storage.rs,
+    # aes_gcm.rs): DPAPI unwrap of the app key, AES-256-GCM via BCrypt.
+    "Win32_Security_Cryptography",
 ] }
 
 # Windows/Linux: also trust the OS certificate store (company proxies). macOS uses the bundled roots.
