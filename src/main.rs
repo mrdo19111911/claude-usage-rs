@@ -11,7 +11,6 @@ mod desktop;
 mod gemini;
 mod lock;
 mod login;
-mod mobile; // phone feed, not started yet (docs/specs/mobile-feed.md)
 #[cfg(windows)]
 mod tray;
 mod web;
