@@ -62,6 +62,8 @@ fn changed_in_both_the_later_activity_wins() {
     assert_eq!((&b["title"], &b["lastActivityAt"]), (&json!("used in A"), &json!(50)));
 }
 
+// Windows only: a read-only file stops the write there; elsewhere the rename replaces it.
+#[cfg(windows)]
 #[test]
 fn a_write_that_failed_is_not_taken_for_a_change_next_time() {
     let t = t("failed");
@@ -89,6 +91,8 @@ fn set_readonly(p: &Path, on: bool) {
     fs::set_permissions(p, perm).unwrap();
 }
 
+// Windows only: a read-only file stops the write there; elsewhere the rename replaces it.
+#[cfg(windows)]
 #[test]
 fn an_archive_not_copied_everywhere_still_wins_next_time_whatever_the_file_times() {
     let t = t("failed-archive");

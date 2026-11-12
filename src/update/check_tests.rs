@@ -46,6 +46,10 @@ fn a_newer_version_to_install_keeps_the_next_look_due() {
     a.take_answer(release("v999.0.0"), 10 * DAY).unwrap();
     assert_eq!(a.update.lock().unwrap().phase, Phase::Available);
     let last = a.st.lock().unwrap().update_checked_at;
+    if !INSTALLS {
+        assert_eq!(last, Some(10 * DAY), "macOS installs nothing: the 3 days start");
+        return;
+    }
     assert_eq!(last, Some(DAY), "not saved: the install is tried again");
     assert!(check_due(last, 10 * DAY + 3_600_000), "the next hourly look checks and installs");
 }

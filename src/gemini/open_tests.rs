@@ -12,6 +12,8 @@ fn the_window_runs_the_script_and_stays_open() {
     assert_eq!(args(s), r#"/k "C:\Users\A B\.claude-usage-dashboard\bin\cgemini.cmd""#);
 }
 
+// cgemini.cmd and %USERPROFILE%: Windows only (docs/specs/macos.md).
+#[cfg(windows)]
 #[test]
 fn opens_cgemini_from_the_home_folder() {
     let a = app(&temp_dir("open"), 4777, Some(config()));
