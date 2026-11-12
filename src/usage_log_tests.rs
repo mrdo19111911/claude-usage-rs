@@ -32,6 +32,8 @@ pub(crate) fn account(id: &str, five: i64, week: i64, history: Vec<(i64, i64, i6
         slow_strikes: 0,
         next_check: 0,
         in_use: false,
+        left_at: 0,
+        waiting: false,
     }
 }
 

@@ -86,6 +86,8 @@ impl App {
                 slow_strikes: 0,
                 next_check: 0,
                 in_use: false,
+                left_at: 0,
+                waiting: false,
             });
             added_in_browser(&email)
         };

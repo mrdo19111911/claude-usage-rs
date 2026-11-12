@@ -92,3 +92,15 @@ fn full_and_errored_accounts_keep_their_wait() {
     mark_in_use(&mut v, Some("a"), None, T);
     assert_eq!(v[0].next_check, T + 30 * MIN, "after a 429: not before its wait");
 }
+
+// docs/specs/idle-refresh.md: when an account stops being in use is kept, so its sign-in
+// is not refreshed while an old window may still hold it.
+#[test]
+fn an_account_leaving_use_keeps_when() {
+    let mut v = vec![account("a", 0, 0, vec![]), account("b", 0, 0, vec![])];
+    mark_in_use(&mut v, Some("a"), None, T);
+    assert_eq!(v[0].left_at, 0, "starting to be used is not leaving");
+    mark_in_use(&mut v, Some("b"), None, T + MIN);
+    assert_eq!(v[0].left_at, T + MIN);
+    assert_eq!(v[1].left_at, 0);
+}

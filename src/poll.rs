@@ -6,14 +6,18 @@ use crate::*;
 #[path = "schedule.rs"]
 pub(crate) mod schedule;
 pub(crate) use schedule::*;
+// When a parked account's sign-in may be refreshed (docs/specs/idle-refresh.md).
+#[path = "idle_refresh.rs"]
+pub(crate) mod idle_refresh;
 
 impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
-        let (creds, is_active, account_uuid, slow_until, in_use) = {
+        let (creds, is_active, account_uuid, slow_until, in_use, need, left_at) = {
             let st = self.st.lock().unwrap();
+            let need = idle_refresh::needed(&st.accounts, now());
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) if force || now() >= a.next_check => {
-                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use)
+                Some(a) if force || now() >= a.next_check || (need && a.waiting) => {
+                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use, need, a.left_at)
                 }
                 _ => return,
             }
@@ -29,7 +33,16 @@ impl App {
         // The live Claude Code token is never refreshed here: when it has expired, its
         // figures wait until Claude Code renews it. Claude Desktop's tokens are never read
         // (docs/specs/no-foreign-credentials.md).
-        let res = self.fetch_usage(&creds, !is_live);
+        // A parked account's sign-in is refreshed only when needed (docs/specs/idle-refresh.md);
+        // until then one whose token has run out waits, its last figures standing.
+        let allow = !is_live && idle_refresh::may_refresh(need, force, left_at, now());
+        if !is_live && !allow && crate::creds::expires_soon(&creds) {
+            return self.wait_for_refresh(id);
+        }
+        let res = self.fetch_usage(&creds, allow);
+        if !is_live && !allow && matches!(&res, Err(ApiErr::Other(m)) if m.contains("Claude Code renews")) {
+            return self.wait_for_refresh(id);
+        }
         // Accounts saved by older versions were named after ~/.claude.json, which can
         // be another account's: ask once whose the token is. Not tied to the usage
         // answer: the usage endpoint can be rate-limited (429) while this one answers.
@@ -69,6 +82,7 @@ impl App {
                 a.usage = Some(u);
                 logged = usage_log::figures(a, active_now);
                 a.error = None;
+                a.waiting = false;
                 a.raw = j;
                 a.slow_strikes = 0;
             }
@@ -92,6 +106,16 @@ impl App {
         }
     }
 
+    // A parked account not refreshed yet: no request, no error; asked again later, or at once
+    // when an account in use nears a limit (poll_all).
+    fn wait_for_refresh(&self, id: &str) {
+        let mut st = self.st.lock().unwrap();
+        if let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) {
+            a.waiting = true;
+            a.next_check = now() + SLOWEST_MS;
+        }
+    }
+
     // `force`: every account now (Refresh now); else only those whose next check is due.
     pub(crate) fn poll_all(self: &Arc<Self>, force: bool) {
         if self.demo || self.polling.swap(true, Ordering::SeqCst) {
@@ -104,7 +128,8 @@ impl App {
             let t = now();
             let (active, desk) = (st.active_id.clone(), self.desktop_dir.as_deref().and_then(desktop::signed_in));
             mark_in_use(&mut st.accounts, active.as_deref(), desk.as_deref(), t);
-            st.accounts.iter().filter(|a| force || t >= a.next_check).map(|a| a.id.clone()).collect()
+            let need = idle_refresh::needed(&st.accounts, t);
+            st.accounts.iter().filter(|a| force || t >= a.next_check || (need && a.waiting)).map(|a| a.id.clone()).collect()
         };
         if ids.is_empty() {
             // The 4:00 renewal is checked on quiet polls too (docs/specs/desktop-renew.md).

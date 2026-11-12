@@ -56,3 +56,6 @@ no longer read or set.
 - `mark_in_use`: switching to an account makes it due at once; one that stops being used
   moves to 10 min after its last check; an account at 100% keeps waiting for its reset; an
   account with an error keeps its retry time.
+
+## Parked accounts whose token has run out
+Their sign-in is refreshed only when an account in use nears a limit or on Check now / Refresh now; until then they wait with their last figures. See [idle-refresh.md](idle-refresh.md).
