@@ -13,6 +13,11 @@ own to show. How others do it: [../SO_SANH_EXE_RESOURCES.md](../SO_SANH_EXE_RESO
   - 16, 24, 32, 48, 64 px: the wordmark's first letter "s", alone (the word can't be read there;
     taskbar, Start and the tray menu use these);
   - 256 px: the whole logo, wordmark and tagline (Explorer's large icons, Apps & features);
+  - under the logo, at every size, two bars like 1.5.0's icon and the tray's (asked
+    2026-11-12, "2 cái gạch xanh vàng bên dưới để thể hiện usage"): the top one green
+    (#3fb34f, the 5-hour color) filled to 60 %, the bottom one amber (#f2b632) filled to 85 %,
+    the rest of each a light grey track; drawn at the final size on whole pixels (crisp at
+    16 px: bars 2 px high, 1 px apart);
   - written as `assets/scas.ico` (those 6 sizes, 32-bit), and the 64 px image as
     `src/web/img/app-icon.png`, the dashboard's and Help's tab icon (`<link rel="icon">`).
   Rebuild after changing the logo: `python tools/make_icon.py`.
@@ -32,7 +37,8 @@ own to show. How others do it: [../SO_SANH_EXE_RESOURCES.md](../SO_SANH_EXE_RESO
   (`CARGO_BIN_EXE_scas`) has >= 1 icon (`ExtractIconExW`) and its bytes hold, in UTF-16,
   `VS_VERSION_INFO`, `Smartlog Claude Auto Switch` and the Cargo version.
 - `tools/test_make_icon.py`: sizes, clear corners, logo blue in the middle, the small sizes are
-  the "s" alone (taller than wide), the large ones the word (much wider than tall).
+  the "s" alone (taller than wide), the large ones the word (much wider than tall); below
+  the logo the green bar over the amber one, each with its grey rest on the right.
 - `tests/app_logo.rs`: `assets/scas.ico` lists the 6 sizes at 32 bpp, each image
   inside the file; the page and Help link `img/app-icon.png`, which is served; Setup's
   `SetupIconFile` is that `.ico`.

@@ -9,6 +9,17 @@ from PIL import Image  # noqa: E402
 
 LOGO = Path(__file__).resolve().parent.parent / "assets" / "logo.jpg"
 BLUE = (24, 77, 127)
+GREEN, AMBER = (63, 179, 79), (242, 182, 50)
+
+
+def near(c, want, tol=40):
+    return c[3] > 200 and all(abs(a - b) < tol for a, b in zip(c[:3], want))
+
+
+def rows_of(img, want):
+    # Rows holding a pixel of colour `want`.
+    px = img.load()
+    return [y for y in range(img.height) if any(near(px[x, y], want) for x in range(img.width))]
 
 
 def blue_box(img):
@@ -48,9 +59,29 @@ class MakeIcon(unittest.TestCase):
             ratio = (x1 - x0) / (y1 - y0)
             if s < 256:
                 self.assertTrue(0.6 < ratio < 1.5, f"{s}: one letter, {ratio:.2f}")
-                self.assertGreater(y1 - y0, s * 0.5, f"{s}: the letter fills the square")
+                self.assertGreater(y1 - y0, s * 0.3, f"{s}: the letter is large")
             else:
                 self.assertGreater(ratio, 2.5, f"{s}: the whole word, {ratio:.2f}")
+
+    def test_two_usage_bars_under_the_logo(self):
+        for s, img in self.icons.items():
+            g, a = rows_of(img, GREEN), rows_of(img, AMBER)
+            self.assertTrue(g and a, f"{s}: both bars drawn")
+            self.assertLess(max(g), min(a), f"{s}: green above amber")
+            self.assertLessEqual(blue_box(img)[3], min(g), f"{s}: bars under the logo")
+            self.assertGreaterEqual(len(g), 2 if s < 64 else s // 12, f"{s}: bar height")
+
+    def test_each_bar_is_partly_filled(self):
+        for s, img in self.icons.items():
+            px = img.load()
+            for want, part in ((GREEN, 0.60), (AMBER, 0.85)):
+                y = rows_of(img, want)[0]
+                xs = [x for x in range(s) if near(px[x, y], want)]
+                grey = [x for x in range(max(xs) + 1, s) if px[x, y][3] > 200 and 180 < px[x, y][0] < 240
+                        and abs(px[x, y][0] - px[x, y][2]) < 12]
+                self.assertTrue(grey, f"{s}: grey rest after {want}")
+                filled = (max(xs) + 1 - min(xs)) / (max(grey) + 1 - min(xs))
+                self.assertAlmostEqual(filled, part, delta=0.15, msg=f"{s} {want}")
 
     def test_the_logo_blue_is_kept(self):
         img = self.icons[256]
