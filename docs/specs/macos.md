@@ -42,6 +42,18 @@ Why this way: `docs/SO_SANH_MACOS_BUILD.md`. Until now only Windows was built an
   `lipo -create` into one universal `scas`, packed as
   `scas-<version>-macos-universal.tar.gz` (tar keeps the exec bit; the artifact
   upload would zip it away) and uploaded as a workflow artifact.
+- From Windows (no Mac): `python tools/build_macos.py` (why: `macos-build-prior-art.md`).
+  - Needs `python -m pip install --user ziglang` and `cargo install cargo-zigbuild`;
+    finds zig in the `ziglang` package, so it need not be on PATH.
+  - Runs `cargo zigbuild --release --locked --target universal2-apple-darwin` with
+    `MACOSX_DEPLOYMENT_TARGET=11.0` into `target/mac-zig`.
+  - Checks the result (`tools/macho.py`) and stops with the problems if any: a fat Mach-O
+    with exactly the arm64 and x86_64 slices, each an executable, the arm64 one carrying
+    a code signature (Apple Silicon kills unsigned code), minos 11.0, and every dylib
+    under `/usr/lib/`.
+  - Packs `dist/scas-<version>-macos-universal.tar.gz` holding one file `scas`, mode 0755,
+    and prints its path, size and SHA-256. Linked and inspected only; the CI run is what
+    executes it.
 - Not signed or notarized: after downloading, `xattr -d com.apple.quarantine scas`
   (or right-click → Open once) before the first run.
 - Checked on Windows without a Mac: `cargo check --target aarch64-apple-darwin

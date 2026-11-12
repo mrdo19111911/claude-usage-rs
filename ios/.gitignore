@@ -1,0 +1,12 @@
+# Written by `xcodegen generate` from project.yml
+SCAS.xcodeproj/
+App/Info.plist
+App/SCAS.entitlements
+Widget/Info.plist
+Widget/SCASWidget.entitlements
+# Build output
+build/
+SCASKit/.build/
+SCASKit/.swiftpm/
+*.xcuserstate
+xcuserdata/

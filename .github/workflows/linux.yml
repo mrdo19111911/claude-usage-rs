@@ -1,0 +1,74 @@
+# Linux: test, then one static x86_64 binary (musl, via cargo-zigbuild) as a workflow artifact.
+# Why this way: docs/specs/linux-build-prior-art.md; what the build does: docs/specs/linux.md.
+name: linux
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test (native glibc)
+        run: cargo test --locked
+
+      # Same route as on a dev machine (tools/build_linux.py): zig as C compiler and linker.
+      - name: Install zig and cargo-zigbuild
+        run: python3 -m pip install ziglang cargo-zigbuild
+
+      - name: Build static binary
+        run: |
+          python3 -P tools/test_build_linux.py
+          python3 tools/build_linux.py x86_64-unknown-linux-musl
+          cp target/linux/x86_64-unknown-linux-musl/release/scas scas
+          file scas
+
+      # Starts and answers /api/state as a Linux build: no installing updates,
+      # no Claude Desktop switching.
+      - name: Smoke test
+        run: |
+          PORT=4801 ./scas --demo --no-open > smoke.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4801/api/state -o state.json && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4801/ | grep -qi "<html"
+          kill $pid || true
+          cat smoke.log
+          python3 - state.json <<'PY'
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          assert s["canInstallUpdates"] is False, s["canInstallUpdates"]
+          assert s["desktop"]["supported"] is False, s["desktop"]
+          print("ok", s["version"], len(s["accounts"]), "demo accounts")
+          PY
+
+      - name: Pack (tar keeps the exec bit)
+        id: pack
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          name="scas-$version-linux-x86_64-musl.tar.gz"
+          tar czf "$name" scas
+          sha256sum "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.pack.outputs.file }}
+          archive: false
+          if-no-files-found: error

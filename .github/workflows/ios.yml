@@ -1,0 +1,60 @@
+# iOS: SCASKit's tests, then the app + widget for the iOS Simulator (unsigned) as an artifact.
+# Why this way: docs/specs/ios-prior-art.md; what the app does: docs/specs/ios.md.
+name: ios
+
+on:
+  push:
+    paths:
+      - "ios/**"
+      - "docs/specs/mobile-feed.md"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Test SCASKit
+        working-directory: ios/SCASKit
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build for the iOS Simulator (no signing)
+        working-directory: ios
+        run: |
+          xcodebuild -project SCAS.xcodeproj -scheme SCAS \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build build
+
+      # Zip before upload so the .app bundle (and the widget inside it) survives as one file.
+      - name: Zip the app
+        id: pack
+        working-directory: ios
+        run: |
+          app=build/Build/Products/Debug-iphonesimulator/SCAS.app
+          test -d "$app/PlugIns/SCASWidget.appex"
+          ditto -c -k --keepParent "$app" SCAS-simulator.zip
+          ls -l SCAS-simulator.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SCAS-simulator
+          path: ios/SCAS-simulator.zip
+          if-no-files-found: error

@@ -1,0 +1,112 @@
+# XcodeGen project for SCAS on iPhone (docs/specs/ios.md). `xcodegen generate` here writes
+# SCAS.xcodeproj, App/Info.plist, Widget/Info.plist and both .entitlements files from this
+# file (they are generated, not kept in git). Syntax notes: PRIOR_ART_XCODEGEN.md.
+name: SCAS
+
+options:
+  bundleIdPrefix: com.smartlog
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    TARGETED_DEVICE_FAMILY: "1"
+
+packages:
+  SCASKit:
+    path: SCASKit
+
+targets:
+  SCAS:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: App
+    dependencies:
+      - package: SCASKit
+        product: SCASKit
+      - target: SCASWidget
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.smartlog.scas
+        PRODUCT_NAME: SCAS
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: SCAS
+        CFBundleName: SCAS
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleURLTypes:
+          - CFBundleURLName: com.smartlog.scas.pair
+            CFBundleURLSchemes: [scas]
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocalNetworkUsageDescription: >-
+          SCAS reads the Claude usage figures from the SCAS app on your PC, over your Wi-Fi or Tailscale.
+        NSCameraUsageDescription: >-
+          The camera scans the pairing QR code shown by SCAS on your PC.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: App/SCAS.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.smartlog.scas]
+
+  SCASWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Widget
+    dependencies:
+      - package: SCASKit
+        product: SCASKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.smartlog.scas.widget
+        PRODUCT_NAME: SCASWidget
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: SCAS
+        CFBundleName: SCASWidget
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: Widget/SCASWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.smartlog.scas]
+
+schemes:
+  SCAS:
+    build:
+      targets:
+        SCAS: all
+        SCASWidget: all
+    run:
+      config: Debug
+    archive:
+      config: Release
