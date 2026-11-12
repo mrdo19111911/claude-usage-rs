@@ -11,7 +11,8 @@ use std::path::Path;
 pub(super) const INDEX: &str = "archived-sessions.idx";
 
 /// `<data dir>/desktop-sessions/state.json`: the cards seen in each folder at the last
-/// sync, the ones this app copied there, and whether the first backup was made.
+/// sync, the ones this app copied there, each folder's card marks after it, and whether
+/// the first backup was made.
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct SyncState {
@@ -19,6 +20,8 @@ pub(super) struct SyncState {
     pub(super) seen: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub(super) copied: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub(super) marks: BTreeMap<String, BTreeMap<String, String>>,
     #[serde(default)]
     pub(super) backed_up: bool,
 }
@@ -92,7 +95,7 @@ pub(super) fn backup(root: &Path, state_dir: &Path, stamp: i64) -> Result<(), St
     copy_tree(root, &dst).map_err(|e| format!("backup: {e}"))
 }
 
-fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+pub(super) fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
     fs::create_dir_all(to)?;
     for e in fs::read_dir(from)? {
         let e = e?;

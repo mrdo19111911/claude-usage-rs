@@ -78,3 +78,43 @@ pub(super) fn templates(folders: &[Folder], copied: &BTreeMap<String, Vec<String
         })
         .collect()
 }
+
+/// The card's mark (docs/specs/desktop-sessions.md, "Update"): FNV-1a 64 of its JSON
+/// without the account keys, keys sorted at every level, as 16 hex digits.
+pub(super) fn mark(c: &Card) -> String {
+    let mut text = String::new();
+    canon(&Value::Object(c.iter().filter(|(k, _)| !is_account_key(k)).map(|(k, v)| (k.clone(), v.clone())).collect()), &mut text);
+    let h = text.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3));
+    format!("{h:016x}")
+}
+
+// JSON text with every object's keys sorted (the store keeps Desktop's own order).
+fn canon(v: &Value, out: &mut String) {
+    match v {
+        Value::Object(m) => {
+            let mut keys: Vec<&String> = m.keys().collect();
+            keys.sort();
+            out.push('{');
+            for (i, k) in keys.into_iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                out.push_str(&Value::String(k.clone()).to_string());
+                out.push(':');
+                canon(&m[k], out);
+            }
+            out.push('}');
+        }
+        Value::Array(a) => {
+            out.push('[');
+            for (i, x) in a.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                canon(x, out);
+            }
+            out.push(']');
+        }
+        _ => out.push_str(&v.to_string()),
+    }
+}
