@@ -4,10 +4,25 @@ A `setup.exe` made with Inno Setup 6 (`installer/claude-usage.iss`, built by
 `installer/build.ps1` into `target/installer/ClaudeUsage-Setup-<version>.exe`, the version
 taken from Cargo.toml). Why these choices: `installer/SO_SANH_INNO.md`.
 
-- Per user, never asks for admin: `%LOCALAPPDATA%\Programs\Claude Usage\claude-usage.exe`.
-- Start menu shortcut "Claude Usage". Task "Start with Windows" (on by default): HKCU Run
-  value `ClaudeUsage`, removed on uninstall.
+- Install mode (test: `tests/installer_iss.rs`), chosen on Setup's first page:
+  - **All users** (default, asks for admin): `C:\Program Files\Claude Usage\claude-usage.exe`,
+    shortcut in the common Start menu (`C:\ProgramData\Microsoft\Windows\Start Menu\Programs`).
+  - **Only for me** (no admin): `%LOCALAPPDATA%\Programs\Claude Usage\claude-usage.exe`,
+    shortcut in the user's Start menu (`%APPDATA%\...\Start Menu\Programs`).
+  - Why all users is the default: on some Windows 10 22H2 machines Start stops listing new
+    shortcuts in the user's Start menu folder while it still lists new common ones
+    (measured 2026-11-11/12: per-user probes never reach `shell:AppsFolder`, an all-users
+    probe does). The cause on Windows' side is still open.
+  - An upgrade keeps the installed copy's mode (`UsePreviousPrivileges`, Inno's default);
+    a self-update of an all-users copy therefore shows a UAC prompt. `/ALLUSERS` or
+    `/CURRENTUSER` on the command line picks a mode without the page.
+  - `{autopf}`, `{autoprograms}` and `Root: HKA` follow the mode; no fixed per-user or
+    per-machine path is left in the script.
+- Start menu shortcut "Claude Usage". Task "Start with Windows" (on by default): Run value
+  `ClaudeUsage` (HKLM for all users, HKCU for one user), removed on uninstall.
 - Last page: "Open Claude Usage now" starts it with `--open` (dashboard tab once).
+- The app is always started as the user who ran Setup (`runasoriginaluser`), never as the
+  elevated admin account: it reads that user's Claude files.
 - Upgrade over a running copy: setup unpacks the new exe to a temp folder and runs
   `claude-usage.exe --quit`; if the mutex `Local\claude-usage-dashboard` is still held,
   setup stops with a message instead of overwriting a locked exe.

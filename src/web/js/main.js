@@ -1,6 +1,6 @@
 // Loaded last: drawing, buttons and the load loop.
 // Parts: render, the width watcher (renderCards is in card.js, renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
-// autoSwitch/threshold/weekThreshold/shareDesktopSessions/useSoonestReset onchange; loginUrl, signIn, #cliAdd onclick;
+// autoSwitch/threshold/weekThreshold/shareDesktopSessions/useSoonestReset/renewDesktop onchange; loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run (its ✕ removes both logins), #accts change (both switches); load() and the two timers.
 
 function render() { if (!S) return; renderSides(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
@@ -26,11 +26,12 @@ $('#exit').onclick = () => {
     document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start claude-usage.exe again to bring it back.</p></section>';
   }).catch(e => alert(e.message));
 };
-for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'shareDesktopSessions', 'useSoonestReset']) {
+for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'shareDesktopSessions', 'useSoonestReset', 'renewDesktop']) {
   $('#' + id).onchange = () => act(api('/api/settings', { method: 'POST', body: JSON.stringify({
     autoSwitch: $('#autoSwitch').checked, threshold: +$('#threshold').value,
     weekThreshold: +$('#weekThreshold').value,
-    shareDesktopSessions: $('#shareDesktopSessions').checked, useSoonestReset: $('#useSoonestReset').checked }) }));
+    shareDesktopSessions: $('#shareDesktopSessions').checked, useSoonestReset: $('#useSoonestReset').checked,
+    renewDesktop: $('#renewDesktop').checked }) }));
 }
 // The sign-in page opens in the default browser; the account is added when it comes back.
 // Claude Code keeps the login it uses now.
@@ -41,6 +42,14 @@ $('#cliAdd').onclick = () => signIn('');
 // Any account: Claude Desktop opens signed out and saves whichever one signs in there.
 $('#deskAdd').onclick = () => run({ dfirst: '' });
 $('#accts').addEventListener('click', e => {
+  // "Check now" on a card: read that one account's usage right away. The state
+  // comes back and redraws the card, so the "Checking…" label is replaced then.
+  const c = e.target.closest('[data-check]');
+  if (c) {
+    c.disabled = true; c.textContent = 'Checking…';
+    act(api(`/api/accounts/${c.dataset.check}/check`, { method: 'POST' }));
+    return;
+  }
   const t = e.target.closest('[data-activate],[data-remove],[data-signin],[data-dswitch],[data-dfirst],[data-dremove]');
   if (t) run(t.dataset);
 });

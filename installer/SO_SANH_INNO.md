@@ -46,3 +46,29 @@ Lấy khung [Setup] của Zed, phần tự chạy của Greenshot (đổi HKA th
 - `[Icons] Name: "{autoprograms}\Claude Usage"; Filename: "{app}\claude-usage.exe"`.
 - `[Run] Filename: "{app}\claude-usage.exe"; Description: "{cm:LaunchProgram,Claude Usage}"; Flags: nowait postinstall skipifsilent`.
 - Không xóa `%USERPROFILE%\.claude-usage-dashboard` khi gỡ, như cả 4 dự án. Nếu cần, chỉ hỏi người dùng trong `CurUninstallStepChanged(usPostUninstall)` với mặc định là giữ.
+
+## Cập nhật 12/11/2026: cài cho mọi user hay chỉ một user
+
+Lý do: trên máy thử (Windows 10 22H2), Start không nhận shortcut mới trong thư mục Start Menu của user nữa, nhưng vẫn nhận shortcut mới trong thư mục chung (đã đo bằng shortcut thử). Cách so sánh: đọc trực tiếp file `.iss` của từng dự án và tài liệu Inno.
+
+| Dự án | Phương pháp | Mức phù hợp | Chi phí |
+|---|---|---|---|
+| HeidiSQL (`out/heidisql.iss`) | `PrivilegesRequired=admin` + `PrivilegesRequiredOverridesAllowed=commandline dialog`, `DefaultDirName={autopf}\…` | Cao: mặc định cho mọi user, vẫn chọn được "chỉ mình tôi" | Thấp: vài dòng [Setup] |
+| VS Code (`build/win32/code.iss`) | Hai bộ cài riêng: User (`lowest`) và System (`admin`) | Thấp: phải build và phát hành hai file | Cao |
+| Git for Windows (`installer/install.iss`) | `[Run] … postinstall runasoriginaluser`, tách nhánh bằng `IsAdminInstallMode()` | Cao cho phần chạy app sau khi cài | Thấp |
+| Greenshot | `lowest` + `dialog`, tự chạy qua `Root: HKA` | Cao cho phần tự chạy | Thấp |
+
+Tài liệu Inno: `UsePreviousPrivileges` (mặc định `yes`) khiến bản nâng cấp giữ chế độ của bản đã cài và không hỏi lại. Cờ `runascurrentuser` là mặc định cho mục [Run] không có `postinstall`, nên mục `/RELAUNCH` phải ghi rõ `runasoriginaluser`.
+
+**Chọn:**
+- Khung của HeidiSQL: mặc định `admin`, có `dialog`, `{autopf}`.
+- `Root: HKA` của Greenshot.
+- `runasoriginaluser` của Git for Windows, đặt trên cả hai mục [Run].
+
+Nguồn:
+- https://github.com/HeidiSQL/HeidiSQL/blob/master/out/heidisql.iss
+- https://github.com/microsoft/vscode/blob/main/build/win32/code.iss
+- https://github.com/git-for-windows/build-extra/blob/main/installer/install.iss
+- https://jrsoftware.org/ishelp/topic_setup_privilegesrequiredoverridesallowed.htm
+- https://jrsoftware.org/ishelp/topic_setup_usepreviousprivileges.htm
+- https://jrsoftware.org/ishelp/topic_runsection.htm

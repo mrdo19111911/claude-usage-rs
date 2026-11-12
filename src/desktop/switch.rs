@@ -49,7 +49,8 @@ pub fn switch(dir: &Path, store: &Store, target: Option<&str>, app: &dyn App, st
             // Read only now: the app may write its sign-in while it quits.
             let mut config = read_config(dir)?;
             let current = signed_in_of(&config);
-            if let Some(c) = &current {
+            // A signed-out app never overwrites a live saved sign-in (desktop-signed-out.md).
+            if let Some(c) = current.as_deref().filter(|c| !store.would_lose_session(dir, c, stamp)) {
                 store.save(dir, &config, c)?;
             }
             put_sign_in(&mut config, target_auth.as_ref());

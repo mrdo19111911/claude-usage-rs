@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WT = ROOT / "target" / "public"
 SRC_REF = "dev"
-KEEP = [r"^src/", r"^Cargo\.(toml|lock)$", r"^\.gitignore$", r"^installer/(claude-usage\.iss|build\.ps1)$"]
+KEEP = [r"^src/", r"^Cargo\.(toml|lock)$", r"^build\.rs$", r"^assets/", r"^\.gitignore$", r"^installer/(claude-usage\.iss|build\.ps1)$"]
 DROP = [r"_tests\.rs$", r"(^|/)tests\.rs$", r"^src/tray/preview\.rs$", r"^src/gemini/test_app\.rs$"]
 README = "tools/README.public.md"
 

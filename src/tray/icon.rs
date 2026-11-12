@@ -77,7 +77,7 @@ fn mask_len(size: i32) -> usize {
 }
 
 // Top bar: 5-hour limit; bottom bar: weekly. Gray while there are no figures.
-fn icon_pixels(size: i32, five: Option<i64>, week: Option<i64>) -> Vec<u32> {
+pub(super) fn icon_pixels(size: i32, five: Option<i64>, week: Option<i64>) -> Vec<u32> {
     let n = size as usize;
     let mut px = vec![0u32; n * n];
     let r = (n / 4) as f32;

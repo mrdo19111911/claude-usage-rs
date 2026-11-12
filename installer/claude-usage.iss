@@ -1,4 +1,4 @@
-; Claude usage: per-user installer (Inno Setup 6). Build with installer\build.ps1.
+; Claude usage installer (Inno Setup 6): all users or only me. Build with installer\build.ps1.
 ; Why these directives: SO_SANH_INNO.md (Zed's [Setup], Greenshot's autostart, ShareX's
 ; [Code] with our --quit in place of taskkill). Spec: docs/specs/installer.md.
 
@@ -15,9 +15,15 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=mrdo19111911
 AppPublisherURL=https://github.com/mrdo19111911/claude-usage-rs
-; No admin, ever: the app reads and writes this user's Claude files.
-PrivilegesRequired=lowest
-DefaultDirName={localappdata}\Programs\{#AppName}
+; All users by default: the shortcut goes to the common Start menu, which every Windows
+; lists (a per-user Start menu shortcut can be left out, see docs/specs/installer.md).
+; The first page offers "only for me" (no admin). An upgrade keeps the mode of the copy
+; installed (UsePreviousPrivileges, on by default); /ALLUSERS or /CURRENTUSER picks one.
+; Only the files are machine-wide: the app still reads and writes each user's own data.
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
+; Program Files for all users, %LOCALAPPDATA%\Programs for one user.
+DefaultDirName={autopf}\{#AppName}
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64compatible
@@ -43,13 +49,16 @@ Source: "..\target\release\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ClaudeUsage"; ValueData: """{app}\{#AppExe}"""; Flags: uninsdeletevalue; Tasks: autostart
+; HKA: HKLM Run (every user's sign-in) for all users, HKCU Run for one user.
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ClaudeUsage"; ValueData: """{app}\{#AppExe}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
+; runasoriginaluser: the app runs as the user who started Setup, never as the elevated
+; admin account (it would read that account's Claude files).
 ; --open: the first run shows the dashboard; later starts stay in the tray.
-Filename: "{app}\{#AppExe}"; Parameters: "--open"; Description: "Open Claude Usage now"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Parameters: "--open"; Description: "Open Claude Usage now"; Flags: nowait postinstall skipifsilent runasoriginaluser
 ; An update from the app itself (/VERYSILENT /RELAUNCH=1): start the new version again.
-Filename: "{app}\{#AppExe}"; Flags: nowait skipifnotsilent; Check: Relaunch
+Filename: "{app}\{#AppExe}"; Flags: nowait skipifnotsilent runasoriginaluser; Check: Relaunch
 
 ; User data (%USERPROFILE%\.claude-usage-dashboard, the saved sign-ins) is kept on uninstall.
 

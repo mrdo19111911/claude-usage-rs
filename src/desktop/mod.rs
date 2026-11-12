@@ -11,12 +11,14 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod cookie_session;
 pub mod sessions;
 mod sessions_io;
 mod sessions_rules;
 mod store;
 mod switch;
 
+pub use cookie_session::Session;
 pub use store::Store;
 pub use switch::switch;
 
@@ -132,6 +134,12 @@ pub(crate) fn desktop_access_token(_dir: &Path, _account_uuid: &str) -> Option<V
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+#[path = "cookie_session_tests.rs"]
+mod cookie_session_tests;
+#[cfg(test)]
+#[path = "signed_out_tests.rs"]
+mod signed_out_tests;
 #[cfg(test)]
 #[path = "token_cache_tests.rs"]
 mod token_cache_tests;

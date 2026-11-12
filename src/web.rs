@@ -73,3 +73,11 @@ mod cards_tests;
 #[cfg(test)]
 #[path = "web_space_tests.rs"]
 mod space_tests;
+
+#[cfg(test)]
+#[path = "web_desk_signin_tests.rs"]
+mod desk_signin_tests;
+
+#[cfg(test)]
+#[path = "web_desktop_renew_tests.rs"]
+mod desktop_renew_tests;

@@ -119,6 +119,19 @@ fn the_top_bar_shows_the_version_and_update() {
 }
 
 #[test]
+fn each_account_card_has_a_check_now_button() {
+    // On the card, not the top bar (docs/specs/check-now-button.md).
+    let card = asset("/js/card.js").unwrap().0;
+    assert!(card.contains("data-check=\"${a.id}\""), "a per-account Check now button");
+    assert!(card.to_lowercase().contains("check now"), "the button is labelled Check now");
+    let main = asset("/js/main.js").unwrap().0;
+    assert!(main.contains("[data-check]"), "the card click handler reads data-check");
+    assert!(main.contains("}/check"), "it posts to the account's own check endpoint");
+    // The old top-bar button is gone.
+    assert!(!asset("/").unwrap().0.contains("id=\"checkNow\""), "no top-bar Check now");
+}
+
+#[test]
 fn settings_have_a_weekly_threshold() {
     let page = asset("/").unwrap().0;
     assert!(page.contains("id=\"weekThreshold\""));

@@ -6,6 +6,8 @@
 // Plain Win32 through windows-sys, drawn with GDI: SO_SANH_KHAY_WIDGET.md says why.
 // One concern per file (docs/specs/modules.md); each starts with `use super::*;`.
 
+#[cfg(test)]
+mod app_icon;
 mod buttons;
 mod events;
 mod icon;
