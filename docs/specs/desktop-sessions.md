@@ -33,8 +33,29 @@ other account's sidebar is empty. This shares the cards between all accounts.
   account keys, plus `remoteMcpServersConfig`, `enabledMcpTools`, `toolSurfaceSnapshot`
   taken from that folder's own freshest card that this app did not copy there (else from
   another folder of the same account; else none).
-- Update: a folder whose card is less fresh than the freshest gets the freshest card's
-  keys except the account keys, which it keeps from its own card. Same freshness: left.
+- Update (changed since the last sync, 2026-11-12; prior art docs/SO_SANH_SESSION_3WAY.md):
+  - A card's mark: FNV-1a 64 of its JSON without the account keys, keys sorted at every
+    level (Desktop's own key order does not count). The state keeps each folder's marks as
+    they were after the last sync.
+  - Changed copies: those whose mark differs from their folder's kept mark, or with no
+    kept mark (first sync, new folder). None changed: every copy is a candidate.
+  - Winner: of the candidates, the highest (freshness, file modified time, folder key).
+    So an archive, rename or other change that leaves lastActivityAt and lastFocusedAt as
+    they were still wins when it is the only change; when two folders changed the same
+    card, the later activity wins (then the later write).
+  - Every other copy whose mark differs from the winner's gets the winner's keys except
+    the account keys, which it keeps. Same mark: left.
+  - Kept marks after the pass: what each folder holds then, so a write that failed is not
+    taken for a change at the next sync. Except the winner of a card not copied
+    everywhere: it keeps its old mark (none: none), so it still counts as changed and wins
+    again, whatever the file times (as Unison and rclone bisync save only finished copies).
+  - Two folders changing the same card between syncs is near impossible (one account runs
+    Desktop at a time); card-level, the later activity wins and the other is overwritten.
+  - Backup: also before the first sync that keeps marks (state without `marks`), since it
+    settles every card that differs (measured on a copy of the real folders: 278 updates,
+    then 0 at the next sync, no card's times moved back).
+  - Bug it fixes (measured 2026-11-12): archiving does not move the times, so one account
+    showed 116 sessions in its sidebar while the others showed 26.
 - Remove: a card this app saw in a folder at the last sync and that is gone now was
   deleted by the user there: the copies in the other folders are moved to
   `<data dir>/desktop-sessions/trash/<account8>-<org8>/<name>.<ms>` (not deleted). A
@@ -45,7 +66,8 @@ other account's sidebar is empty. This shares the cards between all accounts.
 - Writes go through a temp file in the same folder, then rename.
 - State: `<data dir>/desktop-sessions/state.json`:
   `{"seen": {"<account>/<org>": [names]}, "copied": {"<account>/<org>": [names]},
-  "backedUp": true}`, saved after each sync.
+  "marks": {"<account>/<org>": {"<name>": "<16 hex>"}}, "backedUp": true}`, saved after
+  each sync.
 - Backup: before the first sync ever, the whole `claude-code-sessions` folder is copied to
   `<data dir>/desktop-sessions/backup-<yyyymmdd-hhmmss>/`.
 - Not in the demo.
@@ -63,7 +85,13 @@ other account's sidebar is empty. This shares the cards between all accounts.
 
 - Two accounts, a card only in A: B gets it without the account keys, with B's own
   connector keys from a card native to B.
-- Fresher card in B: A's copy takes its fields, keeps A's account keys; equal: untouched.
+- Fresher card in B: A's copy takes its fields, keeps A's account keys; same mark: untouched.
+- Equal freshness, different cards, first sync: the later-written file wins.
+- Archived in A only since the last sync (times unchanged): B gets isArchived and its index.
+- Changed in both: the later activity wins. A failed write is not a change next time; an
+  archive not copied everywhere still wins next time, whatever the file times.
+- The first sync that keeps marks backs up again, once.
+- The mark ignores key order and the account keys.
 - A card deleted in A since the last sync: B's copy goes to trash; a folder that cannot
   be read deletes nothing.
 - Unreadable card: untouched everywhere and never copied.

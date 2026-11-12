@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 mod cookie_session;
 pub mod sessions;
 mod sessions_io;
+mod sessions_load;
 mod sessions_rules;
 mod store;
 mod switch;

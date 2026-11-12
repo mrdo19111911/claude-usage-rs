@@ -2,6 +2,11 @@
 
 use super::*;
 use serde_json::json;
+use std::fs;
+
+// Changes since the last sync (docs/specs/desktop-sessions.md, "Update").
+#[path = "sessions_3way_tests.rs"]
+mod three_way;
 
 const A: &str = "aaaaaaaa-0000-4000-8000-000000000001";
 const B: &str = "bbbbbbbb-0000-4000-8000-000000000002";
@@ -70,15 +75,11 @@ fn a_fresher_card_updates_the_others_keeping_their_account_keys() {
     let t = t("update");
     t.put(A, "local_x.json", json!({"sessionId": "s-x", "title": "old", "lastActivityAt": 10, "remoteMcpServersConfig": "mcp-A", "error": "eA"}));
     t.put(B, "local_x.json", json!({"sessionId": "s-x", "title": "new", "lastFocusedAt": 20, "remoteMcpServersConfig": "mcp-B"}));
-    t.put(A, "local_y.json", json!({"sessionId": "s-y", "title": "yA", "lastActivityAt": 7}));
-    t.put(B, "local_y.json", json!({"sessionId": "s-y", "title": "yB", "lastFocusedAt": 7}));
-    let y_before = (t.raw(A, "local_y.json"), t.raw(B, "local_y.json"));
     assert_eq!(t.sync(1), counts(0, 1, 0));
     let x = t.card(A, "local_x.json").unwrap();
     assert_eq!((&x["title"], &x["lastFocusedAt"]), (&json!("new"), &json!(20)));
     assert_eq!((&x["remoteMcpServersConfig"], &x["error"]), (&json!("mcp-A"), &json!("eA")));
     assert_eq!(t.card(B, "local_x.json").unwrap()["remoteMcpServersConfig"], "mcp-B");
-    assert_eq!((t.raw(A, "local_y.json"), t.raw(B, "local_y.json")), y_before, "same freshness: left");
 }
 
 #[test]
