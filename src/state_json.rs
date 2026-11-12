@@ -32,6 +32,7 @@ impl App {
         }).collect();
         json!({
             "desktop": {
+                "supported": desktop::SWITCHES,
                 "found": self.desktop_dir.is_some(),
                 "dir": self.desktop_dir.as_ref().map(|d| d.display().to_string()),
                 "switching": self.switching.load(Ordering::Relaxed),
@@ -45,6 +46,7 @@ impl App {
             "demo": self.demo,
             "version": update::VERSION,
             "update": *self.update.lock().unwrap(),
+            "canInstallUpdates": update::INSTALLS,
             "settings": st.settings,
             "activeId": st.active_id,
             "events": st.events.iter().take(15).collect::<Vec<_>>(),

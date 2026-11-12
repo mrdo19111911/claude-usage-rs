@@ -1,0 +1,81 @@
+# macOS: test, then one universal binary (arm64 + x86_64) as a workflow artifact.
+# Why this way: docs/SO_SANH_MACOS_BUILD.md; what the build does: docs/specs/macos.md.
+name: macos
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest # arm64; the x86_64 half is cross-built and run under Rosetta
+    env:
+      # One minimum for rustc and cc (bundled sqlite, ring); arm64 starts at 11.0.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test (native arm64)
+        run: cargo test --locked
+
+      - name: Build both architectures
+        run: cargo build --release --locked --target aarch64-apple-darwin --target x86_64-apple-darwin
+
+      - name: Join into one universal binary
+        run: |
+          lipo -create -output claude-usage \
+            target/aarch64-apple-darwin/release/claude-usage \
+            target/x86_64-apple-darwin/release/claude-usage
+          codesign --force --sign - claude-usage
+          lipo -archs claude-usage
+          lipo -archs claude-usage | grep -q x86_64
+          lipo -archs claude-usage | grep -q arm64
+
+      # Each half starts and answers /api/state as a macOS build: no installing updates,
+      # no Claude Desktop switching.
+      - name: Smoke test both halves
+        run: |
+          smoke() {
+            PORT=$2 $1 ./claude-usage --demo --no-open > "smoke-$2.log" 2>&1 &
+            pid=$!
+            for _ in $(seq 1 30); do
+              curl -sf "http://127.0.0.1:$2/api/state" -o "state-$2.json" && break
+              sleep 1
+            done
+            kill $pid || true
+            cat "smoke-$2.log"
+            python3 - "state-$2.json" <<'PY'
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          assert s["canInstallUpdates"] is False, s["canInstallUpdates"]
+          assert s["desktop"]["supported"] is False, s["desktop"]
+          print("ok", s["version"], len(s["accounts"]), "demo accounts")
+          PY
+          }
+          smoke "arch -arm64" 4801
+          smoke "arch -x86_64" 4802
+
+      - name: Pack (tar keeps the exec bit)
+        id: pack
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          name="claude-usage-$version-macos-universal.tar.gz"
+          tar czf "$name" claude-usage
+          shasum -a 256 "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.pack.outputs.file }}
+          archive: false
+          if-no-files-found: error

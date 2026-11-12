@@ -1,11 +1,13 @@
 // The version and updates: the top bar (version, "Update to X" pill) and the Settings
 // card's "Updates" row (status, Check / Install buttons, "Install updates automatically").
-// Parts: BUSY, upd, updText, renderUpdate, fastPoll, installUpdate; #updPill, #updInstall,
+// Parts: BUSY, upd, installs, updText, renderUpdate, fastPoll, installUpdate; #updPill, #updInstall,
 // #updCheck onclick; #autoUpdate onchange.
 
 const BUSY = ['checking', 'downloading', 'installing'];
 // An older backend sends no `update`: treat it as never checked.
 const upd = () => (S && S.update) || { status: 'idle' };
+// macOS builds do not install (the setup is a Windows .exe): the release page instead.
+const installs = () => S.canInstallUpdates !== false;
 
 function updText(u) {
   const when = u.checkedAt ? ` · checked <span data-ago="${u.checkedAt}">${ago(u.checkedAt)}</span>` : '';
@@ -28,9 +30,11 @@ function renderUpdate() {
   $('#version').textContent = v;
   $('#updVer').textContent = v || '?';
   $('#updPill').hidden = !can;
-  $('#updInstall').hidden = !can;
+  $('#updInstall').hidden = !can || !installs();
+  $('#autoUpdate').closest('label').hidden = !installs();
   if (can) {
     $('#updPill').textContent = `Update to ${u.latest}`;
+    $('#updPill').title = installs() ? '' : 'Opens the release page to download it';
     $('#updInstall').textContent = `Install ${u.latest}`;
   }
   $('#updRow').hidden = !!S.demo;
@@ -56,7 +60,11 @@ function fastPoll(on) {
 }
 
 function installUpdate() {
-  const v = upd().latest;
+  const u = upd(), v = u.latest;
+  if (!installs()) {
+    if (u.url && /^https:\/\//.test(u.url)) window.open(u.url, '_blank', 'noopener');
+    return;
+  }
   if (!confirm(`Install Claude Usage ${v} now? The dashboard closes and opens again in a moment.`)) return;
   api('/api/update/install', { method: 'POST' }).then(load).catch(e => alert(e.message));
 }

@@ -29,6 +29,14 @@ impl App {
     // Claims the install: only from "available", and not while a Claude Desktop switch
     // or a sign-in runs (the setup closing this app would cut it short).
     pub(crate) fn begin_install(&self) -> Result<(), String> {
+        self.begin_install_on(INSTALLS)
+    }
+
+    // `installs`: whether this build can run the setup; refused here, before a download.
+    pub(crate) fn begin_install_on(&self, installs: bool) -> Result<(), String> {
+        if !installs {
+            return Err("Installing updates works on Windows only; download the new version from the release page.".into());
+        }
         if self.demo {
             return Err("Updates are off in the demo.".into());
         }

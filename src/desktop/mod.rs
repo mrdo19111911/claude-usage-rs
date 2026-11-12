@@ -23,6 +23,9 @@ pub use cookie_session::Session;
 pub use store::Store;
 pub use switch::switch;
 
+// Whether this build switches Claude Desktop (Windows only; docs/specs/macos.md).
+pub const SWITCHES: bool = cfg!(windows);
+
 const COOKIE_FILES: [&str; 2] = ["Cookies", "Cookies-journal"];
 
 /// The app's data folder: the first known place that holds config.json.

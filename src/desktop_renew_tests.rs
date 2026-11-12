@@ -115,7 +115,7 @@ fn real_renew_nights() {
     for d in &desk {
         println!("{} {}: until {:?} ({:.1} days)", &d.uuid[..8], d.label, until(&d.uuid), until(&d.uuid).map_or(f64::NAN, |u| (u - now) as f64 / DAY_MS as f64));
     }
-    println!("signed in: {signed_in:?}, code running: {}", desktop::RealApp { data_dir: dir.clone() }.code_running());
+    println!("signed in: {signed_in:?}, code running: {}", desktop_code_running(&dir));
     for n in 0..30 {
         let c = Clock { ms: now + n * DAY_MS, hour: 4, day: TODAY + n };
         let s = next_step(true, &RenewState::default(), signed_in.as_deref(), &desk, &until, false, &c);
