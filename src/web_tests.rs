@@ -20,7 +20,7 @@ fn attrs<'a>(page: &'a str, attr: &str) -> Vec<&'a str> {
 #[test]
 fn serves_the_page() {
     let (page, ctype) = asset("/").unwrap();
-    assert!(page.contains("<title>Claude Usage</title>"));
+    assert!(page.contains("<title>Smartlog Claude Auto Switch</title>"));
     assert_eq!(ctype, HTML);
     assert_eq!(asset("/index.html").unwrap(), (page, HTML));
     assert!(asset("/nope").is_none());
@@ -31,7 +31,11 @@ fn serves_every_file_the_page_loads() {
     let page = asset("/").unwrap().0;
     // Links to other sites (Google AI Studio) are not ours to serve.
     let local = attrs(page, "href").into_iter().filter(|h| !h.starts_with("https://"));
-    let (css, links): (Vec<_>, Vec<_>) = local.partition(|h| h.ends_with(".css"));
+    let (icons, local): (Vec<_>, Vec<_>) = local.partition(|h| h.ends_with(".png"));
+    let (css, links): (Vec<_>, Vec<_>) = local.into_iter().partition(|h| h.ends_with(".css"));
+    for href in icons {
+        assert!(super::image(&format!("/{href}")).is_some(), "{href} not served");
+    }
     let (pics, js): (Vec<_>, Vec<_>) = attrs(page, "src").into_iter().partition(|s| s.ends_with(".png"));
     assert!(!css.is_empty() && !js.is_empty(), "the page loads its style and scripts from files");
     for src in pics {
@@ -89,7 +93,7 @@ fn not_started_windows_and_model_limits_are_shown() {
 fn help_page_is_served_and_linked() {
     let (help, ctype) = asset("/help.html").expect("help.html served");
     assert_eq!(ctype, HTML);
-    assert!(help.contains("<title>Claude Usage — Help</title>"));
+    assert!(help.contains("<title>Smartlog Claude Auto Switch — Help</title>"));
     assert!(help.contains("href=\"style.css\""), "same style as the dashboard");
     assert!(help.contains("href=\"/\""), "a way back to the dashboard");
     assert!(help.matches("<details").count() >= 10, "one <details> per topic");

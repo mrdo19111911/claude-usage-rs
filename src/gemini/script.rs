@@ -68,13 +68,13 @@ pub(crate) fn env(port: u16, cfg: &Config) -> Vec<(&'static str, String)> {
 pub(crate) fn script_text(port: u16, cfg: &Config) -> String {
     let mut l: Vec<String> = vec![
         "@echo off".into(),
-        "rem Written by Claude Usage at each start (its port changes): edits here are lost.".into(),
+        "rem Written by Smartlog Claude Auto Switch at each start (its port changes): edits here are lost.".into(),
         "setlocal".into(),
         // Never through a proxy: NO_PROXY is not set yet, and curl uses HTTP_PROXY or
         // ALL_PROXY for 127.0.0.1 too.
         format!(r#"curl.exe -sf --noproxy "*" -o nul -m 2 http://127.0.0.1:{port}/v1/ping"#),
         "if errorlevel 1 (".into(),
-        "  echo Claude Usage is not running: start it from the Start menu.".into(),
+        "  echo Smartlog Claude Auto Switch is not running: start it from the Start menu.".into(),
         "  exit /b 1".into(),
         ")".into(),
     ];

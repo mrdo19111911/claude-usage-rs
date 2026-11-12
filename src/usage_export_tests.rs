@@ -22,7 +22,7 @@ fn utc_times_end_in_z() {
     assert_eq!(utc(0), "1970-01-01T00:00:00Z");
     assert_eq!(utc(parse_iso("2026-10-30T12:48:12.999Z").unwrap()), "2026-10-30T12:48:12Z");
     assert_eq!(utc(parse_iso("2024-02-29T23:59:59Z").unwrap()), "2024-02-29T23:59:59Z");
-    assert_eq!(file_name(parse_iso("2026-10-30T23:00:00Z").unwrap()), "claude-usage-log-20261030.jsonl");
+    assert_eq!(file_name(parse_iso("2026-10-30T23:00:00Z").unwrap()), "scas-log-20261030.jsonl");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn accounts_are_numbered_by_their_order_and_unknown_ids_come_next() {
         "five_hour": {"used_percentage": 13, "resets_at": 1_793_374_199},
         "seven_day": {"used_percentage": 54, "resets_at": null},
         "model_weekly": [{"name": "Fable", "used_percentage": 40, "resets_at": 1_793_851_199}],
-        "seed": false, "source": "claude-usage"}));
+        "seed": false, "source": "scas"}));
     assert!(got[0]["ts"].as_str().unwrap().ends_with('Z'));
 }
 
@@ -83,7 +83,7 @@ fn state_carries_usage_log_and_the_export_downloads() {
     let r = ureq::get(&format!("{base}/api/usage-log/export")).call().unwrap();
     assert_eq!(r.header("Content-Type"), Some("application/x-ndjson"));
     let cd = r.header("Content-Disposition").unwrap().to_string();
-    assert!(cd.starts_with("attachment; filename=\"claude-usage-log-") && cd.ends_with(".jsonl\""), "{cd}");
+    assert!(cd.starts_with("attachment; filename=\"scas-log-") && cd.ends_with(".jsonl\""), "{cd}");
     let body = r.into_string().unwrap();
     assert_eq!(body.lines().count(), 1);
     assert!(body.contains("\"account\":\"acc1\"") && !body.contains("idA") && !body.contains("example.com"));

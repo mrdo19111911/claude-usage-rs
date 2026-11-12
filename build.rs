@@ -21,11 +21,11 @@ BEGIN
     BLOCK "040904B0"
     BEGIN
       VALUE "CompanyName", "mrdo19111911"
-      VALUE "FileDescription", "Claude Usage"
+      VALUE "FileDescription", "Smartlog Claude Auto Switch"
       VALUE "FileVersion", "{version}"
-      VALUE "InternalName", "claude-usage"
-      VALUE "OriginalFilename", "claude-usage.exe"
-      VALUE "ProductName", "Claude Usage"
+      VALUE "InternalName", "scas"
+      VALUE "OriginalFilename", "scas.exe"
+      VALUE "ProductName", "Smartlog Claude Auto Switch"
       VALUE "ProductVersion", "{version}"
     END
   END
@@ -41,19 +41,19 @@ END
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=Cargo.toml");
-    println!("cargo:rerun-if-changed=assets/claude-usage.ico");
+    println!("cargo:rerun-if-changed=assets/scas.ico");
     if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
     }
     let dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let icon = dir.join("assets").join("claude-usage.ico");
+    let icon = dir.join("assets").join("scas.ico");
     let v = |k: &str| env::var(k).unwrap();
     let text = rc_text(
         &icon.to_string_lossy(),
         &v("CARGO_PKG_VERSION"),
         [&v("CARGO_PKG_VERSION_MAJOR"), &v("CARGO_PKG_VERSION_MINOR"), &v("CARGO_PKG_VERSION_PATCH")],
     );
-    let rc = PathBuf::from(v("OUT_DIR")).join("claude-usage.rc");
+    let rc = PathBuf::from(v("OUT_DIR")).join("scas.rc");
     fs::write(&rc, text).unwrap();
     embed_resource::compile(&rc, embed_resource::NONE).manifest_optional().unwrap();
 }

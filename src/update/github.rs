@@ -42,7 +42,7 @@ pub(crate) fn pick_asset(release: &Value) -> Result<Asset, String> {
         return Err(format!("The latest release's tag ({tag:?}) is not a version."));
     }
     let version = tag.trim_start_matches('v').to_string();
-    let name = format!("ClaudeUsage-Setup-{version}.exe");
+    let name = format!("SCAS-Setup-{version}.exe");
     let a = release["assets"]
         .as_array()
         .and_then(|l| l.iter().find(|a| a["name"].as_str() == Some(name.as_str())))
@@ -80,7 +80,7 @@ pub(crate) fn download_host_ok(url: &str) -> bool {
 }
 
 pub(crate) fn user_agent() -> String {
-    format!("claude-usage/{VERSION}")
+    format!("scas/{VERSION}")
 }
 
 // Drafts and pre-releases are never "latest" for this endpoint.

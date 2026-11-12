@@ -23,7 +23,7 @@ $('#import').onclick = () => act(api('/api/import', { method: 'POST' }));
 $('#exit').onclick = () => {
   if (!confirm('Stop the dashboard? Checks and auto-switch stop until you start it again.')) return;
   api('/api/exit', { method: 'POST' }).then(() => {
-    document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start claude-usage.exe again to bring it back.</p></section>';
+    document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start scas.exe again to bring it back.</p></section>';
   }).catch(e => alert(e.message));
 };
 for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'shareDesktopSessions', 'useSoonestReset', 'renewDesktop']) {

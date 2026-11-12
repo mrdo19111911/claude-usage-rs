@@ -6,7 +6,7 @@ use super::*;
 use std::sync::atomic::AtomicBool;
 
 pub(super) const VERSION: &str = env!("CARGO_PKG_VERSION");
-const TITLE: &str = "Claude Usage";
+const TITLE: &str = "Smartlog Claude Auto Switch";
 const COULD_NOT: &str = "Could not check for updates.";
 
 // What the "Check for updates" box says: a plain note, a Yes/No offer to install, or a
@@ -20,7 +20,7 @@ pub(super) enum Answer {
 
 // The menu's first, greyed line.
 pub(super) fn version_line() -> String {
-    format!("Claude Usage {VERSION}")
+    format!("Smartlog Claude Auto Switch {VERSION}")
 }
 
 // help.html, served next to the dashboard's index.html.
@@ -34,9 +34,9 @@ pub(super) fn update_answer(state: &str, version: &str) -> Answer {
     let v: Value = serde_json::from_str(state).unwrap_or_default();
     let u = &v["update"];
     match (u["status"].as_str(), u["latest"].as_str(), u["error"].as_str()) {
-        (Some("upToDate"), _, _) => Answer::Info(format!("Claude Usage {version} is the latest version.")),
+        (Some("upToDate"), _, _) => Answer::Info(format!("Smartlog Claude Auto Switch {version} is the latest version.")),
         (Some("available"), Some(latest), _) => Answer::Offer(format!(
-            "Claude Usage {latest} is available (you have {version}). Install now? The app closes and opens again."
+            "Smartlog Claude Auto Switch {latest} is available (you have {version}). Install now? The app closes and opens again."
         )),
         (Some("error"), _, Some(e)) if !e.is_empty() => Answer::Fail(e.to_string()),
         _ => Answer::Fail(COULD_NOT.into()),

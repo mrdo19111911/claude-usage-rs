@@ -29,13 +29,13 @@ charts and is rewritten at every save, so the long record is a file of its own.
 
 - `GET /api/usage-log/export` (same Host check as every request; a GET, so a plain link
   downloads it): `Content-Type: application/x-ndjson`,
-  `Content-Disposition: attachment; filename="claude-usage-log-<yyyymmdd>.jsonl"`.
+  `Content-Disposition: attachment; filename="scas-log-<yyyymmdd>.jsonl"`.
 - One line per log line, in the shape Claude Code's status line uses:
   `{"ts": "2026-10-30T12:48:12Z", "account": "acc1", "plan": "Max 5x", "active": true,
     "five_hour": {"used_percentage": 13, "resets_at": 1793374199},
     "seven_day": {"used_percentage": 54, "resets_at": 1793851199},
     "model_weekly": [{"name": "Fable", "used_percentage": 40, "resets_at": 1793851199}],
-    "seed": false, "source": "claude-usage"}`
+    "seed": false, "source": "scas"}`
   `resets_at` in Unix seconds (as the status line), null when unknown.
 - `account`: acc1, acc2… by the order of state.json's accounts (the first added is acc1);
   ids no longer there get the next numbers in the order they first appear in the file.

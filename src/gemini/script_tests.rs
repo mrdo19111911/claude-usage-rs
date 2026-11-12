@@ -23,7 +23,7 @@ fn is_a_windows_batch_file_with_crlf_lines() {
 fn checks_the_app_first() {
     let t = text();
     let ping = line_of(&t, "/v1/ping");
-    assert!(line_of(&t, "Claude Usage is not running: start it from the Start menu.") > ping);
+    assert!(line_of(&t, "Smartlog Claude Auto Switch is not running: start it from the Start menu.") > ping);
     assert!(line_of(&t, "exit /b 1") > ping);
     assert!(ping < line_of(&t, "ANTHROPIC_BASE_URL"));
 }

@@ -93,7 +93,7 @@ impl App {
 // ---------- Claude Desktop names ----------
 // Claude Desktop keeps no readable email, but it hands each Code session the account's
 // uuid and email (CLAUDE_CODE_ACCOUNT_UUID, CLAUDE_CODE_USER_EMAIL). A SessionStart hook
-// runs `claude-usage --note-session`, which saves them as desktop-names/<uuid>.
+// runs `scas --note-session`, which saves them as desktop-names/<uuid>.
 pub(crate) fn names_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("desktop-names")
 }

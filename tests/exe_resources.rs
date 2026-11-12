@@ -4,7 +4,7 @@
 use std::ptr;
 use windows_sys::Win32::UI::Shell::ExtractIconExW;
 
-const EXE: &str = env!("CARGO_BIN_EXE_claude-usage");
+const EXE: &str = env!("CARGO_BIN_EXE_scas");
 
 fn utf16(s: &str) -> Vec<u8> {
     s.encode_utf16().flat_map(u16::to_le_bytes).collect()
@@ -25,7 +25,7 @@ fn exe_has_an_icon() {
 #[test]
 fn exe_has_version_info() {
     let bytes = std::fs::read(EXE).unwrap();
-    for s in ["VS_VERSION_INFO", "ProductName", "Claude Usage", "claude-usage.exe", env!("CARGO_PKG_VERSION")] {
+    for s in ["VS_VERSION_INFO", "ProductName", "Smartlog Claude Auto Switch", "scas.exe", env!("CARGO_PKG_VERSION")] {
         assert!(holds(&bytes, &utf16(s)), "no UTF-16 {s:?} in {EXE}");
     }
 }

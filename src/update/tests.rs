@@ -29,10 +29,10 @@ fn release(digest: Value) -> Value {
         "tag_name": "v1.2.0",
         "html_url": "https://github.com/mrdo19111911/claude-usage-rs/releases/tag/v1.2.0",
         "assets": [
-            {"name": "claude-usage.exe", "size": 10, "digest": format!("sha256:{}", "a".repeat(64)),
-             "browser_download_url": "https://github.com/mrdo19111911/claude-usage-rs/releases/download/v1.2.0/claude-usage.exe"},
-            {"name": "ClaudeUsage-Setup-1.2.0.exe", "size": 1234, "digest": digest,
-             "browser_download_url": "https://github.com/mrdo19111911/claude-usage-rs/releases/download/v1.2.0/ClaudeUsage-Setup-1.2.0.exe"}
+            {"name": "scas.exe", "size": 10, "digest": format!("sha256:{}", "a".repeat(64)),
+             "browser_download_url": "https://github.com/mrdo19111911/claude-usage-rs/releases/download/v1.2.0/scas.exe"},
+            {"name": "SCAS-Setup-1.2.0.exe", "size": 1234, "digest": digest,
+             "browser_download_url": "https://github.com/mrdo19111911/claude-usage-rs/releases/download/v1.2.0/SCAS-Setup-1.2.0.exe"}
         ]
     })
 }
@@ -41,11 +41,11 @@ fn release(digest: Value) -> Value {
 fn picks_the_setup_by_name() {
     let hex = "AB".repeat(32);
     let a = pick_asset(&release(json!(format!("sha256:{hex}")))).unwrap();
-    assert_eq!(a.name, "ClaudeUsage-Setup-1.2.0.exe");
+    assert_eq!(a.name, "SCAS-Setup-1.2.0.exe");
     assert_eq!(a.version, "1.2.0");
     assert_eq!(a.size, 1234);
     assert_eq!(a.sha256, "ab".repeat(32), "kept lower case, as sha256_hex writes it");
-    assert!(a.url.ends_with("/v1.2.0/ClaudeUsage-Setup-1.2.0.exe"));
+    assert!(a.url.ends_with("/v1.2.0/SCAS-Setup-1.2.0.exe"));
 }
 
 #[test]
@@ -64,11 +64,11 @@ fn pick_asset_refuses_odd_releases() {
     r["tag_name"] = json!("v1.2.0/../../x");
     assert!(pick_asset(&r).is_err(), "the tag becomes a file name: versions only");
     let mut r = release(good.clone());
-    r["assets"][1]["browser_download_url"] = json!("https://evil.example/ClaudeUsage-Setup-1.2.0.exe");
+    r["assets"][1]["browser_download_url"] = json!("https://evil.example/SCAS-Setup-1.2.0.exe");
     assert!(pick_asset(&r).is_err(), "only github.com downloads");
     let mut r = release(good.clone());
-    r["assets"][1]["name"] = json!("ClaudeUsage-Setup-1.1.0.exe");
-    assert!(pick_asset(&r).unwrap_err().contains("ClaudeUsage-Setup-1.2.0.exe"), "says what is missing");
+    r["assets"][1]["name"] = json!("SCAS-Setup-1.1.0.exe");
+    assert!(pick_asset(&r).unwrap_err().contains("SCAS-Setup-1.2.0.exe"), "says what is missing");
     let mut r = release(good);
     r["assets"][1]["size"] = json!(0);
     assert!(pick_asset(&r).is_err(), "no size: cannot check the download");
@@ -114,11 +114,11 @@ fn status_json_matches_the_spec() {
 
 #[test]
 fn setup_runs_silently_and_relaunches() {
-    let dir = std::path::Path::new(r"C:\Temp\claude-usage-update");
+    let dir = std::path::Path::new(r"C:\Temp\scas-update");
     let args = setup_args(dir);
     assert_eq!(args[..5], ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/RELAUNCH=1"]);
     #[cfg(windows)]
-    assert_eq!(args[5], r"/LOG=C:\Temp\claude-usage-update\setup.log");
+    assert_eq!(args[5], r"/LOG=C:\Temp\scas-update\setup.log");
     assert_eq!(args.len(), 6);
 }
 

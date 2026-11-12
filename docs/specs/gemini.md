@@ -117,7 +117,7 @@ screen they shrink to fit. The help page shows the same pictures.
   Removed from PATH with the key.
 - The script: `setlocal` (so nothing leaks into the terminal after it ends), checks the
   app answers (`curl.exe -sf --noproxy "*" http://127.0.0.1:<port>/v1/ping`), else prints
-  "Claude Usage is not running: start it from the Start menu" and stops; sets
+  "Smartlog Claude Auto Switch is not running: start it from the Start menu" and stops; sets
   `ANTHROPIC_BASE_URL`, the token and the model variables (see research), runs
   `claude %*`, `endlocal`.
 - The ping never goes through a proxy: it runs before `NO_PROXY` is set, and Windows'

@@ -65,7 +65,7 @@ function installUpdate() {
     if (u.url && /^https:\/\//.test(u.url)) window.open(u.url, '_blank', 'noopener');
     return;
   }
-  if (!confirm(`Install Claude Usage ${v} now? The dashboard closes and opens again in a moment.`)) return;
+  if (!confirm(`Install Smartlog Claude Auto Switch ${v} now? The dashboard closes and opens again in a moment.`)) return;
   api('/api/update/install', { method: 'POST' }).then(load).catch(e => alert(e.message));
 }
 

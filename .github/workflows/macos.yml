@@ -33,20 +33,20 @@ jobs:
 
       - name: Join into one universal binary
         run: |
-          lipo -create -output claude-usage \
-            target/aarch64-apple-darwin/release/claude-usage \
-            target/x86_64-apple-darwin/release/claude-usage
-          codesign --force --sign - claude-usage
-          lipo -archs claude-usage
-          lipo -archs claude-usage | grep -q x86_64
-          lipo -archs claude-usage | grep -q arm64
+          lipo -create -output scas \
+            target/aarch64-apple-darwin/release/scas \
+            target/x86_64-apple-darwin/release/scas
+          codesign --force --sign - scas
+          lipo -archs scas
+          lipo -archs scas | grep -q x86_64
+          lipo -archs scas | grep -q arm64
 
       # Each half starts and answers /api/state as a macOS build: no installing updates,
       # no Claude Desktop switching.
       - name: Smoke test both halves
         run: |
           smoke() {
-            PORT=$2 $1 ./claude-usage --demo --no-open > "smoke-$2.log" 2>&1 &
+            PORT=$2 $1 ./scas --demo --no-open > "smoke-$2.log" 2>&1 &
             pid=$!
             for _ in $(seq 1 30); do
               curl -sf "http://127.0.0.1:$2/api/state" -o "state-$2.json" && break
@@ -69,8 +69,8 @@ jobs:
         id: pack
         run: |
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          name="claude-usage-$version-macos-universal.tar.gz"
-          tar czf "$name" claude-usage
+          name="scas-$version-macos-universal.tar.gz"
+          tar czf "$name" scas
           shasum -a 256 "$name"
           echo "file=$name" >> "$GITHUB_OUTPUT"
 

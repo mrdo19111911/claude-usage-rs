@@ -40,7 +40,7 @@ fn export_line(v: &Value, t: i64, n: usize) -> Value {
     json!({
         "ts": utc(t), "account": format!("acc{n}"), "plan": v["plan"], "active": v["active"].as_bool().unwrap_or(false),
         "five_hour": win(&v["five"]), "seven_day": win(&v["week"]), "model_weekly": scoped,
-        "seed": v["seed"].as_bool().unwrap_or(false), "source": "claude-usage",
+        "seed": v["seed"].as_bool().unwrap_or(false), "source": "scas",
     })
 }
 
@@ -57,10 +57,10 @@ pub(crate) fn utc(ms: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", sod / 3600, sod / 60 % 60, sod % 60)
 }
 
-// "claude-usage-log-<yyyymmdd>.jsonl", the UTC date of `ms`.
+// "scas-log-<yyyymmdd>.jsonl", the UTC date of `ms`.
 pub(crate) fn file_name(ms: i64) -> String {
     let (y, m, d) = civil(ms.div_euclid(86_400_000));
-    format!("claude-usage-log-{y:04}{m:02}{d:02}.jsonl")
+    format!("scas-log-{y:04}{m:02}{d:02}.jsonl")
 }
 
 fn civil(days: i64) -> (i64, i64, i64) {

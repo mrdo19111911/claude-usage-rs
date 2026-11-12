@@ -15,13 +15,13 @@ fn help_link_is_next_to_the_dashboard() {
 #[test]
 fn up_to_date_names_this_version() {
     let s = state(json!({ "status": "upToDate", "latest": "1.1.0", "url": null, "checkedAt": 1, "error": null }));
-    assert_eq!(update_answer(&s, "1.1.0"), Answer::Info("Claude Usage 1.1.0 is the latest version.".into()));
+    assert_eq!(update_answer(&s, "1.1.0"), Answer::Info("Smartlog Claude Auto Switch 1.1.0 is the latest version.".into()));
 }
 
 #[test]
 fn available_offers_to_install() {
     let s = state(json!({ "status": "available", "latest": "1.2.0", "url": "https://github.com/x", "checkedAt": 1, "error": null }));
-    let want = "Claude Usage 1.2.0 is available (you have 1.1.0). Install now? The app closes and opens again.";
+    let want = "Smartlog Claude Auto Switch 1.2.0 is available (you have 1.1.0). Install now? The app closes and opens again.";
     assert_eq!(update_answer(&s, "1.1.0"), Answer::Offer(want.into()));
 }
 
@@ -56,5 +56,5 @@ fn anything_else_could_not_check() {
 #[test]
 fn menu_shows_the_crate_version() {
     assert_eq!(VERSION, env!("CARGO_PKG_VERSION"));
-    assert_eq!(version_line(), format!("Claude Usage {}", env!("CARGO_PKG_VERSION")));
+    assert_eq!(version_line(), format!("Smartlog Claude Auto Switch {}", env!("CARGO_PKG_VERSION")));
 }

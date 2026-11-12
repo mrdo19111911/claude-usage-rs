@@ -22,7 +22,7 @@ Why this way: `docs/SO_SANH_MACOS_BUILD.md`. Until now only Windows was built an
   Desktop panel then reads "Switching Claude Desktop works on Windows only." instead of
   "Claude Desktop was not found on this computer."
 - Installing updates (`src/update/`): `update::INSTALLS = cfg!(windows)`; the release's
-  setup is `ClaudeUsage-Setup-X.Y.Z.exe`, a Windows installer.
+  setup is `SCAS-Setup-X.Y.Z.exe`, a Windows installer.
   - The check still runs (every 3 days, on demand) and still shows "Version X available"
     with the release page link.
   - `begin_install` refuses when `INSTALLS` is false, before anything is downloaded, with
@@ -39,10 +39,10 @@ Why this way: `docs/SO_SANH_MACOS_BUILD.md`. Until now only Windows was built an
 
 - `.github/workflows/macos.yml` on `macos-latest`: `cargo test` on the runner's own arch,
   then release builds for `aarch64-apple-darwin` and `x86_64-apple-darwin`, joined with
-  `lipo -create` into one universal `claude-usage`, packed as
-  `claude-usage-<version>-macos-universal.tar.gz` (tar keeps the exec bit; the artifact
+  `lipo -create` into one universal `scas`, packed as
+  `scas-<version>-macos-universal.tar.gz` (tar keeps the exec bit; the artifact
   upload would zip it away) and uploaded as a workflow artifact.
-- Not signed or notarized: after downloading, `xattr -d com.apple.quarantine claude-usage`
+- Not signed or notarized: after downloading, `xattr -d com.apple.quarantine scas`
   (or right-click → Open once) before the first run.
 - Checked on Windows without a Mac: `cargo check --target aarch64-apple-darwin
   --all-targets` with a stand-in C compiler (the C parts are not linked by a check).

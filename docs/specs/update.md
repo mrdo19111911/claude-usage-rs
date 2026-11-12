@@ -5,8 +5,8 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 ## Version
 
 - One source: Cargo.toml `version`; in code `update::VERSION = env!("CARGO_PKG_VERSION")`.
-- Shown: the dashboard's top bar ("Claude Usage 1.1.0"), the tray menu's first line
-  (greyed "Claude Usage 1.1.0"), Apps & features (the setup's AppVersion, build.ps1).
+- Shown: the dashboard's top bar ("Smartlog Claude Auto Switch 1.1.0"), the tray menu's first line
+  (greyed "Smartlog Claude Auto Switch 1.1.0"), Apps & features (the setup's AppVersion, build.ps1).
 
 ## Help
 
@@ -21,12 +21,14 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 ## Check for updates
 
 - `GET https://api.github.com/repos/mrdo19111911/claude-usage-rs/releases/latest`
-  (User-Agent "claude-usage/<version>", Accept application/vnd.github+json), 20 s timeout.
+  (User-Agent "scas/<version>", Accept application/vnd.github+json), 20 s timeout.
 - The release: `tag_name` "vX.Y.Z" → X.Y.Z; newer when its numbers are greater than
   VERSION's, compared part by part (`newer`). Drafts and pre-releases are not "latest".
-- Its setup: the asset named `ClaudeUsage-Setup-X.Y.Z.exe`; `digest` must be
+- Its setup: the asset named `SCAS-Setup-X.Y.Z.exe`; `digest` must be
   "sha256:<64 hex>" (no digest: not installable, said so). `pick_asset` returns name, url,
   size, sha256.
+  Releases also carry the same setup under the old name `ClaudeUsage-Setup-X.Y.Z.exe` (same
+  bytes) so 1.5.x copies can update; the app itself now looks for `SCAS-Setup-X.Y.Z.exe`.
 - When: every 3 days by itself, counted from the last answer GitHub gave that left
   nothing to install (saved in state.json as `updateCheckedAt`, so restarts do not check
   again); looked at 1 minute after start and then hourly, a check only once 3 days have
@@ -45,7 +47,7 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 
 ## Install (by hand or automatic)
 
-- Download the setup to `%TEMP%\claude-usage-update\` (follows GitHub's redirect), check
+- Download the setup to `%TEMP%\scas-update\` (follows GitHub's redirect), check
   size and SHA-256 against the release's digest; a mismatch deletes it and reports
   "error". Only github.com / objects.githubusercontent.com URLs from the API answer.
 - Run it detached from this process: `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART
@@ -59,12 +61,12 @@ Why this way: `docs/SO_SANH_UPDATE.md`. Version 1.1.0 is the first with these.
 
 ## Where it shows
 
-- Dashboard top bar: "Claude Usage 1.1.0 · Help"; when an update is available a pill
+- Dashboard top bar: "Smartlog Claude Auto Switch 1.1.0 · Help"; when an update is available a pill
   "Update to 1.2.0" (click = install, after a confirm).
 - Settings card, "Updates" row: version, status text ("Up to date · checked 5 min ago",
   "Version 1.2.0 available · What's new", "Downloading…", error), buttons "Check for
   updates" / "Install 1.2.0", checkbox "Install updates automatically".
-- Tray menu: greyed "Claude Usage 1.1.0", "Open dashboard", "Help", "Check for updates",
+- Tray menu: greyed "Smartlog Claude Auto Switch 1.1.0", "Open dashboard", "Help", "Check for updates",
   separator, "Pin widget…", separator, "Exit". "Check for updates" answers in a box: up to
   date, or "Version X is available. Install now?" (Yes installs), or the error.
 

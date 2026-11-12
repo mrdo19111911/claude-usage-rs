@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 
 fn iss() -> String {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("installer/claude-usage.iss");
+    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("installer/scas.iss");
     fs::read_to_string(p).unwrap()
 }
 
@@ -36,7 +36,7 @@ fn installs_for_all_users_by_default_and_lets_the_user_choose() {
 fn folders_and_registry_follow_the_chosen_mode() {
     let text = iss();
     let setup = section(&text, "Setup");
-    assert!(setup.contains(&"DefaultDirName={autopf}\\{#AppName}".to_string()), "{setup:?}");
+    assert!(setup.contains(&"DefaultDirName={autopf}\\{#AppDir}".to_string()), "{setup:?}");
     for l in section(&text, "Icons") {
         assert!(l.starts_with("Name: \"{autoprograms}\\"), "{l}");
     }
