@@ -7,6 +7,10 @@
 // One concern per file (docs/specs/modules.md); each starts with `use super::*;`.
 
 mod buttons;
+mod chart_data;
+mod chart_paint;
+mod dash;
+mod gdip;
 mod events;
 mod icon;
 mod instance;
@@ -15,11 +19,16 @@ mod menu;
 mod model;
 mod paint;
 mod place;
+mod rows;
 mod sections;
 mod widget;
-pub use events::request_exit;
+mod words;
+pub use events::{request_exit, request_open};
 pub use instance::claim_instance;
 use buttons::*;
+use chart_data::*;
+use chart_paint::*;
+use gdip::*;
 use events::*;
 use icon::*;
 use instance::*;
@@ -28,18 +37,17 @@ use menu::*;
 use model::*;
 use paint::*;
 use place::*;
+use rows::*;
 use sections::*;
 use widget::*;
 use serde_json::{json, Value};
 use std::cell::RefCell;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicPtr, Ordering};
-use std::sync::Arc;
-use std::{fs, mem, ptr, thread};
+use std::sync::{atomic::{AtomicPtr, Ordering}, Arc};
+use std::{fs, mem, path::PathBuf, ptr, thread};
 use windows_sys::Win32::Foundation::*;
 use windows_sys::Win32::Graphics::Gdi::*;
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::System::Time::{FileTimeToSystemTime, SystemTimeToTzSpecificLocalTime};
+use windows_sys::Win32::System::Time::{FileTimeToSystemTime, SystemTimeToFileTime, SystemTimeToTzSpecificLocalTime};
 use windows_sys::Win32::UI::HiDpi::*;
 use windows_sys::Win32::UI::Shell::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
@@ -154,7 +162,7 @@ unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {
     wc.style = CS_DBLCLKS;
     RegisterClassW(&wc);
 
-    let title = wide("Claude usage");
+    let title = wide(words::APP);
     // A hidden top-level window, not a message-only one: those miss TaskbarCreated.
     let msg = CreateWindowExW(0, msg_class.as_ptr(), title.as_ptr(), WS_POPUP, 0, 0, 0, 0, ptr::null_mut(), ptr::null_mut(), inst, ptr::null());
     let widget = || CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE, widget_class.as_ptr(), title.as_ptr(), WS_POPUP, 0, 0, 0, 0, ptr::null_mut(), ptr::null_mut(), inst, ptr::null());

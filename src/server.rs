@@ -123,11 +123,11 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 }
                 match (method.as_str(), parts.get(1).copied()) {
                     ("POST", Some("switch")) => app.start_desktop_switch(Some(uuid.to_string()))?,
-                    ("POST", Some("auto")) => app.set_desktop_auto(uuid, body["enabled"].as_bool().ok_or("enabled required")?)?,
+                    ("POST", Some("auto")) => app.set_desktop_auto(uuid, body["enabled"].as_bool().ok_or(crate::switch::text::SOMETHING_WRONG)?)?,
                     ("POST", Some("rename")) => {
-                        let label = body["label"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or("name required")?;
+                        let label = body["label"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or(crate::switch::text::NAME_NEEDED)?;
                         let mut st = app.st.lock().unwrap();
-                        let d = st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or("not found")?;
+                        let d = st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or(crate::switch::text::NOT_FOUND)?;
                         d.label = label.chars().take(60).collect();
                         app.save(&st);
                     }
@@ -152,7 +152,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 let id = parts[0];
                 // activate takes the lock itself, around a check with Anthropic.
                 if method == "POST" && parts.get(1) == Some(&"activate") {
-                    app.activate(id, "manual")?;
+                    app.activate(id, crate::switch::text::BY_YOU)?;
                     return Ok((200, app.public_state(), "application/json"));
                 }
                 // "Check now" on a card: this account's usage now (check-now-button.md).
@@ -162,7 +162,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                     return Ok((200, app.public_state(), "application/json"));
                 }
                 let mut st = app.st.lock().unwrap();
-                let idx = st.accounts.iter().position(|a| a.id == id).ok_or("not found")?;
+                let idx = st.accounts.iter().position(|a| a.id == id).ok_or(crate::switch::text::NOT_FOUND)?;
                 match (method.as_str(), parts.get(1).copied()) {
                     ("POST", Some("toggle")) => {
                         st.accounts[idx].enabled = body["enabled"].as_bool().unwrap_or(true);

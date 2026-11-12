@@ -34,6 +34,8 @@ pub(super) struct Other {
     // In use there now: that side gets no button.
     pub(super) in_cli: bool,
     pub(super) in_desk: bool,
+    // (time ms, 5-hour %, weekly %): the chart under an open row (docs/specs/gadget-chart.md).
+    pub(super) history: Vec<(i64, i64, i64)>,
 }
 
 #[derive(Clone, Default)]
@@ -49,6 +51,9 @@ pub(super) struct Model {
     pub(super) checked: Option<i64>,
     // The accounts come in auto-switch's order (setting useSoonestReset): kept as they are.
     pub(super) ranked: bool,
+    // The auto-switch lines on the charts (settings threshold / weekThreshold).
+    pub(super) five_line: i64,
+    pub(super) week_line: i64,
 }
 
 pub(super) const FIVE_MS: i64 = 5 * 3_600_000;
@@ -106,6 +111,8 @@ pub(super) fn model(state: &str) -> Model {
     let desk: &[Value] = if found { d["accounts"].as_array().map_or(&[], |l| l.as_slice()) } else { &[] };
     let active = v["activeId"].as_str();
     m.ranked = v["settings"]["useSoonestReset"].as_bool() == Some(true);
+    m.five_line = v["settings"]["threshold"].as_i64().unwrap_or(95);
+    m.week_line = v["settings"]["weekThreshold"].as_i64().unwrap_or(99);
     for a in v["accounts"].as_array().into_iter().flatten() {
         let email = a["email"].as_str().unwrap_or("?").to_string();
         let uuid = a["uuid"].as_str();
@@ -121,7 +128,9 @@ pub(super) fn model(state: &str) -> Model {
             }
         }
         let id = a["id"].as_str().unwrap_or("").to_string();
-        m.others.push(Other { email, usage: usage(&a["usage"]), id, desk_uuid, in_cli, in_desk });
+        let history = a["history"].as_array().into_iter().flatten()
+            .filter_map(|p| Some((p[0].as_i64()?, p[1].as_i64()?, p[2].as_i64()?))).collect();
+        m.others.push(Other { email, usage: usage(&a["usage"]), id, desk_uuid, in_cli, in_desk, history });
     }
     if found {
         m.desk_switching = d["switching"].as_bool() == Some(true);
@@ -137,16 +146,31 @@ pub(super) fn model(state: &str) -> Model {
     m
 }
 
-// A moment (ms since 1970) on this computer's clock: "22:20" today, else "Thu 11:00".
-pub(super) fn clock(t: i64, now: i64) -> String {
-    let local = |ms: i64| unsafe {
+// A moment (ms since 1970) as this computer's local date and time.
+fn local(ms: i64) -> SYSTEMTIME {
+    unsafe {
         let ft = (ms.max(0) as u64 + 11_644_473_600_000) * 10_000;
         let ft = FILETIME { dwLowDateTime: ft as u32, dwHighDateTime: (ft >> 32) as u32 };
         let (mut utc, mut loc): (SYSTEMTIME, SYSTEMTIME) = (mem::zeroed(), mem::zeroed());
         FileTimeToSystemTime(&ft, &mut utc);
         SystemTimeToTzSpecificLocalTime(ptr::null(), &utc, &mut loc);
         loc
-    };
+    }
+}
+
+// This computer's offset from UTC at `t`, in ms (+7 h in Vietnam).
+pub(super) fn utc_offset(t: i64) -> i64 {
+    let loc = local(t);
+    let mut ft: FILETIME = unsafe { mem::zeroed() };
+    if unsafe { SystemTimeToFileTime(&loc, &mut ft) } == 0 {
+        return 0;
+    }
+    let ms = ((ft.dwHighDateTime as i64) << 32 | ft.dwLowDateTime as i64) / 10_000 - 11_644_473_600_000;
+    (ms - t.max(0)).div_euclid(60_000) * 60_000
+}
+
+// A moment (ms since 1970) on this computer's clock: "22:20" today, else "Thu 11:00".
+pub(super) fn clock(t: i64, now: i64) -> String {
     let (a, b) = (local(t), local(now));
     let hm = format!("{:02}:{:02}", a.wHour, a.wMinute);
     if (a.wYear, a.wMonth, a.wDay) == (b.wYear, b.wMonth, b.wDay) {

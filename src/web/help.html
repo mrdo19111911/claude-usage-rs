@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smartlog Claude Auto Switch — Help</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="glass.css">
 <link rel="icon" type="image/png" href="img/app-icon.png">
 </head>
 <body>
@@ -15,59 +16,72 @@
 
   <section class="card">
     <details open><summary>What are the two limits?</summary>
-      <p>Anthropic gives each account two limits. The <b>5-hour</b> window starts with your first message and resets 5 hours later. The <b>Weekly</b> limit covers the whole week and resets once a week.</p>
+      <p>Anthropic gives each account two limits. The <b>5-hour</b> limit starts with your first message and resets 5 hours later. The <b>Weekly</b> limit covers the whole week and resets once a week.</p>
       <p>The figures are Anthropic's official ones.</p>
     </details>
 
     <details><summary>How do I read the bars?</summary>
-      <p>Each bar is the share of a limit used; the text under it says how much is <b>% left</b> and when it resets. Green is fine, amber is getting close, red is nearly or fully used.</p>
-      <p>On the widget's bars a light tick shows how much of the window's time has passed. A bar past its tick means you are using it faster than the window allows: at this pace it runs out before it resets.</p>
-      <p><b>Not started yet</b> means no use in that window yet, so there is no reset time.</p>
+      <p>Each bar is the share of a limit used; the text under it says how much is <b>left</b> and when it resets. Green is fine, amber is getting close, red is nearly or fully used.</p>
+      <p>On the widget's bars a light tick shows how much of the 5-hour (or weekly) period has passed. A bar past its tick means you are using it faster than that: at this pace it runs out before it resets.</p>
+      <p><b>No use yet</b> means that limit has not been used yet, so there is no reset time.</p>
     </details>
 
     <details><summary>What is "Fable 0%" under the bars?</summary>
       <p>Some models have their own weekly limit on top of the two above. Each one shows as a small chip with the model's name, for example <b>Fable 12%</b>; its reset time is in the tooltip.</p>
     </details>
 
-    <details><summary>Claude CLI and Claude Desktop: what's the difference?</summary>
-      <p><b>Claude CLI</b> is Claude Code in a terminal and in VS Code; they share one sign-in. <b>Claude Desktop</b> is the desktop app and keeps its own sign-in.</p>
+    <details><summary>Claude Code and Claude Desktop: what's the difference?</summary>
+      <p><b>Claude Code</b> is the Claude app in a terminal and in VS Code; they share one sign-in. <b>Claude Desktop</b> is the desktop app and keeps its own sign-in.</p>
       <p>The two are separate: switching one never changes the other.</p>
     </details>
 
     <details><summary>How do I switch accounts? What is auto-switch?</summary>
-      <p>Click <b>Use here</b> on an account. Claude CLI switches at once. Claude Desktop closes and opens again on that account, so tasks running in it stop.</p>
-      <p><b>Auto-switch</b> moves Claude CLI to another account when the one in use reaches 95% of its 5-hour limit or 99% of its weekly limit (both set in Settings). The weekly one is higher because 1% of a week is about five times as much use as 1% of five hours. Accounts switched off are skipped. It moves Claude Desktop when the account it is signed in to reaches 98% of its 5-hour or weekly limit (this closes and reopens Claude Desktop, so a reply under way is cut off), and only to accounts whose "Auto-switch may move Claude Desktop here" switch is on, at most once in 10 minutes.</p>
-      <p>It uses first the account whose weekly limit resets soonest: what is left of a week at its reset is lost, so it may switch before a limit when another account's quota would expire unused. The accounts are listed in that order, top to bottom: the next one auto-switch would use comes first. Turn it off in Settings to keep the old rule (most room left).</p>
+      <p>Click <b>Use here</b> on an account. Claude Code switches at once. Claude Desktop closes and opens again on that account, so tasks running in it stop.</p>
+      <p><b>Auto-switch</b> moves to another account when the one in use is nearly used up (set in Settings):</p>
+      <ul>
+        <li>Claude Code: switches at 95% (5-hour) or 99% (weekly).</li>
+        <li>Claude Desktop: switches at 98%, only to accounts with "allow auto-switch" on, at most every 10 min; it restarts.</li>
+        <li>Accounts with "allow auto-switch" off are skipped.</li>
+      </ul>
+      <p>The weekly limit is much larger, so 1% of it is more use than 1% of the 5-hour limit.</p>
+      <p>Weekly use you don't spend before the reset is lost, so the app uses first the account that resets soonest. It may switch before a limit. The accounts are listed in that order, top to bottom: the next one auto-switch would use comes first. Turn it off in Settings to always use the account with the most left.</p>
     </details>
 
     <details><summary>Why do I see the same Code sessions on every Claude Desktop account?</summary>
       <p>Switching Claude Desktop copies its list of Code sessions, so every account shows the same sessions (turn it off in Settings). The conversations were never lost: they are on this computer.</p>
-      <p>The first message in a session after a switch rebuilds its context, which uses some quota. Do not switch while a reply is running.</p>
+      <p>The first message after a switch uses a little more of the limit than usual. Do not switch while a reply is running.</p>
     </details>
 
     <details><summary>How do I add an account?</summary>
-      <p>Claude CLI: click <b>+ Add account</b> and sign in on the page that opens in your browser. The account shows up here by itself within about 10 s.</p>
+      <p>Claude Code: click <b>+ Add account</b> and sign in on the page that opens in your browser. The account shows up here by itself within about 10 s.</p>
       <p>Claude Desktop: click its <b>+ Add account</b>. Claude Desktop opens again signed out; whichever account you sign in with is saved, and later switches need no sign-in.</p>
     </details>
 
-    <details><summary>How often are the figures checked? What does 429 mean?</summary>
-      <p>An account in use (by Claude CLI or Claude Desktop) is checked every 10 minutes when little is used, more often as it nears a limit, and every minute from 90% of its 5-hour limit (a weekly limit counts too: 1% of a week is about 6.7% of five hours). An account not in use is checked every 10 minutes: its figures only move when it is used somewhere else. An account at a 100% limit is not checked again until that limit resets. Switching to an account checks it at once; <b>Refresh now</b> checks them all.</p>
-      <p><b>HTTP 429</b> means Anthropic asked us to slow down. The app waits before asking again: 5 minutes, then twice as long each time, up to 1 hour.</p>
+    <details><summary>How often is usage checked? What does "Paused for a while" mean?</summary>
+      <p>Usage is checked every 10 minutes; an account in use is checked more often as it nears a limit, every minute from 90% of its 5-hour limit (or near its weekly limit). A used-up account is checked again after it resets. Switching to an account checks it at once; <b>Check all now</b> (Settings → Advanced) checks them all.</p>
+      <p><b>Paused for a while</b>: Anthropic asked the app to check less often. It waits 5 minutes, then longer each time (up to 1 hour). The figures shown stay as they were.</p>
     </details>
 
     <details><summary>How do I use the widget?</summary>
-      <p>Hover the tray icon to see the widget. To keep it on screen, right-click the icon and choose <b>Pin widget</b>; drag it anywhere.</p>
-      <p>The <b>CLI</b> and <b>Desktop</b> buttons next to an account switch that side to it. A click elsewhere on the hover widget opens the dashboard.</p>
+      <p>Hover the tray icon to see the widget. To keep it on screen, right-click the icon and choose <b>Keep widget on screen</b>; drag it anywhere.</p>
+      <p>The <b>Code</b> and <b>Desktop</b> buttons next to an account switch Claude Code (or Claude Desktop) to that account. A click elsewhere on an account opens its 5-hour and weekly chart; a second click closes it.</p>
     </details>
 
     <details><summary>How do updates work?</summary>
-      <p>The app checks GitHub releases for a new version every 3 days by itself, or when you click <b>Check for updates</b> in Settings or the tray menu.</p>
+      <p>The app checks for a new version every 3 days by itself, or when you click <b>Check for updates</b> in Settings or the tray menu.</p>
       <p>If <b>Install updates automatically</b> is ticked, a new version is installed by itself; otherwise click <b>Update to …</b> at the top. The app closes and starts again on the new version.</p>
     </details>
 
     <details><summary>Claude Code on Gemini (cgemini)</summary>
-      <p>The <code>cgemini</code> command runs Claude Code as usual, but its answers come from Google's Gemini models, paid for by a free Google AI Studio key. Your <code>claude</code> command and Claude logins stay as they are.</p>
-      <p>To set it up: click <b>+ Add Gemini account (free)</b>. Google AI Studio opens in your browser and the dashboard shows four steps, with pictures (below): 1. sign in with your Google account there (and accept Google's terms if asked); 2. the first time, there is no code yet: press <b>Create API key</b>; if it says "No Cloud Projects Available", choose <b>Create project</b>, press <b>Create project</b> again (keep the name), then <b>Create key</b>; 3. next to your access code (Google calls it an "API key"), press the <b>Copy</b> button, two small squares; 4. that's it: the dashboard picks it up by itself, checks it with Google and saves it. Then press <b>Use this</b> on the card: a window opens with Claude Code, and Gemini answers instead of Claude. (Or type <code>cgemini</code> in a new terminal: one opened before you added the key does not know it yet.) The dashboard must be running while you use it. Free has a daily limit (try again the next day) and can be slower than Claude.</p>
+      <p>The <code>cgemini</code> command runs Claude Code as usual, but its answers come from Google's Gemini models, paid for by a free Google AI Studio key. Your <code>claude</code> command and Claude sign-ins stay as they are.</p>
+      <p>To set it up: click <b>+ Add Gemini account (free)</b>. Google AI Studio opens in your browser and the dashboard shows the same steps, with pictures (below):</p>
+      <ol>
+        <li>Sign in with your Google account there (and accept Google's terms if asked).</li>
+        <li>The first time, there is no code yet: press <b>Create API key</b>. If it says "No Cloud Projects Available", choose <b>Create project</b>, press <b>Create project</b> again (keep the name), then <b>Create key</b>.</li>
+        <li>Next to your access code (Google calls it an "API key"), press the <b>Copy</b> button, two small squares.</li>
+        <li>That's it: the dashboard picks it up by itself, checks it with Google and saves it.</li>
+      </ol>
+      <p>Then press <b>Use this</b> on the card: a window opens with Claude Code, and Gemini answers instead of Claude. (Or type <code>cgemini</code> in a new terminal: one opened before you added the key does not know it yet.) The dashboard must be running while you use it. Free has a daily limit (try again the next day) and can be slower than Claude.</p>
       <p><b>Privacy:</b> With a free key, Google may read what you send through <code>cgemini</code>, your code too, and use it to improve its models. Do not use it for code that must stay private.</p>
       <p><img class="shot" src="img/gem-1-signin.png" alt="1. Google's sign-in page" width="680" height="390" loading="lazy">
         <img class="shot" src="img/gem-2-create.png" alt="2. No code yet: Create API key" width="900" height="400" loading="lazy">
@@ -76,7 +90,7 @@
         <img class="shot" src="img/gem-5-createkey.png" alt="2. Create key" width="600" height="352" loading="lazy">
         <img class="shot" src="img/gem-6-copy.png" alt="3. The Copy button next to the code" width="900" height="256" loading="lazy"></p>
       <p>The app reads the clipboard only while that window is open (10 minutes at most), and only keeps text that looks exactly like a Google key; anything else you copy is ignored, never saved or sent. If it does not pick it up, open <b>Or paste it here</b> in the window, paste the code and click <b>Done</b>.</p>
-      <p>Google sets the free tier's limits (requests per minute and per day) and can change them; AI Studio shows yours. When one is reached, Claude Code reports a rate limit: wait and try again. The card lets you pick another Gemini model (under <b>Advanced</b>). Only Flash models are free; the others say "may cost money".</p>
+      <p>Google sets the free tier's limits (requests per minute and per day) and can change them; AI Studio shows yours. When one is reached, Claude Code says it hit a limit: wait and try again. The card lets you pick another Gemini model (under <b>Advanced</b>). Only models with "Flash" in the name are free; the others say "may cost money".</p>
       <p>The key stays on this computer, in the app's state file (<code>%USERPROFILE%\.claude-usage-dashboard\state.json</code>), and is only ever sent to Google. The dashboard shows only its last 4 characters.</p>
       <p>To remove it: click <b>Remove</b> on the card. The key is deleted from this computer and <code>cgemini</code> stops working. To revoke the key itself, delete it in Google AI Studio.</p>
     </details>
@@ -87,11 +101,11 @@
     </details>
 
     <details><summary>Where is my data kept?</summary>
-      <p>Everything stays on this computer, in <code>%USERPROFILE%\.claude-usage-dashboard</code>. Sign-in tokens are only ever sent to Anthropic.</p>
+      <p>Everything stays on this computer, in <code>%USERPROFILE%\.claude-usage-dashboard</code>. Your sign-ins are only ever sent to Anthropic.</p>
     </details>
 
     <details><summary>Does it run on a Mac?</summary>
-      <p>Yes, for Claude Code (terminal and VS Code): figures, adding accounts, switching and auto-switch; its login is kept in the macOS Keychain. Start <code>scas</code> from Terminal and keep that window open; the dashboard is at <code>http://127.0.0.1:4777</code>. On a Mac there is no tray icon, Claude Desktop is not switched, and updates are downloaded by hand from the release page. Data is in <code>~/.claude-usage-dashboard</code>.</p>
+      <p>Yes, for Claude Code (terminal and VS Code): figures, adding accounts, switching and auto-switch; its sign-in is kept in the macOS Keychain. Start <code>scas</code> from Terminal and keep that window open; the dashboard is at <code>http://127.0.0.1:4777</code>. On a Mac there is no tray icon, Claude Desktop is not switched, and updates are downloaded by hand from the release page. Data is in <code>~/.claude-usage-dashboard</code>.</p>
     </details>
 
     <details><summary>How do I uninstall it?</summary>

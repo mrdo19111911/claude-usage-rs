@@ -1,6 +1,6 @@
 [package]
 name = "scas"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2021"
 
 [dependencies]
@@ -21,6 +21,8 @@ embed-resource = "3"
 
 # Closing and finding Claude Desktop for a desktop switch.
 [target.'cfg(windows)'.dependencies]
+# The dashboard in its own window (docs/specs/dashboard-window.md).
+wry = "0.57.2"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_UI_Controls",
@@ -30,6 +32,10 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
     # The tray icon and its widget (tray.rs); no console window (main).
     "Win32_Graphics_Gdi",
+    # Smooth chart lines in the gadget (tray/gdip.rs).
+    "Win32_Graphics_GdiPlus",
+    # The dashboard window's dark title bar (tray/dash.rs).
+    "Win32_Graphics_Dwm",
     "Win32_System_Console",
     "Win32_System_LibraryLoader",
     # The cgemini folder on the user's PATH (gemini/path_win.rs).
@@ -43,7 +49,6 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Ole",
     # Reading Claude Desktop's safeStorage token for usage figures (desktop/safe_storage.rs,
     # aes_gcm.rs): DPAPI unwrap of the app key, AES-256-GCM via BCrypt.
-    "Win32_Security_Cryptography",
 ] }
 
 # Windows/Linux: also trust the OS certificate store (company proxies). macOS uses the bundled roots.

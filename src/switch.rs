@@ -11,6 +11,9 @@ pub(crate) mod desktop_auto;
 // Renewing saved Desktop sign-ins at 4:00 (docs/specs/desktop-renew.md).
 #[path = "desktop_renew.rs"]
 pub(crate) mod desktop_renew;
+// The events-list wording of a Claude Code switch.
+#[path = "switch_text.rs"]
+pub(crate) mod text;
 
 impl App {
     // The tray's two hooks: the state its widget shows, and the switches its buttons ask
@@ -19,7 +22,7 @@ impl App {
     pub(crate) fn tray_hooks(self: &Arc<Self>) -> (tray::StateFn, tray::ActFn) {
         let (a, b) = (self.clone(), self.clone());
         let act = move |act: tray::Act| match act {
-            tray::Act::Cli(id) => b.activate(&id, "manual"),
+            tray::Act::Cli(id) => b.activate(&id, text::BY_YOU),
             tray::Act::Desktop(uuid) => b.start_desktop_switch(Some(uuid)),
             tray::Act::CheckUpdate => b.check_update(),
             tray::Act::InstallUpdate => b.install_update(),
@@ -47,7 +50,7 @@ impl App {
         let real = desktop::RealApp { data_dir: dir.clone() };
         #[cfg(windows)]
         if real.inside_claude() {
-            return Err("This dashboard was started from inside Claude, so closing Claude would stop it half-way. Start it from Explorer or the Start menu.".into());
+            return Err(text::OPENED_BY_CLAUDE.into());
         }
         #[cfg(not(windows))]
         return Err("Switching Claude Desktop works on Windows only.".into());
@@ -63,14 +66,18 @@ impl App {
                 let res = desktop::switch(&dir, &app.desktop_store, target.as_deref(), &real, now(), share.as_deref());
                 let mut st = app.st.lock().unwrap();
                 match res.as_ref().ok().and_then(|s| s.shared.as_ref()) {
-                    Some(Ok(n)) if n.any() => app.log(&mut st, format!("Claude Desktop: Code sessions shared ({} added, {} updated, {} removed)", n.added, n.updated, n.removed)),
-                    Some(Err(e)) => app.log(&mut st, format!("Claude Desktop: Code sessions not shared: {e}")),
+                    Some(Ok(n)) if n.any() => app.log(&mut st, text::chats_copied(n.added, n.updated, n.removed)),
+                    Some(Err(e)) => {
+                        // The raw path and OS error, for support; the events list says it plainly.
+                        eprintln!("Claude Desktop: Code sessions not shared: {e}");
+                        app.log(&mut st, text::CHATS_NOT_COPIED.into());
+                    }
                     _ => {}
                 }
                 let name = |st: &State, u: &str| st.desktop.iter().find(|d| d.uuid == u).map(|d| d.label.clone()).unwrap_or_else(|| u[..8].to_string());
                 let msg = match (&res, &target) {
                     (Ok(_), Some(t)) => format!("Claude Desktop: switched to {}", name(&st, t)),
-                    (Ok(_), None) => "Claude Desktop: signed out here; sign in to the account to add".to_string(),
+                    (Ok(_), None) => text::DESKTOP_SIGNED_OUT.to_string(),
                     (Err(e), _) => format!("Claude Desktop switch failed: {e}"),
                 };
                 app.log(&mut st, msg);
@@ -87,14 +94,14 @@ impl App {
     pub(crate) fn activate(&self, id: &str, reason: &str) -> Result<(), String> {
         let (creds, uuid) = {
             let st = self.st.lock().unwrap();
-            let a = st.accounts.iter().find(|a| a.id == id).ok_or("not found")?;
+            let a = st.accounts.iter().find(|a| a.id == id).ok_or(text::NOT_FOUND)?;
             (a.creds.clone(), a.account_uuid.clone())
         };
         // A login Anthropic refuses, or another account's, is never handed over.
         let checked = if self.demo { creds } else { self.verify_login(&creds, uuid.as_deref())? };
         let mut st = self.st.lock().unwrap();
         let acc = {
-            let a = st.accounts.iter_mut().find(|a| a.id == id).ok_or("not found")?;
+            let a = st.accounts.iter_mut().find(|a| a.id == id).ok_or(text::NOT_FOUND)?;
             a.creds = checked;
             a.error = None;
             a.clone()
@@ -114,7 +121,7 @@ impl App {
             // overwritten they are gone, and its stored refresh token may be spent.
             if let Some(live) = self.read_live() {
                 if !self.note_live(&mut st, &live) {
-                    return Err("Claude Code's current login is not identified yet; try again in a few seconds".into());
+                    return Err(text::STILL_READING.into());
                 }
             }
             self.write_live(&acc.creds)?;
@@ -124,7 +131,7 @@ impl App {
         }
         let from = st.active_id.as_ref().and_then(|f| st.accounts.iter().find(|a| &a.id == f)).map(|a| a.email.clone());
         st.active_id = Some(acc.id.clone());
-        self.log(&mut st, format!("Switched {} → {} ({reason})", from.unwrap_or("(none)".into()), acc.email));
+        self.log(&mut st, text::switched(from.as_deref(), &acc.email, reason));
         self.save(&st);
         Ok(())
     }
@@ -138,7 +145,7 @@ impl App {
             self::rank::Pick::Stay => None,
             self::rank::Pick::NoRoom(which) => {
                 let email = st.accounts.iter().find(|a| a.id == active).map(|a| a.email.clone()).unwrap_or_default();
-                let msg = format!("{email} hit {which} but no other account has room");
+                let msg = text::no_room(&email, &which);
                 if st.events.first().map(|e| &e.msg) != Some(&msg) {
                     self.log(st, msg);
                 }

@@ -17,6 +17,6 @@ function renderSettings() {
   $('#diag').textContent =
     `Claude Code login read from: ${S.loginFile} (${S.loginFound ? 'found' : 'NOT FOUND'})\n` +
     `Claude Code is signed in as: ${S.loginEmail || '?'}  (from ${S.claudeJson})\n` +
-    `Last poll: ${S.lastPollAt ? new Date(S.lastPollAt).toLocaleTimeString() : 'never'}\n\n` +
+    `Last check: ${S.lastPollAt ? new Date(S.lastPollAt).toLocaleTimeString() : 'never'}\n\n` +
     S.accounts.map(a => `${a.email}${a.id === S.activeId ? '  [ACTIVE]' : ''}\n  error: ${a.error || '-'}\n  Anthropic said: ${JSON.stringify(a.raw)}`).join('\n\n');
 }

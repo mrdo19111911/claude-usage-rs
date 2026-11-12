@@ -34,6 +34,7 @@
   tr.active td { background: var(--row-active); }
   .acct { display: flex; gap: 14px; align-items: center; }
   .email { font-weight: 600; word-break: break-all; }
+  .email.full { color: var(--red); } .email.low { color: var(--amber); }
   .meta { color: var(--muted); font-size: 13.5px; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: middle; }
   .pill { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-weight: 600; white-space: nowrap; }
@@ -63,7 +64,7 @@
   .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .tip { position: absolute; pointer-events: none; background: #0d0d0e; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; display: none; z-index: 2; }
   .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
-  /* The two separate logins: Claude CLI (terminal + VS Code) and Claude Desktop. */
+  /* The two separate logins: Claude Code (terminal + VS Code) and Claude Desktop. */
   :root { --code: #2bb5a8; --desk: #a37cf0; }
   .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
   /* min-width 0: the switch menu's long options would push the panel off a phone screen. */

@@ -1,7 +1,11 @@
 // The widget's sections (docs/specs/modules.md, "Widget v2"): the in-use card, the
-// "Switch to" rows, the "Full · free again" rows. layout.rs puts them in order.
+// "Switch to" rows, the "Used up · available at" rows. layout.rs puts them in order.
 
 use super::*;
+
+// Claude Code's chip and button label (docs/REVIEW_DE_HIEU.md, "Names to use everywhere").
+pub(super) const CODE_LABEL: &str = "Code";
+use super::words::{available_at, figures, resets, FIGS_KEY, IN_USE, NOT_CHECKED, NO_USE, SWITCH_TO, USED_UP};
 
 const CARD: u32 = rgb(0x23, 0x2a, 0x31);
 // The pace tick on a card's bars.
@@ -15,15 +19,16 @@ pub(super) fn short(e: &str) -> &str {
     }
 }
 
-// The in-use card(s) from `y`: one for both sides on one account, else one per side
+// IN_USE, then the in-use card(s): one for both sides on one account, else one per side
 // (none for a missing Claude Desktop). Returns the y under them.
 pub(super) unsafe fn in_use(p: &Painter, m: &Model, w: i32, y: i32, draw: bool) -> i32 {
+    let y = title(p, IN_USE, y, draw);
     let gap = p.px(8.0);
     if let (true, Some(d)) = (same_account(m), &m.desk) {
         let both = Side { email: m.cli.email.clone().or(d.email.clone()), usage: m.cli.usage.clone().or(d.usage.clone()) };
-        return card(p, m, &both, &[("CLI", CODE), ("Desktop", DESK)], w, y, draw) + gap;
+        return card(p, m, &both, &[(CODE_LABEL, CODE), ("Desktop", DESK)], w, y, draw) + gap;
     }
-    let mut y = card(p, m, &m.cli, &[("CLI", CODE)], w, y, draw) + gap;
+    let mut y = card(p, m, &m.cli, &[(CODE_LABEL, CODE)], w, y, draw) + gap;
     if let Some(d) = &m.desk {
         y = card(p, m, d, &[("Desktop", DESK)], w, y, draw) + gap;
     }
@@ -62,7 +67,7 @@ unsafe fn card(p: &Painter, m: &Model, sd: &Side, chips: &[(&str, u32)], w: i32,
     let mut yy = y + p.px(30.0);
     let Some(u) = &sd.usage else {
         if sd.email.is_some() {
-            p.text_mid(cl, yy + p.px(17.0), "No figures yet", MUTED, NORMAL);
+            p.text_mid(cl, yy + p.px(17.0), NOT_CHECKED, MUTED, NORMAL);
         }
         return bottom;
     };
@@ -71,9 +76,9 @@ unsafe fn card(p: &Painter, m: &Model, sd: &Side, chips: &[(&str, u32)], w: i32,
         p.text_mid(cl, cy, label, MUTED, NORMAL);
         p.text_mid(cl + p.px(54.0), cy, &format!("{}%", win.u), TEXT, BOLD);
         if let Some(t) = win.reset.filter(|&t| t > m.now) {
-            p.text_mid_right(cr, cy, &format!("{} · {}", left(t - m.now), clock(t, m.now)), MUTED, SMALL);
+            p.text_mid_right(cr, cy, &resets(t, m.now), MUTED, SMALL);
         } else if win.reset.is_none() {
-            p.text_mid_right(cr, cy, "not started yet", MUTED, SMALL);
+            p.text_mid_right(cr, cy, NO_USE, MUTED, SMALL);
         }
         let bt = yy + p.px(30.0);
         p.bar(cl, bt, cr, bt + p.px(6.0), win.u);
@@ -94,13 +99,16 @@ unsafe fn title(p: &Painter, s: &str, y: i32, draw: bool) -> i32 {
     y + p.px(22.0)
 }
 
-// "SWITCH TO": name, 5h and week bars, figures, the CLI / Desktop buttons. Sets the
+// SWITCH_TO: name, 5-hour and weekly bars, figures, the Code / Desktop buttons. Sets the
 // widget's buttons (none when the list is empty). Returns the y under the rows.
 pub(super) unsafe fn switch_to(p: &Painter, m: &Model, list: &[&Other], pinned: bool, w: i32, y: i32, draw: bool) -> i32 {
     let mut all = vec![];
-    let mut y = if list.is_empty() { y } else { title(p, "SWITCH TO", y, draw) };
     let (l, tr) = (p.px(14.0), text_right(w, p.s));
-    let (br, bl) = (tr - p.px(48.0), tr - p.px(48.0 + 54.0));
+    if draw && !list.is_empty() {
+        p.text_mid_right(tr, y + p.px(13.0), FIGS_KEY, MUTED, SMALL);
+    }
+    let mut y = if list.is_empty() { y } else { title(p, SWITCH_TO, y, draw) };
+    let (br, bl) = (tr - p.px(66.0), tr - p.px(66.0 + 40.0)); // figures up to "100% · 100%"
     for o in list {
         let b = row_buttons(m, o, w, p.s, y + p.px(3.0));
         if draw {
@@ -110,12 +118,11 @@ pub(super) unsafe fn switch_to(p: &Painter, m: &Model, list: &[&Other], pinned: 
             let (five, week) = o.usage.as_ref().map_or((0, 0), |u| (u.five.u, u.week.u));
             p.bar(bl, cy - p.px(5.0), br, cy - p.px(1.0), five);
             p.bar(bl, cy + p.px(1.0), br, cy + p.px(5.0), week);
-            let figs = o.usage.as_ref().map_or("—".into(), |u| format!("{} · {}%", u.five.u, u.week.u));
-            p.text_mid_right(tr, cy, &figs, MUTED, SMALL);
+            p.text_mid_right(tr, cy, &figures(o.usage.as_ref()), MUTED, SMALL);
             draw_buttons(p, &b);
         }
         all.extend(b);
-        y += p.px(24.0);
+        y = row_end(p, m, o, pinned, w, y, p.px(24.0), draw);
     }
     if draw {
         // Where the widget finds the buttons on a click.
@@ -124,19 +131,28 @@ pub(super) unsafe fn switch_to(p: &Painter, m: &Model, list: &[&Other], pinned: 
     y
 }
 
-// "FULL · FREE AGAIN": muted name and when the account is usable again ("?": unknown).
-pub(super) unsafe fn full_rows(p: &Painter, m: &Model, list: &[(&Other, i64)], w: i32, y: i32, draw: bool) -> i32 {
-    let mut y = if list.is_empty() { y } else { title(p, "FULL · FREE AGAIN", y, draw) };
+// USED_UP: muted name and when the account can be used again.
+pub(super) unsafe fn full_rows(p: &Painter, m: &Model, list: &[(&Other, i64)], pinned: bool, w: i32, y: i32, draw: bool) -> i32 {
+    let mut y = if list.is_empty() { y } else { title(p, USED_UP, y, draw) };
     let (l, r) = (p.px(14.0), w - p.px(14.0));
     for (o, t) in list {
         if draw {
             let cy = y + p.px(11.0);
-            let at = if *t == i64::MAX { "?".to_string() } else { clock(*t, m.now) };
+            let at = available_at(*t, m.now);
             let aw = p.width_of(&at, SMALL);
             p.text_mid(l, cy, &p.fitted(short(&o.email), NORMAL, r - aw - p.px(8.0) - l), MUTED, NORMAL);
             p.text_mid_right(r, cy, &at, MUTED, SMALL);
         }
-        y += p.px(22.0);
+        y = row_end(p, m, o, pinned, w, y, p.px(22.0), draw);
     }
     y
+}
+
+// Under a row `h` tall from `y`: a click on it opens its chart (rows.rs), drawn here when
+// open. Returns the y under both.
+unsafe fn row_end(p: &Painter, m: &Model, o: &Other, pinned: bool, w: i32, y: i32, h: i32, draw: bool) -> i32 {
+    if draw {
+        add_row(pinned, RECT { left: 0, top: y, right: w, bottom: y + h }, &o.id);
+    }
+    if is_open(&o.id) { row_chart(p, m, o, w, y + h, draw) } else { y + h }
 }

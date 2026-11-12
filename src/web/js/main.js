@@ -21,9 +21,9 @@ $('#viewToggle').onclick = () => { tableView = !tableView; $('#viewToggle').text
 $('#refresh').onclick = () => act(api('/api/refresh', { method: 'POST' }));
 $('#import').onclick = () => act(api('/api/import', { method: 'POST' }));
 $('#exit').onclick = () => {
-  if (!confirm('Stop the dashboard? Checks and auto-switch stop until you start it again.')) return;
+  if (!confirm('Close Smartlog Claude Auto Switch? Usage checks and auto-switch stop until you open it again.')) return;
   api('/api/exit', { method: 'POST' }).then(() => {
-    document.querySelector('main').innerHTML = '<section class="card"><h2>Dashboard stopped</h2><p class="note">Start scas.exe again to bring it back.</p></section>';
+    document.querySelector('main').innerHTML = '<section class="card"><h2>App stopped</h2><p class="note">Open Smartlog Claude Auto Switch from the Start menu to start it again.</p></section>';
   }).catch(e => alert(e.message));
 };
 for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'shareDesktopSessions', 'useSoonestReset', 'renewDesktop']) {
@@ -66,22 +66,21 @@ function run(ds) {
   else if (ds.signin !== undefined) signIn(ds.signin);
   else if (ds.dswitch) {
     const d = S.desktop.accounts.find(x => x.uuid === ds.dswitch);
-    if (confirm(`Claude Desktop will close and open again on ${d.email || d.label}. Running tasks stop. Go on?`))
+    if (confirm(`Claude Desktop will restart signed in as ${d.email || d.label}. Any reply in progress is cut off. Continue?`))
       act(api(`/api/desktop/${d.uuid}/switch`, { method: 'POST' }));
   } else if (ds.dfirst !== undefined) {
-    if (confirm(`Claude Desktop will close and open signed out (running tasks stop). Then click “Continue with Google” in it and choose ${ds.dfirst || 'the account'}. Go on?`))
+    if (confirm(`Claude Desktop will restart signed out. Any reply in progress is cut off. Then sign in there with ${ds.dfirst || 'the account to add'}. Continue?`))
       act(api('/api/desktop/add', { method: 'POST', body: JSON.stringify({ email: ds.dfirst }) }));
   } else if (ds.remove || ds.dremove) {
-    // A card's ✕: its Claude CLI login and its saved Desktop sign-in, each where not in use.
-    const what = [ds.remove && 'its Claude CLI login', ds.dremove && 'its saved Claude Desktop sign-in'].filter(Boolean).join(' and ');
-    if (!confirm(`Remove ${what} from the dashboard?`)) return;
+    // A card's ✕: its Claude Code sign-in and its saved Desktop sign-in, each where not in use.
+    if (!confirm('Remove this account from the app? (Your Claude account is not deleted.)')) return;
     let p = Promise.resolve();
     if (ds.remove) p = p.then(() => api(`/api/accounts/${ds.remove}`, { method: 'DELETE' }));
     if (ds.dremove) p = p.then(() => api(`/api/desktop/${ds.dremove}`, { method: 'DELETE' }));
     act(p);
   }
 }
-// The cards' switches: may auto-switch move Claude CLI / Claude Desktop to this account.
+// The cards' switches: may auto-switch move Claude Code / Claude Desktop to this account.
 $('#accts').addEventListener('change', e => {
   const id = e.target.dataset.toggle, uuid = e.target.dataset.dauto, body = JSON.stringify({ enabled: e.target.checked });
   if (id) act(api(`/api/accounts/${id}/toggle`, { method: 'POST', body }));

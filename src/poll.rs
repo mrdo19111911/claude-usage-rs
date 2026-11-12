@@ -6,14 +6,18 @@ use crate::*;
 #[path = "schedule.rs"]
 pub(crate) mod schedule;
 pub(crate) use schedule::*;
+// When a parked account's sign-in may be refreshed (docs/specs/idle-refresh.md).
+#[path = "idle_refresh.rs"]
+pub(crate) mod idle_refresh;
 
 impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
-        let (creds, is_active, account_uuid, slow_until, in_use) = {
+        let (creds, is_active, account_uuid, slow_until, in_use, need, left_at) = {
             let st = self.st.lock().unwrap();
+            let need = idle_refresh::needed(&st.accounts, now());
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) if force || now() >= a.next_check => {
-                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use)
+                Some(a) if force || now() >= a.next_check || (need && a.waiting) => {
+                    (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use, need, a.left_at)
                 }
                 _ => return,
             }
@@ -26,19 +30,19 @@ impl App {
         // Also the live login when it is not identified yet (active_id is then None).
         let rt = creds.get("refreshToken").filter(|v| v.is_string());
         let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
-        // The live Claude CLI token is never refreshed here; when it has expired, read the
-        // figures from Claude Desktop's own token for this account (docs/specs/desktop-token.md).
-        // The stored refresh token is single-use: Claude Desktop (or, for the live login,
-        // Claude Code) can spend it out from under us, so a refresh/auth failure here does
-        // NOT mean the account is unusable. When Claude Desktop holds a live token for this
-        // account, read its usage from there instead (docs/specs/desktop-token-fallback.md).
-        let res = match self.fetch_usage(&creds, !is_live) {
-            Err(e) if wants_desktop_fallback(&e, is_live) => match self.desktop_usage(account_uuid.as_deref()) {
-                Some(j) => Ok((j, None)),
-                None => Err(e),
-            },
-            other => other,
-        };
+        // The live Claude Code token is never refreshed here: when it has expired, its
+        // figures wait until Claude Code renews it. Claude Desktop's tokens are never read
+        // (docs/specs/no-foreign-credentials.md).
+        // A parked account's sign-in is refreshed only when needed (docs/specs/idle-refresh.md);
+        // until then one whose token has run out waits, its last figures standing.
+        let allow = !is_live && idle_refresh::may_refresh(need, force, left_at, now());
+        if !is_live && !allow && crate::creds::expires_soon(&creds) {
+            return self.wait_for_refresh(id);
+        }
+        let res = self.fetch_usage(&creds, allow);
+        if !is_live && !allow && matches!(&res, Err(ApiErr::Other(m)) if m.contains("Claude Code renews")) {
+            return self.wait_for_refresh(id);
+        }
         // Accounts saved by older versions were named after ~/.claude.json, which can
         // be another account's: ask once whose the token is. Not tied to the usage
         // answer: the usage endpoint can be rate-limited (429) while this one answers.
@@ -78,6 +82,7 @@ impl App {
                 a.usage = Some(u);
                 logged = usage_log::figures(a, active_now);
                 a.error = None;
+                a.waiting = false;
                 a.raw = j;
                 a.slow_strikes = 0;
             }
@@ -101,6 +106,16 @@ impl App {
         }
     }
 
+    // A parked account not refreshed yet: no request, no error; asked again later, or at once
+    // when an account in use nears a limit (poll_all).
+    fn wait_for_refresh(&self, id: &str) {
+        let mut st = self.st.lock().unwrap();
+        if let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) {
+            a.waiting = true;
+            a.next_check = now() + SLOWEST_MS;
+        }
+    }
+
     // `force`: every account now (Refresh now); else only those whose next check is due.
     pub(crate) fn poll_all(self: &Arc<Self>, force: bool) {
         if self.demo || self.polling.swap(true, Ordering::SeqCst) {
@@ -113,7 +128,8 @@ impl App {
             let t = now();
             let (active, desk) = (st.active_id.clone(), self.desktop_dir.as_deref().and_then(desktop::signed_in));
             mark_in_use(&mut st.accounts, active.as_deref(), desk.as_deref(), t);
-            st.accounts.iter().filter(|a| force || t >= a.next_check).map(|a| a.id.clone()).collect()
+            let need = idle_refresh::needed(&st.accounts, t);
+            st.accounts.iter().filter(|a| force || t >= a.next_check || (need && a.waiting)).map(|a| a.id.clone()).collect()
         };
         if ids.is_empty() {
             // The 4:00 renewal is checked on quiet polls too (docs/specs/desktop-renew.md).
@@ -129,7 +145,11 @@ impl App {
         if let Some((id, reason)) = next {
             if let Err(e) = self.activate(&id, &reason) {
                 let mut st = self.st.lock().unwrap();
-                self.log(&mut st, format!("Auto-switch failed: {e}"));
+                // A 429 says "waited"; the same line twice in a row is not repeated.
+                let msg = crate::switch::text::auto_failed(&e);
+                if st.events.first().map(|e| &e.msg) != Some(&msg) {
+                    self.log(&mut st, msg);
+                }
             }
         }
         // Then Claude Desktop's, when its account is at 100% (desktop_auto.rs).
@@ -168,16 +188,4 @@ pub(crate) fn thin_history(h: &[(i64, i64, i64)], t: i64) -> Vec<(i64, i64, i64)
         }
     }
     out
-}
-
-// A usage fetch failed. The stored token may just be stale or spent (refresh-token rotation),
-// not the account dead, so it is worth trying Claude Desktop's own live token for it. True for
-// an auth failure (refresh refused / 401), or the live login whose token Claude Code must
-// renew; never for a 429 (respect the back-off) or a transient server/network error.
-pub(crate) fn wants_desktop_fallback(e: &ApiErr, is_live: bool) -> bool {
-    match e {
-        ApiErr::Auth(_) => true,
-        ApiErr::Other(m) => is_live && m.contains("Claude Code renews"),
-        ApiErr::Slow(_) => false,
-    }
 }

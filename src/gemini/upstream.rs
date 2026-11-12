@@ -41,6 +41,15 @@ pub(crate) fn google_message(body: &str) -> String {
     }
 }
 
+// Google's answer to a key it did not take, in plain words (the raw one goes to stderr):
+// refused for a 4xx, else (429, 5xx) not checked just now.
+pub(crate) fn key_refused(code: u16) -> String {
+    match code {
+        400..=499 if code != 429 => "Google did not accept this access code.".into(),
+        _ => "Google could not check this access code just now. Try again shortly.".into(),
+    }
+}
+
 // The check when a key is saved: the models it can generate with (10 s at most), or
 // Google's reason for refusing it.
 pub(crate) fn list_models(key: &str) -> Result<Vec<String>, String> {
@@ -57,7 +66,8 @@ pub(crate) fn list_models(key: &str) -> Result<Vec<String>, String> {
         }
         Err(ureq::Error::Status(code, r)) => {
             let msg = google_message(&r.into_string().unwrap_or_default());
-            Err(format!("Google refused the key ({code}): {msg}"))
+            eprintln!("Google refused the key ({code}): {msg}");
+            Err(key_refused(code))
         }
         Err(e) => Err(format!("Could not reach Google: {e}")),
     }

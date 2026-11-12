@@ -14,7 +14,7 @@ pub(crate) const RETRY_MS: i64 = 2 * MIN;
 
 // How near a limit, in 5-hour points: the 5-hour %, or the weekly one counted as 5-hour
 // points (1% of a week is about K% of 5 hours).
-fn nearness(u: &Usage) -> f64 {
+pub(crate) fn nearness(u: &Usage) -> f64 {
     (u.five.u as f64).max(100.0 - (100 - u.week.u) as f64 * K)
 }
 
@@ -41,6 +41,9 @@ pub(crate) fn mark_in_use(v: &mut [Account], active: Option<&str>, desk: Option<
         let on = active == Some(a.id.as_str()) || (desk.is_some() && a.account_uuid.as_deref() == desk);
         if on == a.in_use {
             continue;
+        }
+        if a.in_use && !on {
+            a.left_at = t;
         }
         a.in_use = on;
         if a.error.is_none() {

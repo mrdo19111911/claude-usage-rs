@@ -11,6 +11,7 @@ mod desktop;
 mod gemini;
 mod lock;
 mod login;
+mod mobile; // phone feed, not started yet (docs/specs/mobile-feed.md)
 #[cfg(windows)]
 mod tray;
 mod web;
@@ -25,7 +26,7 @@ mod poll;
 mod port;
 mod server;
 mod signin;
-mod state_json;
+mod state_json; mod state_load;
 mod switch;
 mod sync;
 mod update;
@@ -129,9 +130,7 @@ fn main() {
         let mut st = app.st.lock().unwrap();
         if demo {
             *st = demo_state(&app);
-        } else if let Some(s) = fs::read_to_string(&app.data_file).ok().and_then(|s| serde_json::from_str(&s).ok()) {
-            *st = s;
-        }
+        } else { app.load_saved(&mut st) } // never saves over a file it could not read (state_load.rs)
         app.start_usage_log(&mut st); // trims it to 60 days or seeds it (usage_log.rs)
     }
     gemini::start(&app); // cgemini.cmd again, for this run's port
@@ -143,9 +142,8 @@ fn main() {
         println!("Claude Code login: {}", if app.keychain { "macOS Keychain".into() } else { app.creds_file.display().to_string() });
         println!("Claude Desktop data: {}", app.desktop_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_else(|| "not found".into()));
     }
-    if !no_open {
-        open_browser(&url);
-    }
+    #[cfg(not(windows))]
+    if !no_open { open_browser(&url) }
     #[cfg(windows)]
     {
         println!("Running in the tray: hover its icon for the figures, right-click it to quit.");
@@ -160,6 +158,7 @@ fn main() {
         }
         let (state, act) = app.tray_hooks();
         tray::start(state, act, url.clone(), data_dir.clone());
+        if !no_open { tray::request_open() } // in its own window (docs/specs/dashboard-window.md)
     }
     #[cfg(not(windows))]
     println!("Keep this window open. Ctrl+C to stop.");

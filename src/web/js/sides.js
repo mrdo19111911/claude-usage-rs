@@ -1,13 +1,13 @@
-// The "In use now" panels: Claude CLI and Claude Desktop, or one panel when both use one
+// The "In use now" panels: Claude Code and Claude Desktop, or one panel when both use one
 // account (docs/specs/account-cards.md, "Less space").
 // Parts: whereTags, usageHint, paneWidth, sideBody, emailLine, control, side, both, renderSides.
 
 // Where an account is in use, one colored tag per login.
 function whereTags(code, desk) {
-  return (code ? '<span class="tag code sm">Claude CLI</span>' : '') + (desk ? '<span class="tag desk sm">Claude Desktop</span>' : '');
+  return (code ? '<span class="tag code sm">Claude Code</span>' : '') + (desk ? '<span class="tag desk sm">Claude Desktop</span>' : '');
 }
 
-function usageHint(u) { return u ? ` · 5h ${u.five.u}% · week ${u.week.u}%` : ''; }
+function usageHint(u) { return u ? ` · 5-hour ${effWin(u.five).u}% · weekly ${effWin(u.week).u}%` : ''; }
 
 // A pane's width in pixels: the panel's inside, halved when the two panes sit side by side.
 function paneWidth() {
@@ -45,8 +45,8 @@ function side(kind, title, sub, email, body, note, opts, busy) {
 // Both apps on one account: one panel, the account's charts once, then each app's note
 // and menu side by side. `code`, `desk`: [note, opts, busy].
 function both(email, body, code, desk) {
-  return `<div class="side-head"><span class="tag code">Claude CLI</span><span class="tag desk">Claude Desktop</span><span class="note">Both on this account</span></div>
-    ${emailLine(email)}${body}<div class="ctls">${control('code', 'Claude CLI', ...code)}${control('desk', 'Claude Desktop', ...desk)}</div>`;
+  return `<div class="side-head"><span class="tag code">Claude Code</span><span class="tag desk">Claude Desktop</span><span class="note">Both apps use this account</span></div>
+    ${emailLine(email)}${body}<div class="ctls">${control('code', 'Claude Code', ...code)}${control('desk', 'Claude Desktop', ...desk)}</div>`;
 }
 
 function renderSides() {
@@ -54,19 +54,19 @@ function renderSides() {
   if (hovering || $('#sides').contains(document.activeElement)) return;
   const D = S.desktop, s = S.settings, now = Date.now() - clockSkew;
   const cur = S.accounts.find(a => a.id === S.activeId);
-  const codeOpts = S.accounts.filter(a => a !== cur).map(a => [`activate:${a.id}`, a.email + usageHint(a.usage) + (a.enabled ? '' : ' · off')]);
-  const code = [s.autoSwitch ? [`Auto-switch at ${s.threshold}% 5-hour · ${s.weekThreshold ?? 99}% weekly`, `Auto-switch moves it to another account at ${s.threshold}% (5-hour) or ${s.weekThreshold ?? 99}% (weekly).`]
-    : ['Auto-switch is off', 'Auto-switch is off: Claude CLI stays on its account.'], codeOpts, false];
+  const codeOpts = S.accounts.filter(a => a !== cur).map(a => [`activate:${a.id}`, a.email + usageHint(a.usage) + (a.enabled ? '' : ' · auto-switch off')]);
+  const code = [s.autoSwitch ? [`Auto-switch at ${s.threshold}% (5-hour) or ${s.weekThreshold ?? 99}% (weekly)`, `Auto-switch moves it to another account at ${s.threshold}% (5-hour) or ${s.weekThreshold ?? 99}% (weekly).`]
+    : ['Auto-switch is off', 'Auto-switch is off: Claude Code stays on its account.'], codeOpts, false];
   const found = D.found && !S.demo;
   const dcur = found && D.accounts.find(d => d.signedIn);
   const da = dcur && S.accounts.find(a => a.uuid && a.uuid === dcur.uuid);
   const same = !!(cur && da && cur === da);
   $('#sides').classList.toggle('both', same);
-  const codeSide = () => side('code', 'Claude CLI', 'Terminal and VS Code: one shared login', cur && cur.email, sideBody(cur, cur && cur.usage, now), ...code);
+  const codeSide = () => side('code', 'Claude Code', 'Terminal and VS Code: one shared sign-in', cur && cur.email, sideBody(cur, cur && cur.usage, now), ...code);
   if (!found) {
     const nf = D.supported === false ? 'Switching Claude Desktop works on Windows only.' : 'Claude Desktop was not found on this computer.';
     $('#sideCode').innerHTML = codeSide();
-    $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', null, '', [nf, nf], [], true);
+    $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Signs in separately', null, '', [nf, nf], [], true);
     return;
   }
   const deskOpts = accountRows().filter(r => !(r.d && r.d.signedIn)).map(({ a, d }) => {
@@ -75,10 +75,10 @@ function renderSides() {
     return [`dfirst:${email}`, email + (d && d.signInExpired ? ' · sign-in expired: sign in again' : ' · first time: sign in once')];
   });
   // Its auto-switch point is desktop_auto.rs DESKTOP_AT.
-  const restart = 'Switching closes the app and opens it again (running tasks stop).', moving = 'Closing and opening again on the new account…';
+  const restart = 'Switching restarts Claude Desktop; any reply in progress is cut off.', moving = 'Restarting on the new account…';
   const dnote = D.switching ? [moving, moving]
-    : s.autoSwitch ? ['Auto-switch at 98% · switching restarts it', 'Auto-switch moves it at 98% (5-hour or weekly), to accounts whose Desktop auto-switch is on. ' + restart]
-    : ['Auto-switch is off · switching restarts it', 'Auto-switch is off. ' + restart];
+    : s.autoSwitch ? ['Auto-switch at 98% · switching restarts the app', 'Auto-switch moves it at 98% (5-hour or weekly), to accounts that allow auto-switch. ' + restart]
+    : ['Auto-switch is off · switching restarts the app', 'Auto-switch is off. ' + restart];
   const desk = [dnote, deskOpts, D.switching];
   if (same) {
     $('#sideCode').innerHTML = both(cur.email, sideBody(cur, cur.usage, now), code, desk);
@@ -86,5 +86,5 @@ function renderSides() {
     return;
   }
   $('#sideCode').innerHTML = codeSide();
-  $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', dcur && (dcur.email || dcur.label), sideBody(da, dcur && dcur.usage, now), ...desk);
+  $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Signs in separately', dcur && (dcur.email || dcur.label), sideBody(da, dcur && dcur.usage, now), ...desk);
 }

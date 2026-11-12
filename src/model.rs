@@ -100,6 +100,12 @@ pub(crate) struct Account {
     // In use now (the Claude CLI login, or Claude Desktop's account): set by mark_in_use.
     #[serde(skip)]
     pub(crate) in_use: bool,
+    // When it last stopped being in use (ms; 0: not this run), and whether it waits for a
+    // refresh it was not allowed yet (docs/specs/idle-refresh.md).
+    #[serde(skip)]
+    pub(crate) left_at: i64,
+    #[serde(skip)]
+    pub(crate) waiting: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

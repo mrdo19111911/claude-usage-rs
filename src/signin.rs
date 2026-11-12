@@ -40,7 +40,10 @@ impl App {
             .post(TOKEN_URLS[0])
             .send_json(login::exchange_body(&p, &code, CLIENT_ID, self.port))
             .map_err(|e| match e {
-                ureq::Error::Status(c, r) => format!("Anthropic refused the sign-in ({c}): {}", r.into_string().unwrap_or_default().chars().take(200).collect::<String>()),
+                ureq::Error::Status(c, r) => {
+                    eprintln!("Anthropic refused the sign-in ({c}): {}", r.into_string().unwrap_or_default().chars().take(200).collect::<String>());
+                    SIGN_IN_REFUSED.to_string()
+                }
                 e => e.to_string(),
             })?
             .into_json()
@@ -83,8 +86,10 @@ impl App {
                 slow_strikes: 0,
                 next_check: 0,
                 in_use: false,
+                left_at: 0,
+                waiting: false,
             });
-            format!("Added {email} (signed in in the browser)")
+            added_in_browser(&email)
         };
         if !msg.ends_with("it is here already.") {
             self.log(&mut st, msg.clone());
@@ -94,10 +99,23 @@ impl App {
     }
 }
 
-// What the browser shows after signing in.
+// Anthropic refused the code exchange; the raw answer goes to stderr.
+pub(crate) const SIGN_IN_REFUSED: &str = "Anthropic did not accept the sign-in. Close this tab and click + Add account again.";
+
+// The events-list line of a new account: signed in in the browser, or noticed in Claude Code.
+pub(crate) fn added_in_browser(email: &str) -> String {
+    format!("Added {email}")
+}
+
+pub(crate) fn added_from_code(email: &str) -> String {
+    format!("Added {email} (new Claude Code sign-in)")
+}
+
+// What the browser shows after signing in: "Account added" only for a new account.
 pub(crate) fn login_page(ok: bool, msg: &str, port: u16) -> String {
     let esc = msg.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-    let (title, color) = if ok { ("Account added", "#3fb950") } else { ("Sign-in not completed", "#f85149") };
+    let title = if !ok { "Sign-in not completed" } else if msg.starts_with("Added ") { "Account added" } else { "Signed in" };
+    let color = if ok { "#3fb950" } else { "#f85149" };
     format!(
         r#"<!doctype html><meta charset="utf-8"><title>{title}</title>
 <body style="font:16px system-ui;background:#0d1117;color:#e6edf3;display:grid;place-items:center;height:100vh;margin:0">

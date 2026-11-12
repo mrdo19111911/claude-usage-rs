@@ -3,13 +3,13 @@
 
 use super::*;
 
-// How old the newest figures are, for the header: "· just now", "· 3 min ago", "· 2 h ago".
+// How old the newest figures are, for the footer: "updated 3 min ago" (also just now, h, d).
 pub(super) fn ago(checked: i64, now: i64) -> String {
     match (now - checked).max(0) / 60_000 {
-        0 => "· just now".into(),
-        m @ 1..=59 => format!("· {m} min ago"),
-        m @ 60..=1439 => format!("· {} h ago", m / 60),
-        m => format!("· {} d ago", m / 1440),
+        0 => "updated just now".into(),
+        m @ 1..=59 => format!("updated {m} min ago"),
+        m @ 60..=1439 => format!("updated {} h ago", m / 60),
+        m => format!("updated {} d ago", m / 1440),
     }
 }
 
@@ -35,12 +35,15 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
         SetBkMode(dc, TRANSPARENT as i32);
         p.fill(0, 0, w, 10_000, BG);
     }
-    let mut y = header(&p, m, pinned, w, draw);
+    if draw {
+        clear_rows(pinned);
+    }
+    let mut y = header(&p, pinned, w, draw);
     y = in_use(&p, m, w, y, draw);
     let (free, full) = split_others(m);
     y = switch_to(&p, m, &free, pinned, w, y, draw);
-    y = full_rows(&p, m, &full, w, y, draw);
-    y = footer(&p, pinned, w, y, draw);
+    y = full_rows(&p, m, &full, pinned, w, y, draw);
+    y = footer(&p, m, pinned, w, y, draw);
     if draw {
         // Border last, over everything, along the window's rounded corners.
         p.outline(0, 0, w, y, p.px(10.0), BORDER);
@@ -52,15 +55,16 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
     y
 }
 
-// "Claude usage · 3 min ago" and the pin button (widget::button). Returns the y under it.
-unsafe fn header(p: &Painter, m: &Model, pinned: bool, w: i32, draw: bool) -> i32 {
+// The header's title: the app's name.
+const TITLE: &str = words::APP;
+
+// The app's name and the pin button (widget::button); how old the figures are is in the
+// footer, as the name leaves no room. Returns the y under it.
+unsafe fn header(p: &Painter, pinned: bool, w: i32, draw: bool) -> i32 {
     let b = button(p.s, w);
     if draw {
         let (pad, cy) = (p.px(14.0), (b.top + b.bottom) / 2);
-        p.text_mid(pad, cy, "Claude usage", TEXT, BOLD);
-        if let Some(t) = m.checked {
-            p.text_mid(pad + p.width_of("Claude usage", BOLD) + p.px(5.0), cy, &ago(t, m.now), MUTED, NORMAL);
-        }
+        p.text_mid(pad, cy, TITLE, TEXT, BOLD);
         let on = hot(pinned, &b);
         if on {
             p.round(b.left, b.top, b.right, b.bottom, p.px(6.0), TRACK);
@@ -71,9 +75,10 @@ unsafe fn header(p: &Painter, m: &Model, pinned: bool, w: i32, draw: bool) -> i3
     b.bottom + p.px(8.0)
 }
 
-// A line above, then "Open dashboard" and the external-link glyph; the whole line is the
-// link (buttons::set_footer). Returns the widget's bottom.
-unsafe fn footer(p: &Painter, pinned: bool, w: i32, y: i32, draw: bool) -> i32 {
+// A line above, then "Open dashboard" and the external-link glyph, and on the right how
+// old the figures are; the whole line is the link (buttons::set_footer). Returns the
+// widget's bottom.
+unsafe fn footer(p: &Painter, m: &Model, pinned: bool, w: i32, y: i32, draw: bool) -> i32 {
     let y = y + p.px(4.0);
     let r = RECT { left: 0, top: y + 1, right: w, bottom: y + 1 + p.px(32.0) };
     if draw {
@@ -82,6 +87,10 @@ unsafe fn footer(p: &Painter, pinned: bool, w: i32, y: i32, draw: bool) -> i32 {
         let c = if hot(pinned, &r) { TEXT } else { MUTED };
         p.text_mid(pad, cy, "Open dashboard", c, NORMAL);
         p.text_mid(pad + p.width_of("Open dashboard", NORMAL) + p.px(6.0), cy, "\u{E8A7}", c, ICON);
+        if let Some(t) = m.checked {
+            let a = ago(t, m.now);
+            p.text_mid(w - pad - p.width_of(&a, SMALL), cy, &a, MUTED, SMALL);
+        }
         set_footer(pinned, r);
     }
     r.bottom
