@@ -1,9 +1,12 @@
-# macOS: test, then one universal binary (arm64 + x86_64) as a workflow artifact.
-# Why this way: docs/SO_SANH_MACOS_BUILD.md; what the build does: docs/specs/macos.md.
+# macOS: test, one universal binary (arm64 + x86_64), SCAS.app in a .dmg, smoke tests,
+# all three files as workflow artifacts.
+# Why this way: docs/SO_SANH_MACOS_BUILD.md, docs/specs/macos-build-prior-art.md;
+# what the build does: docs/specs/macos.md.
 name: macos
 
 on:
   push:
+    branches: [macos-ci]
   workflow_dispatch:
 
 permissions:
@@ -73,9 +76,45 @@ jobs:
           tar czf "$name" scas
           shasum -a 256 "$name"
           echo "file=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Bundle tests (Python)
+        run: |
+          python3 -P tools/test_build_macos_app.py
+          python3 -P tools/test_icns.py
+          python3 -P tools/test_macho.py
+
+      - name: Build SCAS.app, sign it ad hoc
+        run: |
+          python3 tools/build_macos_app.py --binary scas --out dist
+          codesign --force --deep --sign - dist/SCAS.app
+          codesign --verify --deep --strict --verbose=2 dist/SCAS.app
+
+      - name: Make the dmg
+        id: dmg
+        run: |
+          name="SCAS-${{ steps.pack.outputs.version }}.dmg"
+          sh tools/make_dmg.sh dist/SCAS.app "$name"
+          shasum -a 256 "$name"
+          echo "file=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test the dmg's app
+        run: bash tools/smoke_macos_app.sh "${{ steps.dmg.outputs.file }}"
 
       - uses: actions/upload-artifact@v7
         with:
           path: ${{ steps.pack.outputs.file }}
+          archive: false
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.dmg.outputs.file }}
+          archive: false
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/SCAS-${{ steps.pack.outputs.version }}-macos-app.tar.gz
           archive: false
           if-no-files-found: error

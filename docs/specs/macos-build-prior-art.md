@@ -38,3 +38,26 @@ bundled roots on macOS), so only `libSystem` / `libiconv` are needed at link tim
 - https://github.com/rust-cross/cargo-zigbuild (README: universal2 target, SDKROOT, frameworks)
 - https://github.com/tpoechtrager/osxcross (README: hosts, SDK packaging)
 - `docs/SO_SANH_MACOS_BUILD.md` (CI workflows of ripgrep, bat, cargo-dist, Alacritty, taiki-e)
+
+# SCAS.app in a .dmg: prior art and choice (2026-11-12)
+
+Goal: ship `SCAS.app` inside `SCAS-<version>.dmg` (drag to Applications), next to the
+tar.gz. SCAS is a local web server with no Cocoa event loop: run directly as a bundle's
+executable it would show a Dock icon that never answers ("not responding"), and a second
+double-click would only re-activate it, so the dashboard could not be reopened.
+
+| Prior art | How the .app / .dmg is made | Fit for SCAS | Cost |
+|---|---|---|---|
+| [Alacritty](https://github.com/alacritty/alacritty) `Makefile` (`app`, `dmg` targets) | Copies a template `Alacritty.app` (Info.plist, icns), puts the binary in `Contents/MacOS`, `codesign --remove-signature` then `codesign --force --deep --sign -`; `ln -sf /Applications`, `hdiutil create -volname … -fs HFS+ -srcfolder … -ov -format UDZO` | **Taken for the .dmg**: plain `hdiutil`, works headless on a runner, no extra tool | None beyond Xcode CLT on the runner |
+| [create-dmg](https://github.com/create-dmg/create-dmg) | Shell script around `hdiutil` plus an AppleScript that lays out the Finder window (background, icon positions, `--app-drop-link`) | Prettier window, but the AppleScript needs a GUI session; on CI it is skipped with `--skip-jenkins`, which leaves Alacritty's plain result | Homebrew install; flaky AppleScript on CI |
+| [cargo-bundle](https://github.com/burtonageo/cargo-bundle) | `[package.metadata.bundle]` in Cargo.toml (identifier, icon, `osx.minimum_system_version`, `info_plist_exts`); converts PNG icons; signs .app and .dmg | Makes the bundle's executable the Rust binary itself, so the Dock problem stays; README says "very early alpha"; adds metadata to Cargo.toml (shared file) | New tool and Cargo.toml keys |
+| Script-as-executable bundles: [Mathias Bynens, "shell script apps"](https://mathiasbynens.be/notes/shell-script-mac-apps), [Platypus](https://sveinbjorn.org/platypus_documentation) ("runs in background" = `LSUIElement`) | `Contents/MacOS/<Name>` is a shell script; Mathias's example starts a local web server and opens the browser; Platypus registers background apps as `LSUIElement` (no Dock icon, no menu bar) | **Taken for the launcher**: a script that opens the dashboard if SCAS answers, else starts `scas` detached and exits; `LSUIElement` true | A few lines of sh |
+
+Choice:
+- Bundle assembled by our own `tools/build_macos_app.py` (runs on Windows and on the
+  runner; tar entries carry the exec bits, since Windows has no chmod), icon from a
+  committed `assets/scas.icns` made by `tools/make_icns.py` (PNG entries, no `iconutil`).
+- `.dmg` made on the macOS runner the Alacritty way (`hdiutil`, UDZO, `/Applications`
+  link). No create-dmg.
+- Not found in the sources: what a second double-click does to a background server. The
+  launcher answers it by asking the port each time; the CI smoke test measures it.
