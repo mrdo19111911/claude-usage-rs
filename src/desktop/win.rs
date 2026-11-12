@@ -77,6 +77,11 @@ impl RealApp {
             .collect()
     }
 
+    /// Whether a Claude Code session runs under the app (its claude.exe in the data folder).
+    pub fn code_running(&self) -> bool {
+        processes().iter().filter(|p| p.name.eq_ignore_ascii_case("claude.exe")).any(|p| image_path(p.pid).is_some_and(|path| path.starts_with(&self.data_dir)))
+    }
+
     /// Whether this dashboard runs inside the app's process tree: closing the app
     /// would then end the dashboard half-way through a switch.
     pub fn inside_claude(&self) -> bool {

@@ -28,6 +28,10 @@ pub(crate) struct Settings {
     // accounts are shown in that order (docs/specs/auto-switch-deadline.md; absent: on).
     #[serde(default = "yes")]
     pub(crate) use_soonest_reset: bool,
+    // At 4:00, opens Desktop on saved sign-ins that end within 7 days, then goes back
+    // (docs/specs/desktop-renew.md; absent: on).
+    #[serde(default = "yes")]
+    pub(crate) renew_desktop: bool,
 }
 
 fn yes() -> bool {
@@ -133,18 +137,22 @@ pub(crate) struct State {
     // The `cgemini` profile: the user's Gemini key and what goes with it (gemini/).
     #[serde(default)]
     pub(crate) gemini: Option<gemini::Config>,
+    // The 4:00 renewal under way and who was tried today (docs/specs/desktop-renew.md).
+    #[serde(default)]
+    pub(crate) desktop_renew: switch::desktop_renew::RenewState,
 }
 
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true, use_soonest_reset: true },
+            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true, use_soonest_reset: true, renew_desktop: true },
             accounts: vec![],
             active_id: None,
             events: vec![],
             desktop: vec![],
             update_checked_at: None,
             gemini: None,
+            desktop_renew: Default::default(),
         }
     }
 }

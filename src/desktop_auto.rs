@@ -43,7 +43,12 @@ impl App {
         let Some(dir) = &self.desktop_dir else { return };
         let signed_in = desktop::signed_in(dir);
         let mut st = self.st.lock().unwrap();
-        let has = |u: &str| self.desktop_store.has_sign_in(u);
+        // The 4:00 renewal moves Desktop itself until it is back (docs/specs/desktop-renew.md).
+        if st.desktop_renew.renewing.is_some() {
+            return;
+        }
+        // A saved sign-in whose session has ended is skipped (docs/specs/desktop-signed-out.md).
+        let has = |u: &str| self.desktop_store.usable(u, now());
         match pick_desktop(&st.accounts, &st.desktop, signed_in.as_deref(), &has, &st.settings, now(), self.desktop_auto_at.load(Ordering::SeqCst)) {
             Pick::Stay => {}
             Pick::NoRoom(which) => {

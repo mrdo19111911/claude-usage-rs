@@ -8,6 +8,9 @@ pub(crate) mod rank;
 // Claude Desktop's auto-switch, by the same ranking.
 #[path = "desktop_auto.rs"]
 pub(crate) mod desktop_auto;
+// Renewing saved Desktop sign-ins at 4:00 (docs/specs/desktop-renew.md).
+#[path = "desktop_renew.rs"]
+pub(crate) mod desktop_renew;
 
 impl App {
     // The tray's two hooks: the state its widget shows, and the switches its buttons ask
@@ -34,6 +37,10 @@ impl App {
             }
             if desktop::signed_in(&dir).as_deref() == Some(t.as_str()) {
                 return Err("Claude Desktop is signed in to this account already.".into());
+            }
+            // docs/specs/desktop-signed-out.md
+            if self.desktop_store.sign_in_expired(t, now()) {
+                return Err("Its saved sign-in has expired, so Claude Desktop would ask you to sign in. Use Sign in again on its card.".into());
             }
         }
         #[cfg(windows)]

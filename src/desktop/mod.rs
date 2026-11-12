@@ -11,12 +11,14 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod cookie_session;
 pub mod sessions;
 mod sessions_io;
 mod sessions_rules;
 mod store;
 mod switch;
 
+pub use cookie_session::Session;
 pub use store::Store;
 pub use switch::switch;
 

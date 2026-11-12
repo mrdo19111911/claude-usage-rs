@@ -8,6 +8,7 @@ function renderSettings() {
     // Missing on an older backend: on, its default.
     $('#shareDesktopSessions').checked = s.shareDesktopSessions !== false;
     $('#useSoonestReset').checked = s.useSoonestReset !== false;
+    $('#renewDesktop').checked = s.renewDesktop !== false;
     $('#threshold').value = s.threshold;
     $('#weekThreshold').value = s.weekThreshold;
   }

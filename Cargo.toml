@@ -1,6 +1,6 @@
 [package]
 name = "claude-usage"
-version = "1.4.4"
+version = "1.5.0"
 edition = "2021"
 
 [dependencies]
@@ -13,6 +13,11 @@ serde_json = { version = "1", features = ["preserve_order"] }
 getrandom = "0.2"
 sha2 = "0.10"
 base64 = "0.22"
+rusqlite = { version = "0.42.0", features = ["bundled"] }
+
+# The exe's icon and version info (build.rs, docs/specs/exe-resources.md).
+[build-dependencies]
+embed-resource = "3"
 
 # Closing and finding Claude Desktop for a desktop switch.
 [target.'cfg(windows)'.dependencies]

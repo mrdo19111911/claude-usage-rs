@@ -71,7 +71,8 @@ function renderSides() {
   }
   const deskOpts = accountRows().filter(r => !(r.d && r.d.signedIn)).map(({ a, d }) => {
     const email = (a && a.email) || (d && (d.email || d.label)) || '';
-    return d && d.hasSignIn ? [`dswitch:${d.uuid}`, email + usageHint(a ? a.usage : d.usage)] : [`dfirst:${email}`, email + ' · first time: sign in once'];
+    if (d && d.hasSignIn && !d.signInExpired) return [`dswitch:${d.uuid}`, email + usageHint(a ? a.usage : d.usage)];
+    return [`dfirst:${email}`, email + (d && d.signInExpired ? ' · sign-in expired: sign in again' : ' · first time: sign in once')];
   });
   // Its auto-switch point is desktop_auto.rs DESKTOP_AT.
   const restart = 'Switching closes the app and opens it again (running tasks stop).', moving = 'Closing and opening again on the new account…';

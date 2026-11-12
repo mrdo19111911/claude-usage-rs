@@ -16,12 +16,18 @@ impl App {
         let desktop: Vec<Value> = st.desktop.iter().map(|d| {
             // Usage is per account: the terminal login of the same account shows it.
             let cli = st.accounts.iter().find(|a| a.account_uuid.as_deref() == Some(d.uuid.as_str()));
+            let signed_in = desktop_now.as_deref() == Some(d.uuid.as_str());
+            // While signed in, the app's own sign-in is newer than the saved one.
+            let saved = if signed_in { None } else { self.desktop_store.saved_session(&d.uuid, t) };
             json!({
                 "uuid": d.uuid, "label": d.label, "auto": d.auto,
                 "email": cli.map(|a| a.email.clone()).or_else(|| noted_email(self.data_dir(), &d.uuid)),
                 "usage": cli.and_then(|a| a.usage.clone()),
                 "hasSignIn": self.desktop_store.has_sign_in(&d.uuid),
-                "signedIn": desktop_now.as_deref() == Some(d.uuid.as_str()),
+                "signedIn": signed_in,
+                // docs/specs/desktop-signed-out.md
+                "signInExpired": saved == Some(desktop::Session::Ended),
+                "signInUntil": match saved { Some(desktop::Session::Live(until)) => until, _ => None },
             })
         }).collect();
         json!({

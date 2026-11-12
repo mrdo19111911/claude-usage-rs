@@ -1,5 +1,5 @@
 // The "Claude accounts" section: one card per account (docs/specs/account-cards.md).
-// Parts: login, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, cardPaneWidth,
+// Parts: login, untilLine, cliLogin, deskLogin, who, paneLeft, pane, tablePanes, card, cardPaneWidth,
 // renderCards.
 
 // One login of the account, drawn the same way for Claude CLI and Claude Desktop (equal
@@ -13,7 +13,17 @@ function login(kind, name, o) {
   const auto = o.auto
     ? `<label class="auto" title="${o.auto[3]}"><span class="switch"><input type="checkbox" ${o.auto[0]}="${esc(o.auto[1])}" ${o.auto[2] ? 'checked' : ''}><span></span></span>auto-switch</label>`
     : `<div class="auto note">${o.noAuto || ''}</div>`;
-  return `<div class="login ${kind}${o.on ? ' here' : ''}"><div class="login-top"><span class="name">${name}</span>${btn}</div>${auto}</div>`;
+  return `<div class="login ${kind}${o.on ? ' here' : ''}"><div class="login-top"><span class="name">${name}</span>${btn}</div>${auto}${o.until || ''}</div>`;
+}
+
+// Until when a saved Claude Desktop sign-in lasts (docs/specs/desktop-signed-out.md):
+// claude.ai keeps it 28 days from its last use; amber from 7 days left.
+function untilLine(ms) {
+  if (!ms) return '';
+  const days = Math.max(0, Math.floor((ms - (Date.now() - clockSkew)) / 864e5));
+  const date = new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const tip = 'Each use renews this saved sign-in for 28 days; unused, it ends then. Due within 7 days, it is renewed at 4:00 (Settings). Log out in Claude ends it at once.';
+  return `<div class="until note${days < 7 ? ' soon' : ''}" title="${tip}">Sign-in until ${date} · ${days} day${days === 1 ? '' : 's'}</div>`;
 }
 
 // Claude CLI (terminal and VS Code): "Use here" switches at once; with no login yet,
@@ -32,7 +42,10 @@ function deskLogin(a, d) {
   if (!D.found) return { label: 'Not on this computer' };
   if (!d || !d.hasSignIn) return { on: d && d.signedIn, act: ['data-dfirst', (a && a.email) || (d && d.email) || ''],
     label: 'Use here (first time)', busy, noAuto: 'after its first sign-in here' };
-  return { on: d.signedIn, act: ['data-dswitch', d.uuid], label: 'Use here', busy,
+  // Its saved session has ended: opening it would land on the sign-in screen anyway.
+  if (d.signInExpired) return { act: ['data-dfirst', (a && a.email) || d.email || ''], label: 'Sign in again', busy,
+    noAuto: 'saved sign-in expired: skipped by auto-switch' };
+  return { on: d.signedIn, act: ['data-dswitch', d.uuid], label: 'Use here', busy, until: untilLine(d.signInUntil),
     auto: ['data-dauto', d.uuid, d.auto, 'Auto-switch may move Claude Desktop to this account when the one in use reaches a limit'] };
 }
 
@@ -47,7 +60,7 @@ function who(a, d) {
   const [icon, label] = a ? status(a) : ['', ''];
   return `<div class="who"><div class="who-l"><div class="email">${inUse ? '<span class="dot"></span>' : ''}${esc(email)}${rm}</div>
     ${a && a.error ? `<div class="err">${esc(a.error)}</div>` : ''}</div>
-    <div class="who-r"><div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>${a ? checkLine(a) : ''}</div></div>`;
+    <div class="who-r"><div class="meta">${a ? `${esc(a.plan)} · ${icon} ${label}` : 'No Claude CLI login yet: sign in to see its figures'}</div>${a ? checkLine(a) : ''}${a ? `<button class="btn check" data-check="${a.id}" title="Check this account's usage right now">Check now</button>` : ''}</div></div>`;
 }
 
 // What is left of a window, for its title row: "57% left · in 1d 14h" (the clock time is

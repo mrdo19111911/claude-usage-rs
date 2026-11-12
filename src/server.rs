@@ -86,17 +86,11 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["weekThreshold"].as_f64() {
                     st.settings.week_threshold = (v as i64).clamp(50, 100);
                 }
-                if let Some(v) = body["autoSwitch"].as_bool() {
-                    st.settings.auto_switch = v;
-                }
-                if let Some(v) = body["autoUpdate"].as_bool() {
-                    st.settings.auto_update = v;
-                }
-                if let Some(v) = body["shareDesktopSessions"].as_bool() {
-                    st.settings.share_desktop_sessions = v;
-                }
-                if let Some(v) = body["useSoonestReset"].as_bool() {
-                    st.settings.use_soonest_reset = v;
+                let s = &mut st.settings;
+                for (key, field) in [("autoSwitch", &mut s.auto_switch), ("autoUpdate", &mut s.auto_update), ("shareDesktopSessions", &mut s.share_desktop_sessions), ("useSoonestReset", &mut s.use_soonest_reset), ("renewDesktop", &mut s.renew_desktop)] {
+                    if let Some(v) = body[key].as_bool() {
+                        *field = v;
+                    }
                 }
                 app.save(&st);
             }
@@ -159,6 +153,12 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 // activate takes the lock itself, around a check with Anthropic.
                 if method == "POST" && parts.get(1) == Some(&"activate") {
                     app.activate(id, "manual")?;
+                    return Ok((200, app.public_state(), "application/json"));
+                }
+                // "Check now" on a card: this account's usage now (check-now-button.md).
+                if method == "POST" && parts.get(1) == Some(&"check") {
+                    app.poll_account(id, true);
+                    app.save(&app.st.lock().unwrap());
                     return Ok((200, app.public_state(), "application/json"));
                 }
                 let mut st = app.st.lock().unwrap();
