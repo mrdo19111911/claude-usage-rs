@@ -51,8 +51,26 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
     }
 }
 
+// In its own window (dash.rs); in the browser when that cannot be made (no WebView2).
 pub(super) fn open_dashboard() {
-    crate::open_browser(&ui(|u| u.url.clone()));
+    let (url, file) = ui(|u| (u.url.clone(), u.file.clone()));
+    if !dash::open(&url, &file) {
+        crate::open_browser(&url);
+    }
+}
+
+// From main at start (--open): once the tray's window is up, it opens the dashboard.
+pub fn request_open() {
+    thread::spawn(|| {
+        for _ in 0..100 {
+            let h = MSG_HWND.load(Ordering::SeqCst);
+            if !h.is_null() {
+                unsafe { PostMessageW(h, WM_OPEN_APP, 0, 0) };
+                return;
+            }
+            thread::sleep(std::time::Duration::from_millis(50));
+        }
+    });
 }
 
 // From any thread: the tray thread takes its icon out, then ends the program.

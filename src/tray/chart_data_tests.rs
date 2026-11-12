@@ -66,3 +66,23 @@ fn thin_keeps_first_min_max_last_per_pixel_column() {
     let few = [(0.0, 1.0), (5.0, 2.0), (9.0, 3.0)];
     assert_eq!(thin(&few), few.to_vec());
 }
+
+// The vertical lines, as on the dashboard's charts: each whole hour of a 5-hour window,
+// each local midnight of a week. `off`: the computer's offset from UTC.
+#[test]
+fn lines_at_each_hour_or_each_local_midnight() {
+    let d = 24 * H;
+    // 5-hour window 10:30 to 15:30 UTC: 11, 12, 13, 14, 15.
+    let s = 100 * d + 10 * H + H / 2;
+    assert_eq!(ticks(s, s + 5 * H, false, 0), (11..=15).map(|h| 100 * d + h * H).collect::<Vec<_>>());
+    // At UTC+7, a whole hour is still a whole hour.
+    assert_eq!(ticks(s, s + 5 * H, false, 7 * H).len(), 5);
+    // A week from day 100 at 05:00 UTC; at UTC+7 local midnight is 17:00 UTC the day before.
+    let s = 100 * d + 5 * H;
+    let t = ticks(s, s + 7 * d, true, 7 * H);
+    assert_eq!(t.len(), 7);
+    assert_eq!(t[0], 100 * d + 17 * H, "first local midnight after the start");
+    assert!(t.windows(2).all(|w| w[1] - w[0] == d));
+    // A start right on a whole hour does not get a line at the edge.
+    assert_eq!(ticks(100 * d, 100 * d + 5 * H, false, 0)[0], 100 * d + H);
+}

@@ -21,6 +21,14 @@ pub(super) fn span(reset: Option<i64>, now: i64, len: i64) -> (i64, i64) {
     }
 }
 
+// The vertical lines in (start, end]: each whole hour (5-hour), or each local midnight
+// (week), as the dashboard's ticks(); `off` is this computer's offset from UTC in ms.
+pub(super) fn ticks(start: i64, end: i64, week: bool, off: i64) -> Vec<i64> {
+    let step = if week { 24 * 3_600_000 } else { 3_600_000 };
+    let first = ((start + off).div_euclid(step) + 1) * step - off;
+    (0..).map(|i| first + i * step).take_while(|&t| t <= end).collect()
+}
+
 // (time, %) of one window (week: the weekly column) in [start, now]: 0 at the start when
 // older figures exist, the line cut at a passed reset `was` and dropped to 0 there, the
 // current figure `u` at now.

@@ -32,7 +32,9 @@ another module needs them.
 - Hover the icon: widget above it — Claude CLI, Claude Desktop, other accounts; reset
   times as time left plus this computer's local clock time ("resets in 4h39m · 22:20").
   Pointer away from icon and widget for 3 ticks of 150 ms: widget hides.
-- Click icon or widget: dashboard. Right-click icon: greyed version line / Open dashboard /
+- Click icon or widget: dashboard, in its own WebView2 window (tray/dash.rs, dash_spot.rs,
+  dash_rect.rs, dash_nav.rs; specs/dashboard-window.md), the browser without WebView2.
+  Right-click icon: greyed version line / Open dashboard /
   Help / Check for updates / Keep widget on screen / Exit (stops auto-switch) (tray/menu.rs;
   updates: specs/update.md). Every widget and tray string: tray/words.rs.
 - Pinned widget: always on top, drags anywhere, ✕ unpins; place kept in `widget.json`.
@@ -92,8 +94,7 @@ lines; flat coloured buttons with no hover, ragged columns, buttons even on full
 accounts; square corners; "✕" unclear; a hint line always on.
 
 - 300 px wide (logical), rounded window corners (region, radius 10), 1 px border.
-- Header: "Claude usage" (the full name does not fit next to the age and pin at 300 px),
-  "· updated N min ago" (newest figures, `Model.checked`), pin icon at
+- Header: the app's name "Smartlog Claude Auto Switch" (`words::APP`), pin icon at
   the right (Segoe MDL2 Assets: pin U+E718 on the hover widget, unpin U+E77A pinned).
 - "IN USE NOW" title, then the "In use" card (darker fill, radius 8): one card when Claude CLI and Claude Desktop are on
   the same account (`same_account`), with both chips (CLI teal, Desktop violet, outlined);
@@ -107,7 +108,7 @@ accounts; square corners; "✕" unclear; a hint line always on.
   fixed columns (a missing one leaves its slot empty). Hovered button: filled.
 - "USED UP · AVAILABLE AT" (was "FULL · FREE AGAIN", reworded 2026-11-12): full accounts (`split_others().1`), soonest free first; muted
   name and the time it can be used again ("not known" when unknown); no buttons.
-- Footer: "Open dashboard" + external-link glyph (U+E8A7); click opens the dashboard.
+- Footer: "Open dashboard" + external-link glyph (U+E8A7), and on the right "updated N min ago" (newest figures, `Model.checked`, small, muted); click opens the dashboard.
   The hover widget still opens it on any click outside buttons; the pinned one drags.
 - Tests first: pace, full_until, split_others order, same_account, `checked`; button
   slots and hit test; the layout leaves the DC font in place; a preview test

@@ -141,9 +141,8 @@ fn main() {
         println!("Claude Code login: {}", if app.keychain { "macOS Keychain".into() } else { app.creds_file.display().to_string() });
         println!("Claude Desktop data: {}", app.desktop_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_else(|| "not found".into()));
     }
-    if !no_open {
-        open_browser(&url);
-    }
+    #[cfg(not(windows))]
+    if !no_open { open_browser(&url) }
     #[cfg(windows)]
     {
         println!("Running in the tray: hover its icon for the figures, right-click it to quit.");
@@ -158,6 +157,7 @@ fn main() {
         }
         let (state, act) = app.tray_hooks();
         tray::start(state, act, url.clone(), data_dir.clone());
+        if !no_open { tray::request_open() } // in its own window (docs/specs/dashboard-window.md)
     }
     #[cfg(not(windows))]
     println!("Keep this window open. Ctrl+C to stop.");

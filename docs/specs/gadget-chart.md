@@ -14,6 +14,10 @@ dụ biểu đồ/ đồ thị không?", then picked "Mở rộng ngay trong gad
   - the usage line from the account's history, in the dashboard's colours (5-hour blue
     `#4c8df6`, weekly orange `#f0653c`), the last figure carried to now, a dot at now;
   - the auto-switch line (the CLI thresholds: `settings.threshold`, `weekThreshold`), dashed;
+  - grid lines at 0, 50 and 100 %, and a vertical line at each whole hour (5-hour) or each
+    local midnight (weekly), as on the dashboard (`chart_data::ticks`, `model::utc_offset`);
+  - the axes: Oy at the plot's left and Ox along 0 %, lighter than the grid, with "100%"
+    and "0%" left of Oy, right-aligned to it (the plot starts after them);
   - the reset: a green line at the right edge with its time under it ("17:53", "Sat 15:53");
     a reset that has passed and still falls in the span is marked the same way at its time,
     the line dropping to 0 % there (as docs/specs/account-cards.md, "A reset that has passed");

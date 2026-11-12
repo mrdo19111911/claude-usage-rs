@@ -146,16 +146,31 @@ pub(super) fn model(state: &str) -> Model {
     m
 }
 
-// A moment (ms since 1970) on this computer's clock: "22:20" today, else "Thu 11:00".
-pub(super) fn clock(t: i64, now: i64) -> String {
-    let local = |ms: i64| unsafe {
+// A moment (ms since 1970) as this computer's local date and time.
+fn local(ms: i64) -> SYSTEMTIME {
+    unsafe {
         let ft = (ms.max(0) as u64 + 11_644_473_600_000) * 10_000;
         let ft = FILETIME { dwLowDateTime: ft as u32, dwHighDateTime: (ft >> 32) as u32 };
         let (mut utc, mut loc): (SYSTEMTIME, SYSTEMTIME) = (mem::zeroed(), mem::zeroed());
         FileTimeToSystemTime(&ft, &mut utc);
         SystemTimeToTzSpecificLocalTime(ptr::null(), &utc, &mut loc);
         loc
-    };
+    }
+}
+
+// This computer's offset from UTC at `t`, in ms (+7 h in Vietnam).
+pub(super) fn utc_offset(t: i64) -> i64 {
+    let loc = local(t);
+    let mut ft: FILETIME = unsafe { mem::zeroed() };
+    if unsafe { SystemTimeToFileTime(&loc, &mut ft) } == 0 {
+        return 0;
+    }
+    let ms = ((ft.dwHighDateTime as i64) << 32 | ft.dwLowDateTime as i64) / 10_000 - 11_644_473_600_000;
+    (ms - t.max(0)).div_euclid(60_000) * 60_000
+}
+
+// A moment (ms since 1970) on this computer's clock: "22:20" today, else "Thu 11:00".
+pub(super) fn clock(t: i64, now: i64) -> String {
     let (a, b) = (local(t), local(now));
     let hm = format!("{:02}:{:02}", a.wHour, a.wMinute);
     if (a.wYear, a.wMonth, a.wDay) == (b.wYear, b.wMonth, b.wDay) {
@@ -174,3 +189,6 @@ pub(super) fn left(ms: i64) -> String {
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "model_time_tests.rs"]
+mod time_tests;

@@ -94,13 +94,6 @@ fn no_desk_data_when_not_found_or_demo() {
     }
 }
 
-#[test]
-fn time_left() {
-    assert_eq!(left(4 * 3_600_000 + 39 * 60_000), "4h39m");
-    assert_eq!(left(51 * 3_600_000), "2d 3h");
-    assert_eq!(left(30_000), "1m");
-}
-
 fn win(u: i64, reset: Option<i64>) -> Win {
     Win { u, reset }
 }

@@ -5,7 +5,10 @@ use super::*;
 
 const FIVE_C: u32 = rgb(0x4c, 0x8d, 0xf6);
 const WEEK_C: u32 = rgb(0xf0, 0x65, 0x3c);
-const GRID: u32 = rgb(0x2c, 0x2c, 0x2e);
+// Grid lines: visible on the card (0x232a31) without competing with the data.
+const GRID: u32 = rgb(0x3d, 0x46, 0x50);
+// The axes (Ox at 0%, Oy at the left), lighter than the grid.
+const AXIS: u32 = rgb(0x6a, 0x72, 0x7c);
 
 // The chart's height at scale `s`.
 pub(super) fn chart_h(s: f32) -> i32 {
@@ -51,6 +54,11 @@ unsafe fn panel(p: &Painter, m: &Model, o: &Other, k: &Panel, l: i32, r: i32, y:
         p.text_mid(l + p.width_of(k.label, SMALL) + p.px(5.0), ty, &format!("{u}%"), TEXT, SMALL);
     }
     let (top, btm) = (y + p.px(26.0), y + p.px(74.0));
+    // "100%" and "0%" left of the Oy axis, right-aligned to it; the plot starts there.
+    let (l0, l) = (l, l + p.width_of("100%", SMALL) + p.px(4.0));
+    for (t, ty) in [("100%", top), ("0%", btm)] {
+        p.text_mid(l - p.px(3.0) - p.width_of(t, SMALL), ty, t, MUTED, SMALL);
+    }
     let (start, end) = span(reset, m.now, k.len);
     let pts = points(&o.history, k.week, start, m.now, u, was);
     for v in [0, 50, 100] {
@@ -58,12 +66,20 @@ unsafe fn panel(p: &Painter, m: &Model, o: &Other, k: &Panel, l: i32, r: i32, y:
         p.fill(l, gy, r, gy + 1, GRID);
     }
     let ly = y + p.px(86.0);
+    // Oy at the plot's left, Ox along 0%.
+    p.fill(l, top, l + 1, btm + 1, AXIS);
+    p.fill(l, btm, r, btm + 1, AXIS);
     if pts.is_empty() {
         p.centred(&RECT { left: l, top, right: r, bottom: btm }, words::NOT_CHECKED, MUTED, SMALL);
         return;
     }
     let b = (l as f32, top as f32, r as f32, btm as f32);
     let x_of = |t: i64| to_xy(&[(t, 0)], start, end, b)[0].0;
+    // Each whole hour, or each local midnight, as on the dashboard's charts.
+    for t in ticks(start, end, k.week, utc_offset(m.now)) {
+        let x = x_of(t).round() as i32;
+        p.fill(x, top, x + 1, btm + 1, GRID);
+    }
     let Some(g) = Gfx::on(p.dc) else { return };
     let th = 1.0f32.max(p.s);
     let line_y = to_xy(&[(start, k.line)], start, end, b)[0].1;
@@ -87,7 +103,7 @@ unsafe fn panel(p: &Painter, m: &Model, o: &Other, k: &Panel, l: i32, r: i32, y:
     drop(g);
     for (x, lab) in marks {
         let tw = p.width_of(&lab, SMALL);
-        let tx = (x as i32 - tw / 2).clamp(l, r - tw);
+        let tx = (x as i32 - tw / 2).clamp(l0, r - tw);
         p.text_mid(tx, ly, &lab, GREEN, SMALL);
     }
 }
@@ -116,6 +132,8 @@ mod tests {
                 let has = |c: u32, x0: i32, x1: i32| (x0..x1).any(|x| (0..h).any(|y| GetPixel(dc, x, y) == c));
                 assert!(has(FIVE_C, 0, w / 2), "5-hour line at {s}x");
                 assert!(has(WEEK_C, w / 2, w), "weekly line at {s}x");
+                // Both panels have their axes (Ox, Oy), in the axis colour.
+                assert!(has(AXIS, 0, w / 2) && has(AXIS, w / 2, w), "axes at {s}x");
                 DeleteObject(p.fonts[0]);
                 SelectObject(dc, old);
                 DeleteObject(bmp);
