@@ -26,19 +26,10 @@ impl App {
         // Also the live login when it is not identified yet (active_id is then None).
         let rt = creds.get("refreshToken").filter(|v| v.is_string());
         let is_live = is_active || (rt.is_some() && self.read_live().is_some_and(|l| l.get("refreshToken") == rt));
-        // The live Claude CLI token is never refreshed here; when it has expired, read the
-        // figures from Claude Desktop's own token for this account (docs/specs/desktop-token.md).
-        // The stored refresh token is single-use: Claude Desktop (or, for the live login,
-        // Claude Code) can spend it out from under us, so a refresh/auth failure here does
-        // NOT mean the account is unusable. When Claude Desktop holds a live token for this
-        // account, read its usage from there instead (docs/specs/desktop-token-fallback.md).
-        let res = match self.fetch_usage(&creds, !is_live) {
-            Err(e) if wants_desktop_fallback(&e, is_live) => match self.desktop_usage(account_uuid.as_deref()) {
-                Some(j) => Ok((j, None)),
-                None => Err(e),
-            },
-            other => other,
-        };
+        // The live Claude Code token is never refreshed here: when it has expired, its
+        // figures wait until Claude Code renews it. Claude Desktop's tokens are never read
+        // (docs/specs/no-foreign-credentials.md).
+        let res = self.fetch_usage(&creds, !is_live);
         // Accounts saved by older versions were named after ~/.claude.json, which can
         // be another account's: ask once whose the token is. Not tied to the usage
         // answer: the usage endpoint can be rate-limited (429) while this one answers.
@@ -173,19 +164,3 @@ pub(crate) fn thin_history(h: &[(i64, i64, i64)], t: i64) -> Vec<(i64, i64, i64)
     }
     out
 }
-
-// A usage fetch failed. The stored token may just be stale or spent (refresh-token rotation),
-// not the account dead, so it is worth trying Claude Desktop's own live token for it. True for
-// an auth failure (refresh refused / 401), or the live login whose token Claude Code must
-// renew; never for a 429 (respect the back-off) or a transient server/network error.
-pub(crate) fn wants_desktop_fallback(e: &ApiErr, is_live: bool) -> bool {
-    match e {
-        ApiErr::Auth(_) => true,
-        ApiErr::Other(m) => is_live && m.contains("Claude Code renews"),
-        ApiErr::Slow(_) => false,
-    }
-}
-
-#[cfg(test)]
-#[path = "poll_tests.rs"]
-mod tests;

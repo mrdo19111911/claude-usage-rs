@@ -120,22 +120,6 @@ mod win;
 
 mod ancestry;
 
-// Reading Claude Desktop's own token for usage figures (docs/specs/desktop-token.md).
-#[cfg(any(windows, test))]
-mod token_cache;
-#[cfg(windows)]
-mod aes_gcm;
-#[cfg(windows)]
-mod safe_storage;
-#[cfg(windows)]
-mod token;
-#[cfg(windows)]
-pub(crate) use token::desktop_access_token;
-#[cfg(not(windows))]
-pub(crate) fn desktop_access_token(_dir: &Path, _account_uuid: &str) -> Option<Value> {
-    None
-}
-
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -144,9 +128,3 @@ mod cookie_session_tests;
 #[cfg(test)]
 #[path = "signed_out_tests.rs"]
 mod signed_out_tests;
-#[cfg(test)]
-#[path = "token_cache_tests.rs"]
-mod token_cache_tests;
-#[cfg(all(test, windows))]
-#[path = "aes_gcm_tests.rs"]
-mod aes_gcm_tests;

@@ -1,3 +1,6 @@
+> **Removed on 2026-11-12** (docs/specs/no-foreign-credentials.md): reading Claude Desktop's
+> token looked like infostealer malware to Anthropic. Kept as history only.
+
 # How the app keeps the in-use account's figures when the CLI token expires
 
 ## The problem: one account, two logins, two tokens

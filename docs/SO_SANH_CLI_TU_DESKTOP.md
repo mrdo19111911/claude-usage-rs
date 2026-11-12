@@ -1,3 +1,6 @@
+> **Dropped on 2026-11-12** (docs/specs/no-foreign-credentials.md): making a Claude Code
+> sign-in from Claude Desktop's looks like infostealer malware to Anthropic. Not to be built.
+
 # Tạo đăng nhập Claude CLI từ đăng nhập Claude Desktop: so sánh cách làm
 
 Hỏi 2026-11-12: "có cách nào chỉ cần đăng nhập ... nó tự tạo ra phiên đăng nhập cho claude

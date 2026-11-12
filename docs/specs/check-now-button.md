@@ -26,7 +26,6 @@ button on each account that checks only that account, right away.
 - No source file over 200 lines.
 
 ## Known limit (unchanged by this button)
-A parked account whose stored refresh token was spent (rotation) still can't be
-read live unless it is the current Claude Desktop account (then the Desktop-token
-fallback reads it). "Check now" forces the attempt; it does not invent a token.
-See [desktop-token-fallback.md](desktop-token-fallback.md).
+A parked account whose stored refresh token was spent (rotation) can't be read live
+until it is signed in again. "Check now" forces the attempt; it does not invent a token,
+and never borrows Claude Desktop's (see [no-foreign-credentials.md](no-foreign-credentials.md)).

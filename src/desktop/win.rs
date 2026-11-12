@@ -8,12 +8,11 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::{CloseHandle, HWND, INVALID_HANDLE_VALUE, LPARAM, WPARAM};
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
-use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, TerminateProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE};
+use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
 use windows_sys::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, SendMessageTimeoutW, SMTO_ABORTIFHUNG, WM_ENDSESSION, WM_QUERYENDSESSION};
 
 const ENDSESSION_CLOSEAPP: LPARAM = 1;
 const QUIT_GRACE: Duration = Duration::from_secs(30);
-const KILL_WAIT: Duration = Duration::from_secs(20);
 // Errors shown after "Claude Desktop switch failed:".
 pub(super) const NOT_CLOSED: &str = "Claude Desktop did not close";
 pub(super) const NOT_STARTED: &str = "Could not start Claude Desktop; start it from the Start menu";
@@ -148,19 +147,11 @@ impl super::App for RealApp {
         if pids.is_empty() {
             return Ok(());
         }
+        // Never killed: a killed Desktop may not have written its newest cookies, and a
+        // switch would then save, and later put back, one claude.ai already replaced
+        // (docs/specs/no-foreign-credentials.md). Not closed: no switch.
         if !(ask_to_quit(&pids) && self.wait_gone(QUIT_GRACE)) {
-            for pid in self.claude_pids() {
-                unsafe {
-                    let h = OpenProcess(PROCESS_TERMINATE, 0, pid);
-                    if !h.is_null() {
-                        TerminateProcess(h, 1);
-                        CloseHandle(h);
-                    }
-                }
-            }
-            if !self.wait_gone(KILL_WAIT) {
-                return Err(NOT_CLOSED.into());
-            }
+            return Err(NOT_CLOSED.into());
         }
         // Let the last file handles go.
         sleep(Duration::from_millis(800));
