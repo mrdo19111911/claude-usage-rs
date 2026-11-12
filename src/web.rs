@@ -25,9 +25,10 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
-// The step pictures of the Gemini dialog (PNG).
+// The pictures (PNG): the app icon for the tab (tools/make_icon.py), the Gemini dialog's steps.
 pub fn image(path: &str) -> Option<&'static [u8]> {
     match path {
+        "/img/app-icon.png" => Some(include_bytes!("web/img/app-icon.png")),
         "/img/gem-1-signin.png" => Some(include_bytes!("web/img/gem-1-signin.png")),
         "/img/gem-2-create.png" => Some(include_bytes!("web/img/gem-2-create.png")),
         "/img/gem-3-project.png" => Some(include_bytes!("web/img/gem-3-project.png")),

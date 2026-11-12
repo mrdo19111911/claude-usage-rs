@@ -64,7 +64,7 @@ function renderSides() {
   $('#sides').classList.toggle('both', same);
   const codeSide = () => side('code', 'Claude CLI', 'Terminal and VS Code: one shared login', cur && cur.email, sideBody(cur, cur && cur.usage, now), ...code);
   if (!found) {
-    const nf = 'Claude Desktop was not found on this computer.';
+    const nf = D.supported === false ? 'Switching Claude Desktop works on Windows only.' : 'Claude Desktop was not found on this computer.';
     $('#sideCode').innerHTML = codeSide();
     $('#sideDesk').innerHTML = side('desk', 'Claude Desktop', 'Its own sign-in', null, '', [nf, nf], [], true);
     return;

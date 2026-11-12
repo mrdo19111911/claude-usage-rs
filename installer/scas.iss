@@ -1,12 +1,15 @@
-; Claude usage installer (Inno Setup 6): all users or only me. Build with installer\build.ps1.
+; Smartlog Claude Auto Switch installer (Inno Setup 6): all users or only me. Build with installer\build.ps1.
 ; Why these directives: SO_SANH_INNO.md (Zed's [Setup], Greenshot's autostart, ShareX's
-; [Code] with our --quit in place of taskkill). Spec: docs/specs/installer.md.
+; [Code] with our --quit in place of taskkill). Spec: docs/specs/installer.md; the rename
+; from 1.5.x and what it removes: docs/specs/rename.md.
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
-#define AppName "Claude Usage"
-#define AppExe "claude-usage.exe"
+#define AppName "Smartlog Claude Auto Switch"
+#define AppExe "scas.exe"
+; The install folder: the short name (SCAS = Smartlog Claude Auto Switch).
+#define AppDir "SCAS"
 
 [Setup]
 ; Never change: upgrades find the installed copy by it.
@@ -23,7 +26,9 @@ AppPublisherURL=https://github.com/mrdo19111911/claude-usage-rs
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 ; Program Files for all users, %LOCALAPPDATA%\Programs for one user.
-DefaultDirName={autopf}\{#AppName}
+DefaultDirName={autopf}\{#AppDir}
+; Not the folder of the copy installed: 1.5.x had the old name ([InstallDelete]).
+UsePreviousAppDir=no
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64compatible
@@ -31,16 +36,22 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\assets\scas.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 OutputDir=..\target\installer
-OutputBaseFilename=ClaudeUsage-Setup-{#AppVersion}
+OutputBaseFilename=SCAS-Setup-{#AppVersion}
 ; Not AppMutex (checked before PrepareToInstall, so it would ask the user to close the app
 ; by hand) nor the Restart Manager (a tray app with only hidden windows): see [Code].
 CloseApplications=no
 
 [Tasks]
 Name: autostart; Description: "Start with Windows (the icon waits in the tray)"
+
+[InstallDelete]
+; What 1.5.x (the old name) left: its folder (exe, uninstaller) and its shortcut.
+Type: filesandordirs; Name: "{autopf}\Claude Usage"
+Type: files; Name: "{autoprograms}\Claude Usage.lnk"
 
 [Files]
 Source: "..\target\release\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
@@ -50,13 +61,15 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 
 [Registry]
 ; HKA: HKLM Run (every user's sign-in) for all users, HKCU Run for one user.
-Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ClaudeUsage"; ValueData: """{app}\{#AppExe}"""; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SCAS"; ValueData: """{app}\{#AppExe}"""; Flags: uninsdeletevalue; Tasks: autostart
+; 1.5.x's Run value, which pointed at the removed exe.
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "ClaudeUsage"; ValueType: none; Flags: deletevalue
 
 [Run]
 ; runasoriginaluser: the app runs as the user who started Setup, never as the elevated
 ; admin account (it would read that account's Claude files).
 ; --open: the first run shows the dashboard; later starts stay in the tray.
-Filename: "{app}\{#AppExe}"; Parameters: "--open"; Description: "Open Claude Usage now"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\{#AppExe}"; Parameters: "--open"; Description: "Open Smartlog Claude Auto Switch now"; Flags: nowait postinstall skipifsilent runasoriginaluser
 ; An update from the app itself (/VERYSILENT /RELAUNCH=1): start the new version again.
 Filename: "{app}\{#AppExe}"; Flags: nowait skipifnotsilent runasoriginaluser; Check: Relaunch
 
@@ -88,7 +101,7 @@ begin
   ExtractTemporaryFile('{#AppExe}');
   QuitRunning(ExpandConstant('{tmp}\{#AppExe}'));
   if CheckForMutexes(Mutex) then
-    Result := 'Claude Usage is still running. Right-click its tray icon, choose Exit, then run Setup again.';
+    Result := 'Smartlog Claude Auto Switch is still running. Right-click its tray icon, choose Exit, then run Setup again.';
 end;
 
 function InitializeUninstall(): Boolean;
@@ -96,5 +109,5 @@ begin
   QuitRunning(ExpandConstant('{app}\{#AppExe}'));
   Result := not CheckForMutexes(Mutex);
   if not Result then
-    MsgBox('Claude Usage is still running. Right-click its tray icon, choose Exit, then uninstall again.', mbError, MB_OK);
+    MsgBox('Smartlog Claude Auto Switch is still running. Right-click its tray icon, choose Exit, then uninstall again.', mbError, MB_OK);
 end;

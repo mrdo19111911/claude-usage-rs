@@ -71,7 +71,7 @@ pub(crate) fn serve(app: &Arc<App>, mut rq: tiny_http::Request) {
     let cfg = app.st.lock().unwrap().gemini.clone();
     let token = cfg.as_ref().map_or("", |c| c.token.as_str());
     if !token_ok(header(&rq, "Authorization"), header(&rq, "x-api-key"), header(&rq, "x-cud-token"), token) {
-        let msg = if cfg.is_none() { "No Gemini key is saved: add one in Claude Usage." } else { "Wrong token: run cgemini again." };
+        let msg = if cfg.is_none() { "No Gemini key is saved: add one in Smartlog Claude Auto Switch." } else { "Wrong token: run cgemini again." };
         return reply(rq, 401, &errors::error_json("authentication_error", msg), None);
     }
     let Some(cfg) = cfg else { return };

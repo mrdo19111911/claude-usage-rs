@@ -1,4 +1,4 @@
-# Builds target\installer\ClaudeUsage-Setup-<version>.exe: the release exe, then Inno Setup.
+# Builds target\installer\SCAS-Setup-<version>.exe: the release exe, then Inno Setup.
 # Run from anywhere: powershell -ExecutionPolicy Bypass -File installer\build.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
@@ -9,8 +9,8 @@ $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"(.+)"' | Se
 
 # The running app locks its exe when started from target\release: ask it to exit first.
 # Only that one: --quit ends any copy, and the installed one must keep running.
-$dev = (Resolve-Path target\release\claude-usage.exe -ErrorAction SilentlyContinue).Path
-if ($dev -and (Get-Process claude-usage -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $dev })) { & $dev --quit | Out-Null }
+$dev = (Resolve-Path target\release\scas.exe -ErrorAction SilentlyContinue).Path
+if ($dev -and (Get-Process scas -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $dev })) { & $dev --quit | Out-Null }
 # Rust keeps source paths for its panic messages: hide this computer's (user name, folders).
 # The encoded form (0x1f between flags): the paths may hold spaces.
 $env:CARGO_ENCODED_RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~" + [char]0x1f + "--remap-path-prefix=$root=."
@@ -23,6 +23,6 @@ $iscc = @(
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 not found: winget install JRSoftware.InnoSetup" }
-& $iscc /Q "/DAppVersion=$version" installer\claude-usage.iss
+& $iscc /Q "/DAppVersion=$version" installer\scas.iss
 if ($LASTEXITCODE) { throw "ISCC failed" }
-Get-Item "target\installer\ClaudeUsage-Setup-$version.exe"
+Get-Item "target\installer\SCAS-Setup-$version.exe"

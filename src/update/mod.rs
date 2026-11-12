@@ -12,6 +12,16 @@ pub(crate) use github::*;
 // One source for the version: Cargo.toml.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// Whether this build can install a release: its setup is a Windows .exe. Elsewhere
+// (macOS) the check only tells, with the release page (docs/specs/macos.md).
+pub(crate) const INSTALLS: bool = cfg!(windows);
+
+// A newer version found waits to be installed (no 3 days yet) only when it will be
+// installed by itself: autoUpdate on, on a build that installs.
+pub(crate) fn waits_to_install(newer: bool, auto_update: bool, installs: bool) -> bool {
+    newer && auto_update && installs
+}
+
 const FIRST_LOOK: Duration = Duration::from_secs(60);
 const LOOK_EVERY: Duration = Duration::from_secs(3600);
 const CHECK_EVERY_MS: i64 = 3 * 24 * 3_600_000;
@@ -97,7 +107,7 @@ impl App {
         let auto = self.st.lock().unwrap().settings.auto_update;
         // Blocked (a switch or a sign-in), or the install failed: the check time was not
         // saved (check.rs), so the next hourly look tries again.
-        if auto && self.update_blocked().is_none() {
+        if waits_to_install(true, auto, INSTALLS) && self.update_blocked().is_none() {
             let _ = self.install_update();
         }
     }

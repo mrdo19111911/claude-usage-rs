@@ -2,10 +2,10 @@
 // và tự chuyển login của Claude Code sang tài khoản còn dư khi chạm ngưỡng.
 // Chạy file là xong: tự mở trình duyệt, tự nhận tài khoản mỗi lần bạn /login.
 // Claude Desktop (Windows) giữ đăng nhập riêng: desktop.rs đổi nó khi bạn bấm chuyển.
-
 // No console window of its own on Windows (not even for the SessionStart hook); from a
 // terminal it writes to that terminal (main). It lives in the tray instead (tray.rs).
 #![cfg_attr(windows, windows_subsystem = "windows")]
+#![cfg_attr(not(windows), allow(dead_code, unused_imports))] // Windows-only parts (docs/specs/macos.md)
 
 mod desktop;
 mod gemini;

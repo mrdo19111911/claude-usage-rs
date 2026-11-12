@@ -1,6 +1,6 @@
 // Installing a newer release: download its setup, check it, start it out of this
 // process. The setup closes this app itself (`--quit`), installs, and starts the new
-// version (/RELAUNCH=1, installer/claude-usage.iss), so nothing here exits.
+// version (/RELAUNCH=1, installer/scas.iss), so nothing here exits.
 
 use super::*;
 use sha2::Digest;
@@ -16,7 +16,7 @@ pub(crate) fn setup_args(dir: &Path) -> Vec<String> {
 }
 
 fn update_dir() -> PathBuf {
-    std::env::temp_dir().join("claude-usage-update")
+    std::env::temp_dir().join("scas-update")
 }
 
 impl App {
@@ -29,6 +29,14 @@ impl App {
     // Claims the install: only from "available", and not while a Claude Desktop switch
     // or a sign-in runs (the setup closing this app would cut it short).
     pub(crate) fn begin_install(&self) -> Result<(), String> {
+        self.begin_install_on(INSTALLS)
+    }
+
+    // `installs`: whether this build can run the setup; refused here, before a download.
+    pub(crate) fn begin_install_on(&self, installs: bool) -> Result<(), String> {
+        if !installs {
+            return Err("Installing updates works on Windows only; download the new version from the release page.".into());
+        }
         if self.demo {
             return Err("Updates are off in the demo.".into());
         }
@@ -65,7 +73,7 @@ impl App {
         res
     }
 
-    // The latest release's setup in %TEMP%\claude-usage-update, checked: written as
+    // The latest release's setup in %TEMP%\scas-update, checked: written as
     // .part, renamed only once its size and SHA-256 match the release's.
     fn fetch_setup(&self) -> Result<(Asset, PathBuf), String> {
         let asset = pick_asset(&latest_release(&self.http)?)?;
