@@ -57,7 +57,7 @@ fn every_account_action_is_on_the_card() {
 #[test]
 fn each_chart_spans_its_window_up_to_the_reset() {
     let c = js("chart.js");
-    for s in ["5 * H", "7 * 24 * H", "resetsAt - span", "getDate()", "even pace", "now", "Recording since", "weekThreshold"] {
+    for s in ["5 * H", "7 * 24 * H", "resetsAt - span", "getDate()", "steady use", "now", "Tracked since", "weekThreshold"] {
         assert!(c.contains(s), "chart.js has {s}");
     }
 }
@@ -124,8 +124,8 @@ fn the_5_hour_chart_shows_the_pace_of_the_last_20_minutes() {
     assert!(c.contains("te < end ? `~${hhmm(te)}` : `~${Math.round(ue)}%`"), "a short label at its end");
     // Hover right of now: the expectation in full.
     assert!(c.contains("const f = c.proj && sx > c.x(c.proj.now) ? c.proj : null"), "right of now");
-    assert!(c.contains("`Expected limit at ${hhmm(f.te)}, in ${inm}`"), "when the limit is expected");
-    assert!(c.contains("`Expected ~${Math.round(f.ue)}% at reset (${hhmm(f.end)})`"), "or the % at the reset");
+    assert!(c.contains("`used up at ${hhmm(f.te)} (in ${inm})`"), "when the limit is expected");
+    assert!(c.contains("`about ${Math.round(f.ue)}% used when it resets (${hhmm(f.end)})`"), "or the % at the reset");
 }
 
 #[test]
@@ -134,8 +134,8 @@ fn the_auto_switch_setting_says_which_app_each_threshold_is_for() {
     // moved there too, and the Desktop panel said auto-switch never changes it.
     let at = crate::switch::desktop_auto::DESKTOP_AT;
     let p = page();
-    assert!(p.contains("Claude CLI at <input type=\"number\" id=\"threshold\""), "the thresholds are Claude CLI's");
-    assert!(p.contains(&format!("Claude Desktop at {at}% of either")), "and Desktop's is said");
+    assert!(p.contains("Switch Claude Code when 5-hour use reaches <input type=\"number\" id=\"threshold\""), "the thresholds are Claude Code's");
+    assert!(p.contains(&format!("Claude Desktop switches at {at}% of either")), "and Desktop's is said");
     let s = js("sides.js");
     assert!(s.contains(&format!("at {at}% (5-hour or weekly)")), "the Desktop panel says when");
     assert!(!s.contains("auto-switch never changes it"));

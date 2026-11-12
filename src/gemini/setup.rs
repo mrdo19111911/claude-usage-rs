@@ -50,11 +50,17 @@ pub(super) fn commit(app: &Arc<App>, cfg: Config, by: By) -> Result<(), String> 
     Ok(())
 }
 
+pub(crate) const PATH_BLOCKED: &str = "Could not finish setting up Claude Code on Gemini (Windows blocked it). Restart the app and try again.";
+
 fn files(app: &App, cfg: &Config) -> Result<(), String> {
     #[cfg(test)]
     MID_SETUP.with(|h| if let Some(f) = &*h.borrow() { f() });
     script::write(app, cfg).map_err(|e| format!("cgemini.cmd could not be written: {e}"))?;
-    path::add(&script::bin_dir(app)).map_err(|e| format!("The cgemini folder could not be put on PATH: {e}"))
+    // The raw registry error goes to stderr; the page says it plainly.
+    path::add(&script::bin_dir(app)).map_err(|e| {
+        eprintln!("The cgemini folder could not be put on PATH: {e}");
+        PATH_BLOCKED.to_string()
+    })
 }
 
 // A setup that failed: cgemini.cmd and the profile back to the key saved before, or the

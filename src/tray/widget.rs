@@ -89,11 +89,11 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
         }
         WM_ERASEBKGND => 1,
         WM_MOUSEACTIVATE => MA_NOACTIVATE as LRESULT,
-        // The pinned widget drags by any spot but its buttons and footer.
+        // The pinned widget drags by any spot but its buttons, rows and footer.
         WM_NCHITTEST if is_pinned => {
             let mut p = point(lp);
             ScreenToClient(hwnd, &mut p);
-            if spot(true, p.x, p.y, &head) != Spot::None { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
+            if clickable(true, p.x, p.y, &head) { HTCLIENT as LRESULT } else { HTCAPTION as LRESULT }
         }
         // Hover: repaint only when what the pointer is over changes.
         WM_MOUSEMOVE => {
@@ -114,12 +114,12 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
             InvalidateRect(hwnd, ptr::null(), FALSE);
             0
         }
-        // A hand over what clicks: the buttons, the header button, the footer.
+        // A hand over what clicks: the buttons, the header button, the rows, the footer.
         WM_SETCURSOR if (lp & 0xffff) as u32 == HTCLIENT => {
             let mut p = POINT { x: 0, y: 0 };
             GetCursorPos(&mut p);
             ScreenToClient(hwnd, &mut p);
-            SetCursor(LoadCursorW(ptr::null_mut(), if spot(is_pinned, p.x, p.y, &head) == Spot::None { IDC_ARROW } else { IDC_HAND }));
+            SetCursor(LoadCursorW(ptr::null_mut(), if !clickable(is_pinned, p.x, p.y, &head) { IDC_ARROW } else { IDC_HAND }));
             1
         }
         // Rounded corners, radius 10; the system owns the region once it is set.
@@ -141,6 +141,8 @@ pub(super) unsafe extern "system" fn widget_proc(hwnd: HWND, msg: u32, wp: WPARA
                 }
             } else if let Some(k) = hit_at(is_pinned, x, y) {
                 switch(hwnd, k);
+            } else if let Some(id) = row_at(is_pinned, x, y) {
+                toggle_row(&id); // its chart opens or closes (rows.rs)
             } else if !is_pinned {
                 // Anywhere else on the hover widget, the footer link included.
                 hide_hover();

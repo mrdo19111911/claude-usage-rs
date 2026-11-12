@@ -13,7 +13,7 @@ fn both_apps_on_one_account_share_one_panel() {
     assert!(s.contains("const same = !!(cur && da && cur === da)"), "same account: the CLI login is Desktop's");
     assert!(s.contains("$('#sides').classList.toggle('both', same)"), "one panel across both columns");
     assert!(s.contains("function both("), "the shared panel");
-    assert!(s.contains("Both on this account"));
+    assert!(s.contains("Both apps use this account"));
     // Each app keeps its own note and switch menu, with its tag.
     assert!(s.contains("function control(kind, title, note, opts, busy)"));
     let css = asset("/style.css").unwrap().0;
@@ -33,7 +33,7 @@ fn a_pane_says_what_is_left_in_its_title_not_under_a_bar() {
     let p = c.find("function paneLeft(w)").expect("paneLeft()");
     let pl = &c[p..p + c[p..].find("
 }").unwrap()];
-    assert!(pl.contains("color(w.u)") && pl.contains("% left") && pl.contains("timeLeft(w.resetsAt)") && pl.contains("not started"));
+    assert!(pl.contains("color(w.u)") && pl.contains("% left") && pl.contains("timeLeft(w.resetsAt)") && pl.contains("no use yet"));
     // The countdown alone: the clock time is under the chart's axis. resetLabel keeps both.
     let b = asset("/js/base.js").unwrap().0;
     assert!(b.contains("function timeLeft(t)") && b.contains("return `in ${timeLeft(t)} (${day} ${hhmm(t)})`"));
@@ -42,7 +42,7 @@ fn a_pane_says_what_is_left_in_its_title_not_under_a_bar() {
 #[test]
 fn the_notes_are_one_short_line_with_the_rest_in_a_tooltip() {
     let s = js("sides.js");
-    for short in ["`Auto-switch at ${s.threshold}% 5-hour · ${s.weekThreshold ?? 99}% weekly`", "'Auto-switch at 98% · switching restarts it'", "'Auto-switch is off'"] {
+    for short in ["`Auto-switch at ${s.threshold}% (5-hour) or ${s.weekThreshold ?? 99}% (weekly)`", "'Auto-switch at 98% · switching restarts the app'", "'Auto-switch is off'"] {
         assert!(s.contains(short), "short note {short}");
     }
     assert!(s.contains("<div class=\"note\" title=\"${esc(note[1])}\">${note[0]}</div>"), "full text in the tooltip");

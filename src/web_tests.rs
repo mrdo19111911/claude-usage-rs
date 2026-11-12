@@ -77,14 +77,14 @@ fn both_logins_have_an_add_button() {
 #[test]
 fn a_new_account_chart_shows_its_figures_now() {
     let chart = asset("/js/chart.js").unwrap().0;
-    assert!(chart.contains("Recording since"), "says why the line is short");
+    assert!(chart.contains("Tracked since"), "says why the line is short");
     assert!(!chart.contains("Not enough figures in this range yet"), "figures are never hidden");
 }
 
 #[test]
 fn not_started_windows_and_model_limits_are_shown() {
     let base = asset("/js/base.js").unwrap().0;
-    assert!(base.contains("not started yet"));
+    assert!(base.contains("no use yet"));
     let rows = asset("/js/rows.js").unwrap().0;
     assert!(rows.contains("u.scoped") && rows.contains("class=\"scoped\""), "a chip per model limit");
 }
@@ -97,8 +97,8 @@ fn help_page_is_served_and_linked() {
     assert!(help.contains("href=\"style.css\""), "same style as the dashboard");
     assert!(help.contains("href=\"/\""), "a way back to the dashboard");
     assert!(help.matches("<details").count() >= 10, "one <details> per topic");
-    for w in ["5-hour", "Weekly", "not started yet", "Fable", "Claude CLI", "Claude Desktop",
-              "Auto-switch", "+ Add account", "429", "widget", "update", "uninstall", ".claude-usage-dashboard"] {
+    for w in ["5-hour", "Weekly", "no use yet", "Fable", "Claude Code", "Claude Desktop",
+              "Auto-switch", "+ Add account", "Paused for a while", "widget", "update", "uninstall", ".claude-usage-dashboard"] {
         assert!(help.to_lowercase().contains(&w.to_lowercase()), "help covers {w}");
     }
     let page = asset("/").unwrap().0;

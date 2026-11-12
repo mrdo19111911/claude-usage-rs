@@ -89,9 +89,9 @@ pub(super) fn ask_exit(from_menu: bool) {
     }
     ui(|u| u.exit_pending = true);
     if from_menu {
-        let text = wide("Claude Desktop is switching accounts. The dashboard will close as soon as it is done.");
+        let text = wide(words::EXIT_WAIT);
         let style = MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND;
-        unsafe { MessageBoxW(ptr::null_mut(), text.as_ptr(), wide("Claude usage").as_ptr(), style) };
+        unsafe { MessageBoxW(ptr::null_mut(), text.as_ptr(), wide(words::APP).as_ptr(), style) };
     }
 }
 

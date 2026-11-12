@@ -37,7 +37,7 @@ fn slots(w: i32, s: f32, y: i32) -> (RECT, RECT) {
     let dr = w - px(14.0, s);
     let dl = dr - px(58.0, s);
     let cr = dl - px(4.0, s);
-    let cl = cr - px(34.0, s);
+    let cl = cr - px(40.0, s); // fits "Code"
     (RECT { left: cl, top, right: cr, bottom }, RECT { left: dl, top, right: dr, bottom })
 }
 
@@ -149,7 +149,7 @@ pub(super) unsafe fn draw_buttons(p: &Painter, b: &[(RECT, Pick)]) {
     let pinned = drawing();
     for (r, k) in b {
         let (label, c) = match k {
-            Pick::Cli(_) => ("CLI", CODE),
+            Pick::Cli(_) => (CODE_LABEL, CODE),
             Pick::Desktop { .. } => ("Desktop", DESK),
         };
         let fg = if hot(pinned, r) {
@@ -173,7 +173,7 @@ pub(super) unsafe fn switch(hwnd: HWND, k: Pick) {
         return;
     }
     if let Pick::Desktop { email, .. } = &k {
-        let q = format!("Claude Desktop will close and open again on {email}. Running tasks stop. Go on?");
+        let q = words::desk_confirm(email);
         let style = MB_YESNO | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND;
         if MessageBoxW(hwnd, wide(&q).as_ptr(), wide("Switch Claude Desktop").as_ptr(), style) != IDYES {
             return;
@@ -187,7 +187,7 @@ pub(super) unsafe fn switch(hwnd: HWND, k: Pick) {
         let r = act(k.act());
         BUSY.store(false, Ordering::SeqCst);
         if let Err(e) = r {
-            MessageBoxW(ptr::null_mut(), wide(&e).as_ptr(), wide("Claude usage").as_ptr(), MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND);
+            MessageBoxW(ptr::null_mut(), wide(&e).as_ptr(), wide(words::APP).as_ptr(), MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND);
         }
         PostMessageW(msg as HWND, WM_TIMER, TIMER_REFRESH, 0);
     });

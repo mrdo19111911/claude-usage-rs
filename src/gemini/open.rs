@@ -32,9 +32,13 @@ fn spawn(dir: &Path, line: &str) -> Result<(), String> {
     run(CREATE_BREAKAWAY_FROM_JOB).or_else(|_| run(0)).map(|_| ()).map_err(|e| format!("Could not open the window: {e}"))
 }
 
+// What "Use this" says on a build that cannot open cgemini.
+#[cfg_attr(windows, allow(dead_code))]
+pub(crate) const NOT_WINDOWS: &str = "Claude Code on Gemini works on Windows only.";
+
 #[cfg(all(not(windows), not(test)))]
 fn spawn(_: &Path, _: &str) -> Result<(), String> {
-    Err("Only on Windows".into())
+    Err(NOT_WINDOWS.into())
 }
 
 // Tests: what would have opened, on this thread.

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smartlog Claude Auto Switch</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="glass.css">
 <link rel="icon" type="image/png" href="img/app-icon.png">
 </head>
 <body>
@@ -12,12 +13,13 @@
   <header class="topbar">
     <b>Smartlog Claude Auto Switch</b><span class="note" id="version"></span>
     <a href="help.html" target="_blank" rel="noopener">Help</a>
+    <button class="btn gear" id="settingsBtn" aria-controls="settingsCard" aria-expanded="false">⚙ Settings</button>
     <button class="btn upd-pill" id="updPill" hidden></button>
   </header>
 
   <section class="card">
     <h2>In use now</h2>
-    <div class="sub note">Two separate logins: switching one never changes the other.</div>
+    <div class="sub note">Claude Code and Claude Desktop sign in separately: switching one never changes the other.</div>
     <div class="sides" id="sides">
       <div class="side code" id="sideCode"></div>
       <div class="side desk" id="sideDesk"></div>
@@ -31,14 +33,14 @@
         <div class="sub note" id="summary"></div>
       </div>
       <div class="filters">
-        <button class="btn add code" id="cliAdd">+ Add account · Claude CLI</button>
-        <button class="btn add desk" id="deskAdd">+ Add account · Claude Desktop</button>
+        <button class="btn add code" id="cliAdd">+ Add account for Claude Code</button>
+        <button class="btn add desk" id="deskAdd">+ Add account for Claude Desktop</button>
         <button class="link" id="viewToggle">Table view</button>
       </div>
     </div>
     <div class="sub" id="desktopSub" style="display:none"></div>
     <div id="cards"></div>
-    <p class="note">Each account has two logins side by side. <b>Claude CLI</b> (terminal and VS Code share one login) switches at once. <b>Claude Desktop</b> closes the app and opens it again on that account (running tasks stop); the first time, it opens signed out: click <b>Continue with Google</b> there and choose the account. Their <b>auto-switch</b> switches: Claude CLI moves to this account when the one in use nears a limit; Claude Desktop only when its account has reached a limit (100%). Charts: each window from its start to its reset; the dotted diagonal is an even pace.</p>
+    <p class="note">Claude Code (terminal and VS Code) switches at once. Claude Desktop restarts on the new account; any reply in progress is cut off.<br>"Allow auto-switch" lets the app move to this account when the one in use is nearly used up.<br>Charts show use from the start of each limit to its reset; the dotted line is steady use.</p>
   </section>
 
   <section class="card gem" id="gemCard">
@@ -55,7 +57,7 @@
   <dialog id="gemDlg" class="gem-dlg" aria-labelledby="gemTitle">
     <h3 id="gemTitle" tabindex="-1">Add a free Gemini account</h3>
     <p class="note">Google's page opened in a new tab. Not there? <a id="gemOpen" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Open Google's page again</a></p>
-    <p class="gem-privacy" role="note">With a free key, Google may read what you send through <code>cgemini</code>, your code too, and use it to improve its models. Do not use it for code that must stay private.</p>
+    <p class="gem-privacy" role="note">With a free key, Google may read what you send to Gemini, your code too, and use it to improve its models. Do not use it for code that must stay private.</p>
     <ol class="steps">
       <li>Sign in with your Google account on the page that opened (and accept Google's terms if asked).
         <img class="shot" src="img/gem-1-signin.png" alt="Google's sign-in page: type your Gmail address, then press Next" width="680" height="390" loading="lazy">
@@ -88,29 +90,27 @@
     </div>
   </dialog>
 
-  <section class="card">
+  <section class="card" id="settingsCard" hidden>
     <div class="head">
       <h2>Settings</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn" id="refresh">Refresh now</button>
-        <button class="btn primary" id="import">Check for new login</button>
-        <button class="btn" id="exit" title="Stop the dashboard and take its icon out of the tray">Exit</button>
+        <button class="btn" id="exit" title="Close the app and take its icon out of the tray">Exit</button>
       </div>
     </div>
     <div class="settings" style="margin-top:14px">
       <label><input type="checkbox" id="autoSwitch"> Auto-switch</label>
-      <label>Claude CLI at <input type="number" id="threshold" min="50" max="100"> % 5-hour</label>
-      <label><input type="number" id="weekThreshold" min="50" max="100"> % weekly</label>
-      <span class="note">Claude Desktop at 98% of either (it closes and opens again)</span>
+      <label>Switch Claude Code when 5-hour use reaches <input type="number" id="threshold" min="50" max="100">%</label>
+      <label>or weekly use reaches <input type="number" id="weekThreshold" min="50" max="100">%</label>
+      <span class="note">Claude Desktop switches at 98% of either (it restarts)</span>
     </div>
     <div class="settings" style="margin-top:10px">
-      <label><input type="checkbox" id="useSoonestReset"> Use the account whose weekly limit resets soonest first (switches before a limit when another account's quota would expire unused)</label>
+      <label><input type="checkbox" id="useSoonestReset"> Use up first the account whose weekly limit resets soonest, so no weekly allowance goes to waste (may switch before a limit)</label>
     </div>
     <div class="settings" style="margin-top:10px">
-      <label><input type="checkbox" id="shareDesktopSessions"> Show every account's Code sessions in Claude Desktop (when switching Desktop)</label>
+      <label><input type="checkbox" id="shareDesktopSessions"> Keep the same Claude Code chat list in Claude Desktop on every account</label>
     </div>
     <div class="settings" style="margin-top:10px">
-      <label><input type="checkbox" id="renewDesktop"> Renew saved Claude Desktop sign-ins at 4:00 (switches Desktop for a few minutes, then back)</label>
+      <label><input type="checkbox" id="renewDesktop"> Keep saved Claude Desktop sign-ins from expiring (at 4:00 a.m. it switches Desktop briefly, then back)</label>
     </div>
     <div class="upd" id="updRow">
       <span><b>Updates</b> <span class="note">· version <span id="updVer"></span></span></span>
@@ -118,13 +118,20 @@
       <span class="upd-btns"><button class="btn" id="updCheck">Check for updates</button><button class="btn primary" id="updInstall" hidden></button></span>
       <label class="note"><input type="checkbox" id="autoUpdate"> Install updates automatically</label>
     </div>
+    <details class="adv" id="advanced">
+    <summary>Advanced</summary>
+    <div class="adv-btns">
+      <button class="btn" id="refresh">Check all now</button>
+      <button class="btn" id="import">Look for a newly signed-in account</button>
+    </div>
     <div class="upd" id="logRow" hidden>
       <span><b>Usage log</b> <span class="note" id="logStatus"></span></span>
       <a class="btn" id="logExport" download hidden>Export</a>
     </div>
-    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The login Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts switched off are skipped by auto-switch.<br>Checks: every account at that pace; from 70% used twice as often, from 85% four times, from 95% eight times (at most every 15 s). An account at a 100% limit is not checked again until that limit resets.</p>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The account Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts with "allow auto-switch" off are skipped.<br>Usage is checked every 10 minutes; an account in use is checked more often as it nears a limit, every minute from 90% of its 5-hour limit (or near its weekly limit). A used-up account is checked again after it resets.</p>
     <ul class="events" id="events"></ul>
-    <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Diagnostics (no tokens shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
+    <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Technical details for support (no passwords shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
+    </details>
   </section>
 </main>
 
@@ -132,6 +139,7 @@
 <script src="js/rows.js"></script>
 <script src="js/sides.js"></script>
 <script src="js/chart.js"></script>
+<script src="js/tidy.js"></script>
 <script src="js/card.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/update.js"></script>

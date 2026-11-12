@@ -25,7 +25,7 @@ fn a_free_account_gets_both_right_aligned() {
     let (c, d) = (b[0].0, b[1].0);
     // Desktop ends at the padding; CLI sits left of it with a gap.
     assert_eq!((d.left, d.right), (300 - 14 - 58, 300 - 14));
-    assert_eq!((c.left, c.right), (d.left - 4 - 34, d.left - 4));
+    assert_eq!((c.left, c.right), (d.left - 4 - 40, d.left - 4));
     assert_eq!((c.top, c.bottom, d.top, d.bottom), (100, 118, 100, 118));
     assert_eq!(text_right(300, 1.0), c.left - 8);
     // Room left for the name and the figures at 300 px.
@@ -63,7 +63,7 @@ fn buttons_grow_with_the_scale() {
     let b = row_buttons(&model_with_desk(), &other(), 600, 2.0, 50);
     let (c, d) = (b[0].0, b[1].0);
     assert_eq!((d.right, d.right - d.left, d.top, d.bottom - d.top), (600 - 28, 116, 50, 36));
-    assert_eq!((c.right, c.right - c.left), (d.left - 8, 68));
+    assert_eq!((c.right, c.right - c.left), (d.left - 8, 80));
     assert_eq!(text_right(600, 2.0), c.left - 16);
 }
 

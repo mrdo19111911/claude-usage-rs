@@ -14,6 +14,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadPr
 const ENDSESSION_CLOSEAPP: LPARAM = 1;
 const QUIT_GRACE: Duration = Duration::from_secs(30);
 const KILL_WAIT: Duration = Duration::from_secs(20);
+// Errors shown after "Claude Desktop switch failed:".
+pub(super) const NOT_CLOSED: &str = "Claude Desktop did not close";
+pub(super) const NOT_STARTED: &str = "Could not start Claude Desktop; start it from the Start menu";
 
 pub struct RealApp {
     pub data_dir: PathBuf,
@@ -156,7 +159,7 @@ impl super::App for RealApp {
                 }
             }
             if !self.wait_gone(KILL_WAIT) {
-                return Err("Claude Desktop did not close".into());
+                return Err(NOT_CLOSED.into());
             }
         }
         // Let the last file handles go.
@@ -178,6 +181,6 @@ impl super::App for RealApp {
             .status()
             .map(|s| s.success())
             .unwrap_or(false);
-        if ok { Ok(()) } else { Err("could not start Claude Desktop; start it from the Start menu".into()) }
+        if ok { Ok(()) } else { Err(NOT_STARTED.into()) }
     }
 }

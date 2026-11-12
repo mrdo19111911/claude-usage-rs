@@ -119,23 +119,29 @@ impl App {
     // Checks with Anthropic that a saved login works, and is `uuid`'s, before it is
     // handed to Claude Code; renews it first when it has expired (it is parked: only
     // the dashboard holds it). Returns the login to hand over.
+    // Errors are plain (switch_text.rs); the raw text goes to stderr for support.
     pub(crate) fn verify_login(&self, creds: &Value, uuid: Option<&str>) -> Result<Value, String> {
+        let fail = |e: ApiErr| {
+            eprintln!("Could not check a saved login with Anthropic: {}", e.text());
+            crate::switch::text::check_failed(&e)
+        };
         let mut c = creds.clone();
         let mut renewed = false;
         if expires_soon(&c) {
-            c = self.refresh(&c).map_err(|e| e.text())?;
+            c = self.refresh(&c).map_err(fail)?;
             renewed = true;
         }
         let who = match self.get_profile(&c) {
             Err(ApiErr::Auth(_)) if !renewed => {
-                c = self.refresh(&c).map_err(|e| e.text())?;
+                c = self.refresh(&c).map_err(fail)?;
                 self.get_profile(&c)
             }
             r => r,
         }
-        .map_err(|e| format!("could not check this login with Anthropic ({}); not switched", e.text()))?;
+        .map_err(fail)?;
         if uuid.is_some_and(|u| u != who.0) {
-            return Err("this saved login belongs to another account; not switched".into());
+            eprintln!("A saved login of account {uuid:?} belongs to account {}", who.0);
+            return Err(crate::switch::text::OTHER_ACCOUNT.into());
         }
         Ok(c)
     }

@@ -157,3 +157,9 @@ fn a_whole_answer_as_one_message() {
     let bad = to_message(&last(json!([]), "MALFORMED_FUNCTION_CALL"), "m", &sigs);
     assert_eq!(bad["type"], "error");
 }
+
+// docs/REVIEW_DE_HIEU.md section 5: Claude Code shows this line to the user.
+#[test]
+fn a_bad_call_stop_reads_plainly() {
+    assert_eq!(stop_reason(Some("MALFORMED_FUNCTION_CALL"), false), Err("Gemini stopped answering (MALFORMED_FUNCTION_CALL)".to_string()));
+}

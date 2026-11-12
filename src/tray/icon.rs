@@ -14,9 +14,9 @@ pub(super) fn nid() -> NOTIFYICONDATAW {
 
 pub(super) fn tip(n: &mut NOTIFYICONDATAW, m: &Model) {
     let t = match (&m.cli.email, &m.cli.usage) {
-        (Some(e), Some(u)) => format!("Claude CLI: {e}\n5-hour {}% · weekly {}%", u.five.u, u.week.u),
-        (Some(e), None) => format!("Claude CLI: {e}"),
-        _ => "Claude usage".into(),
+        (Some(e), Some(u)) => format!("Claude Code: {e}\n5-hour {}% used · weekly {}% used", u.five.u, u.week.u),
+        (Some(e), None) => format!("Claude Code: {e}"),
+        _ => words::APP.into(),
     };
     for (d, s) in n.szTip.iter_mut().zip(t.encode_utf16().take(127).chain(Some(0))) {
         *d = s;

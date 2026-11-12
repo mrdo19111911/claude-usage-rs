@@ -19,7 +19,7 @@ fn the_settings_card_has_the_checkbox_under_auto_switch() {
     let it = p.find("<input type=\"checkbox\" id=\"useSoonestReset\">").expect("a checkbox");
     assert!(auto < it && it < p.find("id=\"updRow\"").unwrap(), "under Auto-switch, in Settings");
     let label = &p[it..it + p[it..].find("</label>").unwrap()];
-    assert!(label.contains("resets soonest first"), "labelled: {label}");
+    assert!(label.contains("resets soonest"), "labelled: {label}");
 }
 
 #[test]

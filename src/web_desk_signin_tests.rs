@@ -28,7 +28,7 @@ fn a_saved_desktop_sign_in_shows_until_when_it_lasts() {
     assert!(body.contains("d.signInUntil"), "deskLogin reads signInUntil");
     let u = c.find("function untilLine(").expect("one function draws the line");
     let line = &c[u..u + c[u..].find("\n}").unwrap()];
-    for part in ["Sign-in until", "28 days", "Log out", "class=\"until"] {
+    for part in ["Saved sign-in lasts until", "28 days", "Log out", "class=\"until"] {
         assert!(line.contains(part), "untilLine has {part}");
     }
     assert!(c[c.find("function login(").unwrap()..].contains("o.until"), "login() draws it");

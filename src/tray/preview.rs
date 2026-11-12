@@ -66,7 +66,15 @@ pub(super) fn presets() -> Vec<(&'static str, Model)> {
         ..base()
     };
     let switching = Model { desk_switching: true, ..two.clone() };
-    vec![("same_account", same), ("two_accounts", two), ("no_desktop", no_desk), ("no_figures", none), ("long_names", long_names), ("switching", switching)]
+    // bob's row open (docs/specs/gadget-chart.md): a week of checks every 20 min.
+    let mut open = same.clone();
+    open.others[0].history = (0..7 * 72).map(|i| {
+        let t = NOW - DAY + 2 * HOUR - 7 * DAY + i * 20 * MIN;
+        let into_five = (t - (NOW + 2 * HOUR - 5 * HOUR)).rem_euclid(5 * HOUR);
+        (t, 26 * into_five / (3 * HOUR), 74 * i / (7 * 72))
+    }).filter(|p| p.0 <= NOW).collect();
+    (open.five_line, open.week_line) = (95, 99);
+    vec![("open_row", open), ("same_account", same), ("two_accounts", two), ("no_desktop", no_desk), ("no_figures", none), ("long_names", long_names), ("switching", switching)]
 }
 
 // Lays out on a memory DC with a top-down 32-bit DIB; returns (height, BGRA pixels).
@@ -109,6 +117,7 @@ fn bmp(w: i32, h: i32, px: &[u8]) -> Vec<u8> {
 #[test]
 fn every_preset_lays_out() {
     for (name, m) in presets() {
+        set_open(name.starts_with("open").then(|| "bob@example.com".into()));
         for pinned in [false, true] {
             let h = unsafe { layout(&m, 1.0, pinned, ptr::null_mut()) };
             assert!(h > 0, "{name}: height {h}");
@@ -125,6 +134,7 @@ fn preview() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("widget-preview");
     fs::create_dir_all(&dir).unwrap();
     for (name, m) in presets() {
+        set_open(name.starts_with("open").then(|| "bob@example.com".into()));
         for (pinned, mode) in [(false, "hover"), (true, "pinned")] {
             for (s, x) in [(1.0, "1x"), (2.0, "2x")] {
                 let (h, px) = unsafe { render(&m, s, pinned) };

@@ -31,28 +31,38 @@ function ago(t) {
 function color(u) { return u >= 97 ? 'var(--red)' : u >= 70 ? 'var(--amber)' : 'var(--green)'; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
+// The account name's colour (docs/specs/account-cards.md): 'full' (red) when a limit is
+// reached, none (white) under 80% weekly and 50% 5-hour, else 'low' (yellow).
+function nameTone(a) {
+  if (!a || !a.usage) return '';
+  const five = effWin(a.usage.five).u, week = effWin(a.usage.week).u;
+  if (five >= 100 || week >= 100) return 'full';
+  return week < 80 && five < 50 ? '' : 'low';
+}
+
 function status(a) {
   const th = S.settings.threshold;
-  if (a.error && !a.usage) return ['<span style="color:var(--red)">!</span>', 'Error'];
-  if (!a.usage) return ['…', 'Waiting'];
-  const { five, week } = a.usage;
+  if (a.error && !a.usage) return ['…', 'Usage not checked yet'];
+  if (!a.usage) return ['…', 'Checking usage…'];
+  const five = effWin(a.usage.five), week = effWin(a.usage.week);
   if (week.u >= 100) return ['<span style="color:var(--red)">⛔</span>', 'Weekly limit reached'];
   if (five.u >= 100) return ['<span style="color:var(--red)">⛔</span>', '5-hour limit reached'];
-  if (a.id === S.activeId) return ['<span class="dot" style="margin:0"></span>', 'Active'];
+  if (a.id === S.activeId) return ['<span class="dot" style="margin:0"></span>', 'In use'];
   if (week.u >= 99) return ['<span style="color:#f08a5d">◕</span>', 'Weekly almost used up'];
   if (week.u >= 90) return ['<span style="color:var(--amber)">▲</span>', 'Weekly running low'];
   if (five.u >= th) return ['<span style="color:var(--amber)">▲</span>', '5-hour running low'];
-  if (!a.enabled) return ['<span style="color:var(--dim)">○</span>', 'Off'];
+  if (!a.enabled) return ['<span style="color:var(--dim)">○</span>', 'Skipped by auto-switch'];
   return ['<span class="dot" style="margin:0;background:var(--blue)"></span>', 'Ready'];
 }
 
 // A window whose reset has passed counts as 0% (it has reset; the figure is from before),
-// as auto-switch counts it (docs/specs/auto-switch-deadline.md, "Effective %").
-function effWin(w) { return w && w.resetsAt && w.resetsAt <= Date.now() - clockSkew ? { u: 0, resetsAt: null } : w; }
+// as auto-switch counts it (docs/specs/auto-switch-deadline.md, "Effective %"); `was`: that
+// reset, which the chart still marks (docs/specs/account-cards.md, "A reset that has passed").
+function effWin(w) { return w && w.resetsAt && w.resetsAt <= Date.now() - clockSkew ? { u: 0, resetsAt: null, was: w.resetsAt } : w; }
 
 function bar(w, showReset = true) {
   w = effWin(w);
   const u = w.u;
   return `<div class="bar"><div class="track"><div class="fill" style="width:${Math.max(u, u > 0 ? 3 : 0)}%;background:${color(u)}"></div></div><div class="pct">${u}%</div></div>
-    <div class="left"><b>${100 - u}% left</b>${!showReset ? '' : w.resetsAt ? ' · resets ' + resetLabel(w.resetsAt) : ' · not started yet'}</div>`;
+    <div class="left"><b>${100 - u}% left</b>${!showReset ? '' : w.resetsAt ? ' · resets ' + resetLabel(w.resetsAt) : ' · no use yet'}</div>`;
 }

@@ -136,3 +136,16 @@ fn saved_state_without_a_check_time_reads() {
     let st: State = serde_json::from_str(r#"{"settings":{"threshold":95,"autoSwitch":true,"pollSeconds":120},"accounts":[],"activeId":null}"#).unwrap();
     assert_eq!(st.update_checked_at, None);
 }
+
+// docs/REVIEW_DE_HIEU.md section 5: no byte counts, digests or raw tags for office staff.
+#[test]
+fn update_errors_are_plain() {
+    use super::install::{DAMAGED, INCOMPLETE, REDIRECTED};
+    assert_eq!(REDIRECTED, "The update came from an unexpected place and was not installed.");
+    assert_eq!(INCOMPLETE, "The download was incomplete and has been deleted. Please try again.");
+    assert_eq!(DAMAGED, "The download was damaged and has been deleted. Please try again.");
+    assert_eq!(UNREADABLE, "Could not read the update information. Try again later.");
+    let mut r = release(json!(format!("sha256:{}", "0".repeat(64))));
+    r["tag_name"] = json!("latest");
+    assert_eq!(pick_asset(&r).unwrap_err(), UNREADABLE);
+}

@@ -4,7 +4,7 @@
 
 use super::asset;
 
-const LABEL: &str = "Show every account's Code sessions in Claude Desktop (when switching Desktop)";
+const LABEL: &str = "Keep the same Claude Code chat list in Claude Desktop on every account";
 
 fn page() -> &'static str {
     asset("/").unwrap().0
@@ -51,7 +51,7 @@ fn help_says_switching_desktop_shares_the_sessions() {
     let q = h.find("Code sessions").expect("a Code sessions answer");
     let end = q + h[q..].find("</details>").unwrap();
     let a = &h[q..end];
-    for s in ["copies", "same sessions", "never lost", "this computer", "first message", "quota", "while a reply is running"] {
+    for s in ["copies", "same sessions", "never lost", "this computer", "first message", "a little more of the limit", "while a reply is running"] {
         assert!(a.contains(s), "the answer says {s}");
     }
 }

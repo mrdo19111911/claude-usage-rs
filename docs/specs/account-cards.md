@@ -26,6 +26,17 @@ a limit (5-hour or weekly, a passed reset counting as 0), in /api/state's order.
   reset, one tick per day labelled day-month ("3-11"), the weekly line from history, a
   dashed even-pace line from 0% at the start to 100% at the reset, a "now" line with the
   time; title "Weekly resets in 1d 7h38m (Sat 02:00)". Unknown reset: the last 7 days.
+- The account name's colour (asked 2026-11-12): red when either limit is reached (5-hour
+  or weekly at 100%); white (the normal text colour) when weekly is under 80% and 5-hour
+  under 50%; yellow otherwise. Figures as `effWin` gives them (a passed reset is 0%); no
+  figures yet: the normal colour. `nameTone(a)` in base.js gives the class (`full`, `low`
+  or none) on the card's `.email`.
+- A reset that has passed (asked 2026-11-12, "sao không có cái gạch reset time?"): the
+  window counts as 0% (`effWin`), and until a new check gives the next reset the chart
+  still marks the passed one when it falls in the span shown: a green line at its time,
+  "reset" over it and its time ("11:00", the weekly one "Thu 11:00") under the axis; the
+  line holds the last figure up to that time, drops to 0% there and stays at 0% to now.
+  The header's status agrees: a passed reset never says "limit reached".
 - Bottom: the 5-hour and weekly bars (usageBars, as now).
 - Errors, "next check" line: under the header, as now.
 - Table view (#viewToggle): the card shows a table of the figures instead of the charts.

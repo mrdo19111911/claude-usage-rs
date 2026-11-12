@@ -53,14 +53,14 @@ fn at_100_switches_to_the_first_ranked_with_the_reason() {
     match run(&v, &d, &settings(), 0) {
         Pick::Switch(uuid, why) => {
             assert_eq!(uuid, "u-c", "earliest weekly reset first");
-            assert_eq!(why, "Claude Desktop: auto-switch (5-hour 100%)");
+            assert_eq!(why, "Claude Desktop: switching automatically (5-hour limit used up)");
         }
         _ => panic!("expected a switch"),
     }
     let mut v = v;
     v[0].usage.as_mut().unwrap().five.u = 20;
     v[0].usage.as_mut().unwrap().week.u = 100;
-    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: auto-switch (weekly 100%)"));
+    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: switching automatically (weekly limit used up)"));
 }
 
 #[test]
@@ -68,10 +68,10 @@ fn at_98_switches_too() {
     // Asked 2026-11-07: Desktop moves from 98%, not only at 100%.
     let (mut v, d) = three();
     v[0].usage.as_mut().unwrap().five.u = 98;
-    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: auto-switch (5-hour 98%)"));
+    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: switching automatically (5-hour limit at 98%)"));
     v[0].usage.as_mut().unwrap().five.u = 20;
     v[0].usage.as_mut().unwrap().week.u = 98;
-    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: auto-switch (weekly 98%)"));
+    assert!(matches!(run(&v, &d, &settings(), 0), Pick::Switch(_, w) if w == "Claude Desktop: switching automatically (weekly limit at 98%)"));
 }
 
 #[test]

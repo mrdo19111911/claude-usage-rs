@@ -182,3 +182,11 @@ fn a_sync_error_still_switches_and_starts_the_app() {
     assert_eq!(*f.calls.borrow(), vec!["stop", "start"]);
     assert_eq!(signed_in(&app), None);
 }
+
+// docs/REVIEW_DE_HIEU.md section 5: shown after "Claude Desktop switch failed:".
+#[cfg(windows)]
+#[test]
+fn the_real_app_errors_start_with_a_capital() {
+    assert_eq!(super::win::NOT_CLOSED, "Claude Desktop did not close");
+    assert_eq!(super::win::NOT_STARTED, "Could not start Claude Desktop; start it from the Start menu");
+}

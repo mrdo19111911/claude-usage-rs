@@ -56,7 +56,7 @@ fn watch(app: &Arc<App>, body: &Value) -> Result<(), String> {
             }
         }
         Some(false) => app.gemini_watch.off(),
-        None => return Err("on: true or false".into()),
+        None => return Err("Something went wrong; reload the page.".into()),
     }
     Ok(())
 }

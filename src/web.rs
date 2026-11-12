@@ -10,10 +10,12 @@ pub fn asset(path: &str) -> Option<(&'static str, &'static str)> {
         "/" | "/index.html" => Some((include_str!("web/index.html"), HTML)),
         "/help.html" => Some((include_str!("web/help.html"), HTML)),
         "/style.css" => Some((include_str!("web/style.css"), CSS)),
+        "/glass.css" => Some((include_str!("web/glass.css"), CSS)),
         "/js/base.js" => Some((include_str!("web/js/base.js"), JS)),
         "/js/rows.js" => Some((include_str!("web/js/rows.js"), JS)),
         "/js/sides.js" => Some((include_str!("web/js/sides.js"), JS)),
         "/js/chart.js" => Some((include_str!("web/js/chart.js"), JS)),
+        "/js/tidy.js" => Some((include_str!("web/js/tidy.js"), JS)),
         "/js/card.js" => Some((include_str!("web/js/card.js"), JS)),
         "/js/settings.js" => Some((include_str!("web/js/settings.js"), JS)),
         "/js/update.js" => Some((include_str!("web/js/update.js"), JS)),
@@ -82,3 +84,31 @@ mod desk_signin_tests;
 #[cfg(test)]
 #[path = "web_desktop_renew_tests.rs"]
 mod desktop_renew_tests;
+
+#[cfg(test)]
+#[path = "web_tidy_tests.rs"]
+mod tidy_tests;
+
+#[cfg(test)]
+#[path = "web_passed_reset_tests.rs"]
+mod passed_reset_tests;
+
+#[cfg(test)]
+#[path = "web_name_tone_tests.rs"]
+mod name_tone_tests;
+
+#[cfg(test)]
+#[path = "web_wording_tests.rs"]
+mod wording_tests;
+
+#[cfg(test)]
+#[path = "web_page_words_tests.rs"]
+mod page_words_tests;
+
+#[cfg(test)]
+#[path = "web_card_words_tests.rs"]
+mod card_words_tests;
+
+#[cfg(test)]
+#[path = "web_help_words_tests.rs"]
+mod help_words_tests;

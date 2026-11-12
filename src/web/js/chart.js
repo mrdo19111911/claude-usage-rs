@@ -1,6 +1,6 @@
 // An account card's two charts (docs/specs/account-cards.md): its 5-hour and weekly
 // windows, each from the window's start to its reset (a green line, the right edge), with
-// even pace and now, and on the 5-hour one the pace of the last 20 min.
+// steady use and now, and on the 5-hour one the pace of the last 20 min.
 // Parts: winSpan, winPoints, ticks, pace, paceTip, winChart, hovering, charts, mousemove /
 // mouseleave handlers on #cards and #sides (the "In use now" panels show the same panes).
 
@@ -11,10 +11,13 @@ function winSpan(w, span, now) {
 }
 
 // [time, %] in the window up to now (k: 1 = 5-hour, 2 = weekly). A window starts at 0%;
-// the figures hold until the next check, so the last one is carried to now.
-function winPoints(a, k, start, now, u) {
-  const pts = a.history.filter(p => p[0] >= start && p[0] <= now).map(p => [p[0], p[k]]);
+// the figures hold until the next check, so the last one is carried to now. `was`: a reset
+// that has passed in the span; the line holds its figure to it and drops to 0% there.
+function winPoints(a, k, start, now, u, was) {
+  const cut = was > start && was <= now ? was : Infinity;
+  const pts = a.history.filter(p => p[0] >= start && p[0] <= now && p[0] < cut).map(p => [p[0], p[k]]);
   if (a.history.length && a.history[0][0] < start) pts.unshift([start, 0]);
+  if (cut < Infinity && pts.length) pts.push([cut, pts[pts.length - 1][1]], [cut, 0]);
   if (u != null) pts.push([now, u]);
   return pts;
 }
@@ -49,8 +52,8 @@ function pace(history, k, start, now) {
 // or the % expected at the reset when it does not get there first.
 function paceTip(f, col) {
   const m = Math.round((f.te - f.now) / 60000), inm = m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m` : `${m} min`;
-  return `<div style="color:var(--muted)">At the last 20 min's pace</div>
-    <div><i style="background:${col}"></i>${f.te < f.end ? `Expected limit at ${hhmm(f.te)}, in ${inm}` : `Expected ~${Math.round(f.ue)}% at reset (${hhmm(f.end)})`}</div>`;
+  return `<div style="color:var(--muted)">If you keep this pace (last 20 min):</div>
+    <div><i style="background:${col}"></i>${f.te < f.end ? `used up at ${hhmm(f.te)} (in ${inm})` : `about ${Math.round(f.ue)}% used when it resets (${hhmm(f.end)})`}</div>`;
 }
 
 // W: the drawing's width; 300 on the cards, the pane's width in pixels in "In use now"
@@ -61,7 +64,7 @@ function winChart(a, k, now, W = 300) {
   const [start, end] = winSpan(w, span, now);
   const lim = week ? (S.settings.weekThreshold ?? 99) : S.settings.threshold;
   const col = week ? 'var(--s-week)' : 'var(--s-five)';
-  const pts = winPoints(a, k, start, now, w && w.u);
+  const pts = winPoints(a, k, start, now, w && w.u, w && w.was);
   const Ht = 104, L = 24, R = 10, T = 13, B = 18;
   const x = t => L + (t - start) / (end - start) * (W - L - R);
   const y = u => T + (1 - u / 100) * (Ht - T - B);
@@ -71,8 +74,17 @@ function winChart(a, k, now, W = 300) {
   // label that would sit under it is left out (its column stays).
   const rx = x(end), hasReset = end > now, day = t => new Date(t).toLocaleDateString('en-US', { weekday: 'short' });
   const rlab = week ? `${day(end)} ${hhmm(end)}` : hhmm(end), rw = hasReset ? rlab.length * 6.5 + 20 : 0;
+  // A reset that has passed in the span, marked until a new check gives the next one.
+  const passed = w && w.was > start && w.was <= now ? w.was : 0, px = x(passed);
+  const plab = passed ? (week ? `${day(passed)} ${hhmm(passed)}` : hhmm(passed)) : '', pw = plab.length * 6.5;
+  const pend = px + pw / 2 > W - 1, plx = pend ? W - 1 : px, pa = pend ? 'end' : 'middle';
   for (const [t, lab] of ticks(start, end, week))
-    g += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${y(0)}" stroke="var(--grid)"/>${x(t) < rx - rw ? `<text x="${x(t)}" y="${Ht - 5}" text-anchor="middle">${lab}</text>` : ''}`;
+    g += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${y(0)}" stroke="var(--grid)"/>${x(t) < rx - rw && !(passed && Math.abs(x(t) - px) < pw / 2 + 16) ? `<text x="${x(t)}" y="${Ht - 5}" text-anchor="middle">${lab}</text>` : ''}`;
+  if (passed) {
+    g += `<line x1="${px}" x2="${px}" y1="${T - 4}" y2="${y(0)}" stroke="var(--green)" stroke-width="2"/>`;
+    g += `<text x="${plx}" y="${T - 4}" text-anchor="${pa}" style="fill:var(--green)">reset</text>`;
+    g += `<text x="${plx}" y="${Ht - 5}" text-anchor="${pa}" style="fill:var(--green);font-weight:600">${plab}</text>`;
+  }
   if (hasReset) {
     g += `<line x1="${rx}" x2="${rx}" y1="${T - 4}" y2="${y(0)}" stroke="var(--green)" stroke-width="2"/>`;
     g += `<text x="${W - 1}" y="${T - 4}" text-anchor="end" style="fill:var(--green)">reset</text>`;
@@ -81,14 +93,14 @@ function winChart(a, k, now, W = 300) {
   // The auto-switch line of this window, in its colour.
   g += `<line x1="${L}" x2="${W - R}" y1="${y(lim)}" y2="${y(lim)}" stroke="${col}" stroke-opacity=".55" stroke-dasharray="4 4"/>`;
   if (!w) {
-    g += `<text x="${(L + W - R) / 2}" y="${y(50)}" text-anchor="middle">No figures yet</text>`;
+    g += `<text x="${(L + W - R) / 2}" y="${y(50)}" text-anchor="middle">Usage not checked yet</text>`;
   } else {
     if (end > now) {
-      // Even pace: 0% at the window's start to 100% at its reset. Above it, the window
+      // Steady use: 0% at the window's start to 100% at its reset. Above it, the window
       // runs out before it resets; below it, some of it is left unused at the reset.
       g += `<line x1="${x(start)}" x2="${x(end)}" y1="${y(0)}" y2="${y(100)}" stroke="var(--muted)" stroke-opacity=".7" stroke-dasharray="2 4"/>`;
       const deg = Math.atan2(y(100) - y(0), x(end) - x(start)) * 180 / Math.PI;
-      g += `<text transform="translate(${x(start + span / 2)},${y(50)}) rotate(${deg.toFixed(1)})" dy="-5" text-anchor="middle">even pace</text>`;
+      g += `<text transform="translate(${x(start + span / 2)},${y(50)}) rotate(${deg.toFixed(1)})" dy="-5" text-anchor="middle">steady use</text>`;
       g += `<line x1="${x(now)}" x2="${x(now)}" y1="${T - 4}" y2="${y(0)}" stroke="var(--red)" stroke-dasharray="4 3" stroke-width="1.5"/>`;
       // Near the reset, "now" moves left so it does not cover "reset".
       g += `<text x="${Math.min(x(now), rx - 40)}" y="${T - 4}" text-anchor="middle" style="fill:var(--red)">now</text>`;
@@ -112,7 +124,7 @@ function winChart(a, k, now, W = 300) {
     const first = a.history[0];
     if (first && first[0] > start && first[0] < now) {
       const fx = x(first[0]), right = fx > (L + W - R) / 2;
-      g += `<text x="${fx + (right ? -6 : 6)}" y="${y(70)}" text-anchor="${right ? 'end' : 'start'}">Recording since ${hhmm(first[0])}</text>`;
+      g += `<text x="${fx + (right ? -6 : 6)}" y="${y(70)}" text-anchor="${right ? 'end' : 'start'}">Tracked since ${hhmm(first[0])}</text>`;
     }
     if (pts.length > 1) g += `<path d="${pts.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
     const nx = x(now), left = nx > W - R - 40;

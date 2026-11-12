@@ -1,6 +1,7 @@
 // Which account auto-switch uses, and the order accounts are shown in: the weekly quota
 // that expires first is used first (docs/specs/auto-switch-deadline.md).
 
+use crate::switch::text::{limit_reason, sooner};
 use crate::switch::{has_room, switch_reason};
 use crate::*;
 use std::cmp::Ordering as Ord;
@@ -109,7 +110,7 @@ pub(crate) fn pick(v: &[Account], active: &str, s: &Settings, now: i64) -> Pick 
                 .map(|(i, _)| *i)
         };
         return match best {
-            Some(i) => Pick::Switch(v[i].id.clone(), format!("auto: {which}")),
+            Some(i) => Pick::Switch(v[i].id.clone(), limit_reason(&cur_u, s).unwrap_or(which)),
             None => Pick::NoRoom(which),
         };
     }
@@ -124,10 +125,7 @@ pub(crate) fn pick(v: &[Account], active: &str, s: &Settings, now: i64) -> Pick 
                 .is_some_and(|d| d.saturating_add(MARGIN_MS) <= cur_deadline) =>
         {
             let h = (u.week.resets_at.unwrap() - now + HOUR / 2) / HOUR;
-            Pick::Switch(
-                v[*i].id.clone(),
-                format!("auto: weekly resets in {h}h, sooner"),
-            )
+            Pick::Switch(v[*i].id.clone(), sooner(&v[*i].email, h))
         }
         _ => Pick::Stay,
     }

@@ -2,12 +2,12 @@
 // Export link (a .jsonl download, accounts named acc1, acc2…, no email).
 // Parts: logText, renderUsageLog.
 
-// "1,234 lines since 28 Oct", or "nothing yet" with no line.
+// "1,234 records since 28 Oct", or "nothing yet" with no record.
 function logText(log) {
   const n = log.lines || 0;
   if (!n) return 'nothing yet';
   const since = log.since ? ` since ${new Date(log.since).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '';
-  return `${n.toLocaleString('en-US')} ${n === 1 ? 'line' : 'lines'}${since}`;
+  return `${n.toLocaleString('en-US')} ${n === 1 ? 'record' : 'records'}${since}`;
 }
 
 // An older backend sends no `usageLog`: no row then. Never in the demo (no log there).

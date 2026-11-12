@@ -49,7 +49,7 @@ fn a_path_that_cannot_be_changed_keeps_the_key_before() {
     FAIL.with(|f| f.set(true));
     let r = save(&a, KEY_A, &google_ok);
     FAIL.with(|f| f.set(false));
-    assert!(r.unwrap_err().contains("PATH"));
+    assert_eq!(r.unwrap_err(), "Could not finish setting up Claude Code on Gemini (Windows blocked it). Restart the app and try again.");
     let c = a.st.lock().unwrap().gemini.clone().unwrap();
     assert_eq!((c.key.as_str(), c.token.as_str()), (config().key.as_str(), TOKEN), "the key before stays");
     let script = std::fs::read_to_string(script_path(&a)).unwrap();

@@ -34,6 +34,8 @@ pub(super) struct Other {
     // In use there now: that side gets no button.
     pub(super) in_cli: bool,
     pub(super) in_desk: bool,
+    // (time ms, 5-hour %, weekly %): the chart under an open row (docs/specs/gadget-chart.md).
+    pub(super) history: Vec<(i64, i64, i64)>,
 }
 
 #[derive(Clone, Default)]
@@ -49,6 +51,9 @@ pub(super) struct Model {
     pub(super) checked: Option<i64>,
     // The accounts come in auto-switch's order (setting useSoonestReset): kept as they are.
     pub(super) ranked: bool,
+    // The auto-switch lines on the charts (settings threshold / weekThreshold).
+    pub(super) five_line: i64,
+    pub(super) week_line: i64,
 }
 
 pub(super) const FIVE_MS: i64 = 5 * 3_600_000;
@@ -106,6 +111,8 @@ pub(super) fn model(state: &str) -> Model {
     let desk: &[Value] = if found { d["accounts"].as_array().map_or(&[], |l| l.as_slice()) } else { &[] };
     let active = v["activeId"].as_str();
     m.ranked = v["settings"]["useSoonestReset"].as_bool() == Some(true);
+    m.five_line = v["settings"]["threshold"].as_i64().unwrap_or(95);
+    m.week_line = v["settings"]["weekThreshold"].as_i64().unwrap_or(99);
     for a in v["accounts"].as_array().into_iter().flatten() {
         let email = a["email"].as_str().unwrap_or("?").to_string();
         let uuid = a["uuid"].as_str();
@@ -121,7 +128,9 @@ pub(super) fn model(state: &str) -> Model {
             }
         }
         let id = a["id"].as_str().unwrap_or("").to_string();
-        m.others.push(Other { email, usage: usage(&a["usage"]), id, desk_uuid, in_cli, in_desk });
+        let history = a["history"].as_array().into_iter().flatten()
+            .filter_map(|p| Some((p[0].as_i64()?, p[1].as_i64()?, p[2].as_i64()?))).collect();
+        m.others.push(Other { email, usage: usage(&a["usage"]), id, desk_uuid, in_cli, in_desk, history });
     }
     if found {
         m.desk_switching = d["switching"].as_bool() == Some(true);

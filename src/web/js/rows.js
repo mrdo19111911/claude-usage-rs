@@ -39,13 +39,13 @@ function renderRows() {
   const head = on.reduce((s, a) => s + (100 - a.usage.week.u), 0);
   $('#summary').innerHTML = S.loggingIn && loginUrl
     ? `Sign-in page opened in your browser: sign in with the account to add. Not there? <a href="${esc(loginUrl)}" target="_blank" rel="noopener">Open it</a>.`
-    : esc(`${ready} ready now · weekly headroom ${head}% (≈ ${(head / 100).toFixed(1)} accounts)`);
+    : esc(`${ready} accounts ready · weekly use left: about ${(head / 100).toFixed(1)} accounts' worth`);
   $('#cliAdd').disabled = S.demo;
 
   const D = S.desktop, box = $('#desktopSub');
   $('#deskAdd').disabled = S.demo || !D.found || D.switching;
-  const msg = D.switching ? 'Claude Desktop is closing and will open again (up to a minute)…'
-    : D.expect ? `Claude Desktop is open and signed out: click <b>Continue with Google</b> there and choose <b>${esc(D.expect)}</b>.`
+  const msg = D.switching ? 'Claude Desktop is restarting (up to a minute)…'
+    : D.expect ? `Claude Desktop is open and signed out: sign in there with <b>${esc(D.expect)}</b>.`
     : '';
   box.className = msg ? 'wait' : 'sub';
   box.style.display = msg ? '' : 'none';

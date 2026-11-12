@@ -3,6 +3,7 @@
 // The switch closes and reopens Desktop, so it waits longer than Claude CLI's threshold.
 
 use crate::switch::rank::{ranked, useful, usage_now, Pick};
+use crate::switch::text;
 use crate::*;
 
 // The least time between two Desktop auto-switches (each closes and restarts Desktop).
@@ -19,17 +20,18 @@ pub(crate) fn pick_desktop(v: &[Account], desk: &[DesktopAccount], signed_in: Op
     }
     // Its figures: the Claude CLI login of the same account.
     let Some(u) = v.iter().find(|a| a.account_uuid.as_deref() == Some(cur)).and_then(|a| usage_now(a, now)) else { return Pick::Stay };
-    let which = if u.five.u >= DESKTOP_AT {
-        format!("5-hour {}%", u.five.u)
+    let (name, pct) = if u.five.u >= DESKTOP_AT {
+        ("5-hour", u.five.u)
     } else if u.week.u >= DESKTOP_AT {
-        format!("weekly {}%", u.week.u)
+        ("weekly", u.week.u)
     } else {
         return Pick::Stay;
     };
+    let which = format!("{name} {pct}%");
     let may = |uuid: &str| uuid != cur && desk.iter().any(|d| d.uuid == uuid && d.auto) && has_sign_in(uuid);
     let best = ranked(v, s, now).into_iter().filter(|(_, u)| useful(u, s)).find_map(|(i, _)| v[i].account_uuid.clone().filter(|x| may(x)));
     match best {
-        Some(uuid) => Pick::Switch(uuid, format!("Claude Desktop: auto-switch ({which})")),
+        Some(uuid) => Pick::Switch(uuid, text::desktop_switching(name, pct)),
         None => Pick::NoRoom(which),
     }
 }
@@ -52,7 +54,7 @@ impl App {
         match pick_desktop(&st.accounts, &st.desktop, signed_in.as_deref(), &has, &st.settings, now(), self.desktop_auto_at.load(Ordering::SeqCst)) {
             Pick::Stay => {}
             Pick::NoRoom(which) => {
-                let msg = format!("Claude Desktop hit {which} but no other account has room");
+                let msg = text::no_room(text::DESKTOP_ACCOUNT, &which);
                 if st.events.first().map(|e| &e.msg) != Some(&msg) {
                     self.log(&mut st, msg);
                 }
@@ -73,7 +75,7 @@ impl App {
     // POST /api/desktop/<uuid>/auto {enabled}: whether auto-switch may move Desktop there.
     pub(crate) fn set_desktop_auto(&self, uuid: &str, on: bool) -> Result<(), String> {
         let mut st = self.st.lock().unwrap();
-        st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or("not found")?.auto = on;
+        st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or(text::NOT_FOUND)?.auto = on;
         self.save(&st);
         Ok(())
     }

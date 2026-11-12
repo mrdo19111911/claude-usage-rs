@@ -40,7 +40,7 @@ fn quota_about_to_expire_is_used_first() {
     let v = vec![acc("a", 5, 1, 131), acc("b", 0, 66, 8)];
     assert_eq!(pick_id(&v, "a", true).as_deref(), Some("b"));
     match pick(&v, "a", &settings(true), NOW) {
-        Pick::Switch(_, why) => assert_eq!(why, "auto: weekly resets in 8h, sooner"),
+        Pick::Switch(_, why) => assert_eq!(why, "b@example.com's weekly limit resets sooner, in 8 h, so it is used first"),
         _ => unreachable!(),
     }
     assert_eq!(
@@ -92,7 +92,7 @@ fn at_a_threshold_the_earliest_deadline_wins_not_the_most_room() {
         "old rule: most room"
     );
     match pick(&v, "a", &settings(true), NOW) {
-        Pick::Switch(_, why) => assert_eq!(why, "auto: 5-hour 95%"),
+        Pick::Switch(_, why) => assert_eq!(why, "5-hour limit at 95%"),
         _ => unreachable!(),
     }
     // A useful account beats an earlier one with a sliver of 5-hour room.

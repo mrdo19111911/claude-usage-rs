@@ -31,3 +31,8 @@ fn without_a_key_nothing_opens() {
     let r = super::api(&a, "POST", "/api/gemini/open", &json!({})).unwrap();
     assert_eq!(r.unwrap_err(), "Add a Gemini account first");
 }
+
+#[test]
+fn elsewhere_it_says_windows_only() {
+    assert_eq!(super::open::NOT_WINDOWS, "Claude Code on Gemini works on Windows only.");
+}

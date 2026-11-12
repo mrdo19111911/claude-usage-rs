@@ -3,13 +3,13 @@
 
 use super::*;
 
-// How old the newest figures are, for the header: "· just now", "· 3 min ago", "· 2 h ago".
+// How old the newest figures are, for the header: "· updated 3 min ago" (also just now, h, d).
 pub(super) fn ago(checked: i64, now: i64) -> String {
     match (now - checked).max(0) / 60_000 {
-        0 => "· just now".into(),
-        m @ 1..=59 => format!("· {m} min ago"),
-        m @ 60..=1439 => format!("· {} h ago", m / 60),
-        m => format!("· {} d ago", m / 1440),
+        0 => "· updated just now".into(),
+        m @ 1..=59 => format!("· updated {m} min ago"),
+        m @ 60..=1439 => format!("· updated {} h ago", m / 60),
+        m => format!("· updated {} d ago", m / 1440),
     }
 }
 
@@ -35,11 +35,14 @@ pub(super) unsafe fn layout(m: &Model, s: f32, pinned: bool, dc: HDC) -> i32 {
         SetBkMode(dc, TRANSPARENT as i32);
         p.fill(0, 0, w, 10_000, BG);
     }
+    if draw {
+        clear_rows(pinned);
+    }
     let mut y = header(&p, m, pinned, w, draw);
     y = in_use(&p, m, w, y, draw);
     let (free, full) = split_others(m);
     y = switch_to(&p, m, &free, pinned, w, y, draw);
-    y = full_rows(&p, m, &full, w, y, draw);
+    y = full_rows(&p, m, &full, pinned, w, y, draw);
     y = footer(&p, pinned, w, y, draw);
     if draw {
         // Border last, over everything, along the window's rounded corners.
@@ -128,10 +131,10 @@ mod tests {
 
     #[test]
     fn ago_is_short() {
-        assert_eq!(ago(1_000, 1_000), "· just now");
-        assert_eq!(ago(5_000, 1_000), "· just now");
-        assert_eq!(ago(0, 3 * 60_000 + 59_000), "· 3 min ago");
-        assert_eq!(ago(0, 2 * 3_600_000 + 60_000), "· 2 h ago");
-        assert_eq!(ago(0, 3 * 86_400_000), "· 3 d ago");
+        assert_eq!(ago(1_000, 1_000), "· updated just now");
+        assert_eq!(ago(5_000, 1_000), "· updated just now");
+        assert_eq!(ago(0, 3 * 60_000 + 59_000), "· updated 3 min ago");
+        assert_eq!(ago(0, 2 * 3_600_000 + 60_000), "· updated 2 h ago");
+        assert_eq!(ago(0, 3 * 86_400_000), "· updated 3 d ago");
     }
 }

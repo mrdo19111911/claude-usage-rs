@@ -6,8 +6,7 @@ use super::*;
 use std::sync::atomic::AtomicBool;
 
 pub(super) const VERSION: &str = env!("CARGO_PKG_VERSION");
-const TITLE: &str = "Smartlog Claude Auto Switch";
-const COULD_NOT: &str = "Could not check for updates.";
+const COULD_NOT: &str = "Could not check for updates. Check the internet and try again.";
 
 // What the "Check for updates" box says: a plain note, a Yes/No offer to install, or a
 // failure.
@@ -53,9 +52,9 @@ pub(super) unsafe fn menu(x: i32, y: i32) {
     let busy = if CHECKING.load(Ordering::SeqCst) { MF_GRAYED } else { 0 };
     AppendMenuW(m, MF_STRING | busy, ID_UPDATE, wide("Check for updates").as_ptr());
     AppendMenuW(m, MF_SEPARATOR, 0, ptr::null());
-    AppendMenuW(m, MF_STRING | if pin_on { MF_CHECKED } else { 0 }, ID_PIN, wide("Pin widget on the desktop").as_ptr());
+    AppendMenuW(m, MF_STRING | if pin_on { MF_CHECKED } else { 0 }, ID_PIN, wide(words::PIN_ITEM).as_ptr());
     AppendMenuW(m, MF_SEPARATOR, 0, ptr::null());
-    AppendMenuW(m, MF_STRING, ID_QUIT, wide("Exit").as_ptr());
+    AppendMenuW(m, MF_STRING, ID_QUIT, wide(words::EXIT_ITEM).as_ptr());
     // Without this the menu stays open after a click elsewhere.
     SetForegroundWindow(msg);
     let cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, x, y, 0, msg, ptr::null()) as usize;
@@ -109,7 +108,7 @@ fn check_updates() {
 // A box on top of everything, no owner, like the tray's other boxes.
 fn say(text: &str, style: MESSAGEBOX_STYLE) -> MESSAGEBOX_RESULT {
     let style = style | MB_TOPMOST | MB_SETFOREGROUND;
-    unsafe { MessageBoxW(ptr::null_mut(), wide(text).as_ptr(), wide(TITLE).as_ptr(), style) }
+    unsafe { MessageBoxW(ptr::null_mut(), wide(text).as_ptr(), wide(words::APP).as_ptr(), style) }
 }
 
 #[cfg(test)]

@@ -34,12 +34,16 @@ pub(crate) fn newer(latest: &str, current: &str) -> bool {
     a > b
 }
 
+// A release answer or tag that does not read (the raw detail goes to stderr).
+pub(crate) const UNREADABLE: &str = "Could not read the update information. Try again later.";
+
 // The release's setup, ready to download and check. No usable digest: not installable,
 // since the download could not be checked.
 pub(crate) fn pick_asset(release: &Value) -> Result<Asset, String> {
     let tag = release["tag_name"].as_str().unwrap_or("");
     if parts(tag).is_none() {
-        return Err(format!("The latest release's tag ({tag:?}) is not a version."));
+        eprintln!("The latest release's tag ({tag:?}) is not a version.");
+        return Err(UNREADABLE.into());
     }
     let version = tag.trim_start_matches('v').to_string();
     let name = format!("SCAS-Setup-{version}.exe");
@@ -96,5 +100,8 @@ pub(crate) fn latest_release(http: &ureq::Agent) -> Result<Value, String> {
             ureq::Error::Status(c, _) => format!("GitHub answered HTTP {c}."),
             ureq::Error::Transport(t) => format!("Could not reach GitHub: {t}"),
         })?;
-    resp.into_json::<Value>().map_err(|e| format!("GitHub's answer could not be read: {e}"))
+    resp.into_json::<Value>().map_err(|e| {
+        eprintln!("GitHub's answer could not be read: {e}");
+        UNREADABLE.to_string()
+    })
 }

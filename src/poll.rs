@@ -129,7 +129,11 @@ impl App {
         if let Some((id, reason)) = next {
             if let Err(e) = self.activate(&id, &reason) {
                 let mut st = self.st.lock().unwrap();
-                self.log(&mut st, format!("Auto-switch failed: {e}"));
+                // A 429 says "waited"; the same line twice in a row is not repeated.
+                let msg = crate::switch::text::auto_failed(&e);
+                if st.events.first().map(|e| &e.msg) != Some(&msg) {
+                    self.log(&mut st, msg);
+                }
             }
         }
         // Then Claude Desktop's, when its account is at 100% (desktop_auto.rs).

@@ -174,7 +174,7 @@ fn the_ready_card_is_one_button_in_plain_words() {
                  "${fast}", "Or type <code>${cmd}</code> in a new terminal", "data-gcopy", "</details>", ">Remove</button>"];
     let at: Vec<usize> = order.iter().map(|s| has(s)).collect();
     assert!(at.windows(2).all(|w| w[0] < w[1]), "in this order: {order:?}");
-    assert!(card.contains("Small side jobs use:"), "the second model, said plainly");
+    assert!(card.contains("Quick tasks use:"), "the second model, said plainly");
     for gone in ["<b>Ready</b>", "How to use it", "PowerShell", "<ol"] {
         assert!(!card.contains(gone), "no more {gone:?}");
     }

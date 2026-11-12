@@ -27,7 +27,7 @@ function renderGemini() {
 function gemReady(g) {
   const cmd = esc(g.command || 'cgemini');
   const done = gemSaved ? '<p class="gem-ok" role="status">All set! Press <b>Use this</b> to start.</p>' : '';
-  const fast = g.fastModel ? `<span class="note">Small side jobs use: ${esc(g.fastModel)}</span>` : '';
+  const fast = g.fastModel ? `<span class="note">Quick tasks use: ${esc(g.fastModel)}</span>` : '';
   const free = gemFree(g.model) && (!g.fastModel || gemFree(g.fastModel));
   return `${done}<div class="gem-ready">
     <p><span class="dot"></span>${free ? 'Gemini is ready (free).' : 'Gemini is ready.'}</p>
@@ -64,7 +64,7 @@ $('#gemBody').addEventListener('click', e => {
       setTimeout(() => (copy.textContent = 'Copy'), 1500);
     }).catch(() => alert('Copy did not work: type ' + copy.dataset.gcopy));
   } else if (e.target.closest('[data-gremove]')
-    && confirm('Remove the Gemini key from this computer? cgemini stops working until you add a key again.')) {
+    && confirm('Remove the Gemini access code from this computer? Claude Code on Gemini stops working until you add one again.')) {
     act(api('/api/gemini', { method: 'DELETE' }));
   }
 });

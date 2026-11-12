@@ -16,6 +16,19 @@ fn reads_both_sides_from_the_state() {
     assert_eq!(m.others[0].usage.as_ref().unwrap().week.u, 100);
 }
 
+// The chart under an open row (docs/specs/gadget-chart.md): history and the CLI thresholds.
+#[test]
+fn reads_history_and_thresholds_for_the_chart() {
+    let st = r#"{"now":1000,"settings":{"threshold":94,"weekThreshold":98},"activeId":"z",
+        "accounts":[{"id":"a","email":"a@x.com","usage":null,"history":[[100,5,40],[200,9,41]]},
+                    {"id":"b","email":"b@x.com","usage":null}]}"#;
+    let m = model(st);
+    assert_eq!(m.others[0].history, vec![(100, 5, 40), (200, 9, 41)]);
+    assert!(m.others[1].history.is_empty());
+    assert_eq!((m.five_line, m.week_line), (94, 98));
+    assert_eq!((model("{}").five_line, model("{}").week_line), (95, 99), "defaults as the app's");
+}
+
 // Accounts a, b, c (CLI on `active`); Desktop knows `desk` (uuid, hasSignIn, signedIn).
 fn state(active: &str, desk: &[(&str, bool, bool)], found: bool, demo: bool, switching: bool) -> String {
     let desk: Vec<Value> = desk.iter().map(|(u, has, on)| json!({"uuid": u, "email": format!("{u}@x.com"), "label": u, "hasSignIn": has, "signedIn": on})).collect();

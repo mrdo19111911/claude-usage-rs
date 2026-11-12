@@ -93,6 +93,11 @@ impl App {
     }
 }
 
+// What a failed download says (docs/REVIEW_DE_HIEU.md section 5); the raw detail goes to stderr.
+pub(crate) const REDIRECTED: &str = "The update came from an unexpected place and was not installed.";
+pub(crate) const INCOMPLETE: &str = "The download was incomplete and has been deleted. Please try again.";
+pub(crate) const DAMAGED: &str = "The download was damaged and has been deleted. Please try again.";
+
 // Streams the setup to `to`, hashing as it writes. Its own agent: the API's 20 s limit
 // covers the whole body, too short for a setup on a slow line.
 fn download(asset: &Asset, to: &Path) -> Result<(), String> {
@@ -105,7 +110,8 @@ fn download(asset: &Asset, to: &Path) -> Result<(), String> {
         .map_err(|e| format!("Could not download {}: {e}", asset.name))?;
     // GitHub redirects to its asset host; anywhere else is not followed further.
     if !download_host_ok(resp.get_url()) {
-        return Err(format!("The download of {} was sent somewhere other than GitHub.", asset.name));
+        eprintln!("The download of {} was sent to {}, not GitHub.", asset.name, resp.get_url());
+        return Err(REDIRECTED.into());
     }
     let mut file = fs::File::create(to).map_err(|e| format!("Could not write {}: {e}", to.display()))?;
     let mut sha = sha2::Sha256::new();
@@ -122,10 +128,12 @@ fn download(asset: &Asset, to: &Path) -> Result<(), String> {
     }
     file.sync_all().map_err(|e| format!("Could not write {}: {e}", to.display()))?;
     if got != asset.size {
-        return Err(format!("The download has {got} bytes, GitHub says {}; it was deleted.", asset.size));
+        eprintln!("The download has {got} bytes, GitHub says {}.", asset.size);
+        return Err(INCOMPLETE.into());
     }
     if hex(&sha.finalize()) != asset.sha256 {
-        return Err("The download does not match GitHub's SHA-256 digest; it was deleted.".into());
+        eprintln!("The download does not match GitHub's SHA-256 digest.");
+        return Err(DAMAGED.into());
     }
     Ok(())
 }

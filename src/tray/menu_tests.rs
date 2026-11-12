@@ -28,7 +28,7 @@ fn available_offers_to_install() {
 #[test]
 fn available_without_a_version_cannot_be_offered() {
     let s = state(json!({ "status": "available", "latest": null }));
-    assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates.".into()));
+    assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates. Check the internet and try again.".into()));
 }
 
 #[test]
@@ -40,17 +40,17 @@ fn error_shows_its_text() {
 #[test]
 fn error_without_text_says_it_could_not_check() {
     let s = state(json!({ "status": "error", "error": null }));
-    assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates.".into()));
+    assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates. Check the internet and try again.".into()));
 }
 
 #[test]
 fn anything_else_could_not_check() {
     for st in ["idle", "checking", "downloading", "installing", "nonsense"] {
         let s = state(json!({ "status": st }));
-        assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates.".into()), "{st}");
+        assert_eq!(update_answer(&s, "1.1.0"), Answer::Fail("Could not check for updates. Check the internet and try again.".into()), "{st}");
     }
-    assert_eq!(update_answer("{}", "1.1.0"), Answer::Fail("Could not check for updates.".into()));
-    assert_eq!(update_answer("not json", "1.1.0"), Answer::Fail("Could not check for updates.".into()));
+    assert_eq!(update_answer("{}", "1.1.0"), Answer::Fail("Could not check for updates. Check the internet and try again.".into()));
+    assert_eq!(update_answer("not json", "1.1.0"), Answer::Fail("Could not check for updates. Check the internet and try again.".into()));
 }
 
 #[test]

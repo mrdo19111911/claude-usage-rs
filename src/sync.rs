@@ -67,7 +67,7 @@ impl App {
             keep_oauth_account(&mut a, oa);
             st.accounts.push(a);
             st.active_id = Some(id);
-            self.log(&mut st, format!("Added {email} (new Claude Code login)"));
+            self.log(&mut st, added_from_code(&email));
         }
         self.save(&st);
     }

@@ -94,3 +94,20 @@ fn remove_forgets_the_key_and_the_script() {
     let saved = std::fs::read_to_string(&a.data_file).unwrap();
     assert!(!saved.contains(KEY), "saved without it");
 }
+
+// docs/REVIEW_DE_HIEU.md section 5: plain words, no codes, for office staff.
+#[test]
+fn a_bad_watch_call_says_reload() {
+    let a = app(&temp_dir("watch-odd"), 1, None);
+    let r = api(&a, "POST", "/api/gemini/watch", &json!({})).expect("a route");
+    assert_eq!(r.unwrap_err(), "Something went wrong; reload the page.");
+}
+
+#[test]
+fn googles_answer_to_a_key_is_plain() {
+    use super::upstream::key_refused;
+    assert_eq!(key_refused(400), "Google did not accept this access code.");
+    assert_eq!(key_refused(403), "Google did not accept this access code.");
+    assert_eq!(key_refused(429), "Google could not check this access code just now. Try again shortly.");
+    assert_eq!(key_refused(503), "Google could not check this access code just now. Try again shortly.");
+}

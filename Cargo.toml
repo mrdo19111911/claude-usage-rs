@@ -1,6 +1,6 @@
 [package]
 name = "scas"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2021"
 
 [dependencies]
@@ -30,6 +30,8 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
     # The tray icon and its widget (tray.rs); no console window (main).
     "Win32_Graphics_Gdi",
+    # Smooth chart lines in the gadget (tray/gdip.rs).
+    "Win32_Graphics_GdiPlus",
     "Win32_System_Console",
     "Win32_System_LibraryLoader",
     # The cgemini folder on the user's PATH (gemini/path_win.rs).

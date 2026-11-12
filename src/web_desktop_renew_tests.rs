@@ -4,7 +4,7 @@
 
 use super::asset;
 
-const LABEL: &str = "Renew saved Claude Desktop sign-ins at 4:00 (switches Desktop for a few minutes, then back)";
+const LABEL: &str = "Keep saved Claude Desktop sign-ins from expiring (at 4:00 a.m. it switches Desktop briefly, then back)";
 
 fn js(name: &str) -> &'static str {
     asset(&format!("/js/{name}")).expect("served").0

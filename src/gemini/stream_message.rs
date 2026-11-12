@@ -21,7 +21,7 @@ pub(super) fn stop_reason(finish: Option<&str>, called: bool) -> Result<&'static
         Some(
             r @ ("MALFORMED_FUNCTION_CALL" | "MISSING_THOUGHT_SIGNATURE" | "UNEXPECTED_TOOL_CALL" | "TOO_MANY_TOOL_CALLS"
             | "MALFORMED_RESPONSE"),
-        ) => Err(format!("Gemini stopped with {r}")),
+        ) => Err(format!("Gemini stopped answering ({r})")),
         Some(_) => Ok(done),
     }
 }
