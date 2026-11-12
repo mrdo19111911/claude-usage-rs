@@ -9,6 +9,7 @@
 
 mod desktop;
 mod gemini;
+mod license;
 mod lock;
 mod login;
 #[cfg(windows)]
