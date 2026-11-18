@@ -11,6 +11,9 @@ function renderSettings() {
     $('#renewDesktop').checked = s.renewDesktop !== false;
     $('#threshold').value = s.threshold;
     $('#weekThreshold').value = s.weekThreshold;
+    // The polling settings (check-schedule.md); an older backend sends none.
+    for (const [id, d] of [['lowMin', 15], ['midMin', 7], ['highMin', 2], ['midPct', 50], ['highPct', 90], ['weekHighPct', 98],['idleMin', 10], ['idleMax', 15]]) $('#' + id).value = s[id] ?? d;
+    $('#pollOthers').checked = s.pollOthers === true;
   }
   $('#events').innerHTML = S.events.map(e => `<li>${hhmm(e.t)} — ${esc(e.msg)}</li>`).join('');
   $('#import').style.display = S.demo ? 'none' : '';

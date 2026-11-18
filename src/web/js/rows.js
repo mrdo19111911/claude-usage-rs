@@ -16,7 +16,8 @@ function accountRows() {
 function checkLine(a) {
   const t = Date.now() - clockSkew, parts = [];
   if (a.usage) parts.push(`checked <span data-ago="${a.usage.fetchedAt}">${ago(a.usage.fetchedAt)}</span>`);
-  if (a.nextCheck > t + 5e3) parts.push('next check ' + resetLabel(a.nextCheck));
+  // A check set to "never" (others not polled) is a month off: not shown.
+  if (a.nextCheck > t + 5e3 && a.nextCheck < t + 24 * 36e5) parts.push('next check ' + resetLabel(a.nextCheck));
   return parts.length ? `<div class="meta">${parts.join(' · ')}</div>` : '';
 }
 

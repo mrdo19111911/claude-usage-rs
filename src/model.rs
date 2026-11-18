@@ -32,6 +32,9 @@ pub(crate) struct Settings {
     // (docs/specs/desktop-renew.md; absent: on).
     #[serde(default = "yes")]
     pub(crate) renew_desktop: bool,
+    // How often usage is checked (docs/specs/check-schedule.md); keys sit flat among these.
+    #[serde(flatten)]
+    pub(crate) poll: crate::poll::poll_config::PollCfg,
 }
 
 fn yes() -> bool {
@@ -151,7 +154,7 @@ pub(crate) struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true, use_soonest_reset: true, renew_desktop: true },
+            settings: Settings { threshold: 95, week_threshold: 99, auto_switch: true, poll_seconds: 120, auto_update: true, share_desktop_sessions: true, use_soonest_reset: true, renew_desktop: true, poll: Default::default() },
             accounts: vec![],
             active_id: None,
             events: vec![],

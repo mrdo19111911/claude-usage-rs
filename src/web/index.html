@@ -112,6 +112,17 @@
     <div class="settings" style="margin-top:10px">
       <label><input type="checkbox" id="renewDesktop"> Keep saved Claude Desktop sign-ins from expiring (at 4:00 a.m. it switches Desktop briefly, then back)</label>
     </div>
+    <div class="settings" style="margin-top:10px">
+      <label>Check the account in use every <input type="number" id="lowMin" min="1" max="120"> min below <input type="number" id="midPct" min="1" max="100">% use,</label>
+      <label>every <input type="number" id="midMin" min="1" max="120"> min from there, and every <input type="number" id="highMin" min="1" max="120"> min from <input type="number" id="highPct" min="1" max="100">% of the 5-hour limit, or when weekly use reaches <input type="number" id="weekHighPct" min="1" max="100">%</label>
+    </div>
+    <details class="adv" id="advPoll">
+    <summary>Advanced settings</summary>
+    <div class="settings" style="margin-top:10px">
+      <label><input type="checkbox" id="pollOthers"> Also check the other accounts by themselves (Check now always checks all)</label>
+      <label>each one at a random time between <input type="number" id="idleMin" min="1" max="120"> and <input type="number" id="idleMax" min="1" max="120"> min</label>
+    </div>
+    </details>
     <div class="upd" id="updRow">
       <span><b>Updates</b> <span class="note">· version <span id="updVer"></span></span></span>
       <span class="note" id="updStatus"></span>
@@ -128,7 +139,7 @@
       <span><b>Usage log</b> <span class="note" id="logStatus"></span></span>
       <a class="btn" id="logExport" download hidden>Export</a>
     </div>
-    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The account Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts with "allow auto-switch" off are skipped.<br>Usage is checked every 10 minutes; an account in use is checked more often as it nears a limit, every minute from 90% of its 5-hour limit (or near its weekly limit). A used-up account is checked again after it resets.</p>
+    <p class="note">Add an account: click <b>+ Add account</b> above and sign in on the page that opens in your browser. The account Claude Code uses now stays as it is. It shows up here by itself within ~10 s. Repeat for each account. Accounts with "allow auto-switch" off are skipped.<br>The account in use is checked every 15 minutes, every 7 minutes from 50% of the 5-hour limit and every 2 minutes from 90%. The weekly limit is ignored until it reaches 98%, then the account is checked every 2 minutes. You can change all of this in Settings. Other accounts are checked only when you press Check now, unless you turn on checking them in Advanced settings. A used-up account is checked again after it resets.</p>
     <ul class="events" id="events"></ul>
     <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Technical details for support (no passwords shown)</summary><pre id="diag" class="note" style="white-space:pre-wrap;font-size:12.5px"></pre></details>
     </details>

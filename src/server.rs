@@ -86,6 +86,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["weekThreshold"].as_f64() {
                     st.settings.week_threshold = (v as i64).clamp(50, 100);
                 }
+                st.settings.poll.apply_json(&body)?;
                 let s = &mut st.settings;
                 for (key, field) in [("autoSwitch", &mut s.auto_switch), ("autoUpdate", &mut s.auto_update), ("shareDesktopSessions", &mut s.share_desktop_sessions), ("useSoonestReset", &mut s.use_soonest_reset), ("renewDesktop", &mut s.renew_desktop)] {
                     if let Some(v) = body[key].as_bool() {

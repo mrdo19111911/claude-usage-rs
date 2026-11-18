@@ -6,6 +6,10 @@ use crate::*;
 #[path = "schedule.rs"]
 pub(crate) mod schedule;
 pub(crate) use schedule::*;
+// The polling settings and interval rules (docs/specs/check-schedule.md).
+#[path = "poll_config.rs"]
+pub(crate) mod poll_config;
+pub(crate) use poll_config::*;
 // When a parked account's sign-in may be refreshed (docs/specs/idle-refresh.md).
 #[path = "idle_refresh.rs"]
 pub(crate) mod idle_refresh;
@@ -14,9 +18,11 @@ impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
         let (creds, is_active, account_uuid, slow_until, in_use, need, left_at) = {
             let st = self.st.lock().unwrap();
-            let need = idle_refresh::needed(&st.accounts, now());
+            let cfg = st.settings.poll.clone();
+            // A waiting parked account is looked at early only when others are polled.
+            let need = cfg.poll_others && idle_refresh::needed(&st.accounts, now());
             match st.accounts.iter().find(|a| a.id == id) {
-                Some(a) if force || now() >= a.next_check || (need && a.waiting) => {
+                Some(a) if is_due(a, now(), force, &cfg) || (need && a.waiting) => {
                     (a.creds.clone(), st.active_id.as_deref() == Some(id), a.account_uuid.clone(), a.slow_until, a.in_use, need, a.left_at)
                 }
                 _ => return,
@@ -53,6 +59,7 @@ impl App {
             self.get_profile(fresh.unwrap_or(&creds)).ok()
         };
         let mut st = self.st.lock().unwrap();
+        let cfg = st.settings.poll.clone();
         let active_now = st.active_id.as_deref() == Some(id);
         let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) else { return };
         let mut logged = None;
@@ -78,7 +85,7 @@ impl App {
                 a.history.retain(|p| p.0 > t - 8 * 24 * HOUR);
                 a.history.push((t, five.u, week.u));
                 let u = Usage { five, week, fetched_at: t, scoped: to_scoped(&j) };
-                a.next_check = next_check_at(&u, in_use || is_live, t);
+                a.next_check = next_check_at(&u, in_use || is_live, t, &cfg, &mut || rng_for(id).next_u64());
                 a.usage = Some(u);
                 logged = usage_log::figures(a, active_now);
                 a.error = None;
@@ -112,7 +119,7 @@ impl App {
         let mut st = self.st.lock().unwrap();
         if let Some(a) = st.accounts.iter_mut().find(|a| a.id == id) {
             a.waiting = true;
-            a.next_check = now() + SLOWEST_MS;
+            a.next_check = now() + WAIT_REFRESH_MS;
         }
     }
 
@@ -127,9 +134,11 @@ impl App {
             self.sync_desktop(&mut st);
             let t = now();
             let (active, desk) = (st.active_id.clone(), self.desktop_dir.as_deref().and_then(desktop::signed_in));
-            mark_in_use(&mut st.accounts, active.as_deref(), desk.as_deref(), t);
-            let need = idle_refresh::needed(&st.accounts, t);
-            st.accounts.iter().filter(|a| force || t >= a.next_check || (need && a.waiting)).map(|a| a.id.clone()).collect()
+            let cfg = st.settings.poll.clone();
+            let mut rng = rng_for("mark");
+            mark_in_use(&mut st.accounts, active.as_deref(), desk.as_deref(), t, &cfg, &mut || rng.next_u64());
+            let need = cfg.poll_others && idle_refresh::needed(&st.accounts, t);
+            st.accounts.iter().filter(|a| is_due(a, t, force, &cfg) || (need && a.waiting)).map(|a| a.id.clone()).collect()
         };
         if ids.is_empty() {
             // The 4:00 renewal is checked on quiet polls too (docs/specs/desktop-renew.md).

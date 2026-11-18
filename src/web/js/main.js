@@ -1,6 +1,6 @@
 // Loaded last: drawing, buttons and the load loop.
 // Parts: render, the width watcher (renderCards is in card.js, renderUpdate is in update.js, renderUsageLog in usage_log.js, renderGemini in gemini.js), setState, load, act; #viewToggle, #refresh, #import, #exit onclick;
-// autoSwitch/threshold/weekThreshold/shareDesktopSessions/useSoonestReset/renewDesktop onchange; loginUrl, signIn, #cliAdd onclick;
+// autoSwitch/threshold/weekThreshold/shareDesktopSessions/useSoonestReset/renewDesktop onchange; POLL_IDS onchange (the polling settings); loginUrl, signIn, #cliAdd onclick;
 // #accts click, #sides click, run (its ✕ removes both logins), #accts change (both switches); load() and the two timers.
 
 function render() { if (!S) return; renderSides(); renderRows(); renderSettings(); renderUpdate(); renderUsageLog(); renderGemini(); }
@@ -32,6 +32,17 @@ for (const id of ['autoSwitch', 'threshold', 'weekThreshold', 'shareDesktopSessi
     weekThreshold: +$('#weekThreshold').value,
     shareDesktopSessions: $('#shareDesktopSessions').checked, useSoonestReset: $('#useSoonestReset').checked,
     renewDesktop: $('#renewDesktop').checked }) }));
+}
+// The polling settings, sent together; one the app refuses (out of range, middle >= high) is
+// shown as its message and the saved values come back.
+const POLL_IDS = ['lowMin', 'midMin', 'highMin', 'midPct', 'highPct', 'weekHighPct', 'pollOthers', 'idleMin', 'idleMax'];
+for (const id of POLL_IDS) {
+  $('#' + id).onchange = () => {
+    const body = {};
+    for (const k of POLL_IDS) { const e = $('#' + k); body[k] = e.type === 'checkbox' ? e.checked : +e.value; }
+    api('/api/settings', { method: 'POST', body: JSON.stringify(body) }).then(setState)
+      .catch(e => { alert(e.message); document.activeElement.blur(); load(); });
+  };
 }
 // The sign-in page opens in the default browser; the account is added when it comes back.
 // Claude Code keeps the login it uses now.
