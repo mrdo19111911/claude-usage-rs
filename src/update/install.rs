@@ -1,7 +1,8 @@
 // Installing a newer release: download its setup, check it, start it out of this
-// process. The setup closes this app itself (`--quit`), installs, and starts the new
-// version (/RELAUNCH=1, installer/scas.iss), so nothing here exits.
+// process and wait for its end. The setup closes this app itself (`--quit`), installs,
+// and starts the new version (/RELAUNCH=1, installer/scas.iss), so nothing here exits.
 
+use super::setup::{clear_dir, setup_result};
 use super::*;
 use sha2::Digest;
 use std::io::{Read, Write};
@@ -20,7 +21,8 @@ fn update_dir() -> PathBuf {
 }
 
 impl App {
-    // Downloads, checks and starts the setup; blocking (the tray calls it off its thread).
+    // Downloads, checks and runs the setup; blocking until the setup ends (the tray, the
+    // server and the checker each call it off their own thread).
     pub(crate) fn install_update(&self) -> Result<(), String> {
         self.begin_install()?;
         self.finish_install()
@@ -52,29 +54,39 @@ impl App {
         Ok(())
     }
 
+    // A failed download ends in "error"; a setup that did not install (UAC declined, a
+    // failed install, not started) in "available" again, so a click can retry.
     pub(crate) fn finish_install(&self) -> Result<(), String> {
-        let res = self.fetch_setup().and_then(|(asset, path)| {
-            let mut st = self.st.lock().unwrap();
-            self.set_update(|u| u.phase = Phase::Installing);
-            self.log(&mut st, format!("Installing update {}", asset.version));
-            self.save(&st);
-            drop(st);
-            run_setup(&path)
+        let res = match self.fetch_setup() {
+            Ok((asset, path)) => {
+                let mut st = self.st.lock().unwrap();
+                self.set_update(|u| u.phase = Phase::Installing);
+                self.log(&mut st, format!("Installing update {}", asset.version));
+                self.save(&st);
+                drop(st);
+                setup_result(run_setup(&path)).map_err(|e| (Phase::Available, e))
+            }
+            Err(e) => Err((Phase::Error, e)),
+        };
+        res.map_err(|(phase, e)| {
+            self.install_failed(phase, &e);
+            e
+        })
+    }
+
+    pub(crate) fn install_failed(&self, phase: Phase, e: &str) {
+        let mut st = self.st.lock().unwrap();
+        self.set_update(|u| {
+            u.phase = phase;
+            u.error = Some(e.to_string());
         });
-        if let Err(e) = &res {
-            let mut st = self.st.lock().unwrap();
-            self.set_update(|u| {
-                u.phase = Phase::Error;
-                u.error = Some(e.clone());
-            });
-            self.log(&mut st, format!("Update failed: {e}"));
-            self.save(&st);
-        }
-        res
+        self.log(&mut st, format!("Update failed: {e}"));
+        self.save(&st);
     }
 
     // The latest release's setup in %TEMP%\scas-update, checked: written as
-    // .part, renamed only once its size and SHA-256 match the release's.
+    // .part, renamed only once its size and SHA-256 match the release's. What earlier
+    // updates left in that folder is deleted first.
     fn fetch_setup(&self) -> Result<(Asset, PathBuf), String> {
         let asset = pick_asset(&latest_release(&self.http)?)?;
         if !newer(&asset.version, VERSION) {
@@ -82,6 +94,7 @@ impl App {
         }
         let dir = update_dir();
         fs::create_dir_all(&dir).map_err(|e| format!("Could not make {}: {e}", dir.display()))?;
+        clear_dir(&dir);
         let (path, part) = (dir.join(&asset.name), dir.join(format!("{}.part", asset.name)));
         if let Err(e) = download(&asset, &part) {
             let _ = fs::remove_file(&part);
@@ -139,9 +152,10 @@ fn download(asset: &Asset, to: &Path) -> Result<(), String> {
 }
 
 // Started out of this app's job when allowed (a job may end its processes with it),
-// else plainly; no console or stdio of ours (they may be gone, main.rs).
+// else plainly; no console or stdio of ours (they may be gone, main.rs). Waits for its
+// end and gives its exit code (setup.rs setup_result reads it).
 #[cfg(windows)]
-fn run_setup(path: &Path) -> Result<(), String> {
+fn run_setup(path: &Path) -> Result<Option<i32>, String> {
     use std::os::windows::process::CommandExt;
     use std::process::Stdio;
     const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
@@ -149,10 +163,11 @@ fn run_setup(path: &Path) -> Result<(), String> {
     let spawn = |flags: u32| {
         Command::new(path).args(&args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).creation_flags(flags).spawn()
     };
-    spawn(CREATE_BREAKAWAY_FROM_JOB).or_else(|_| spawn(0)).map(|_| ()).map_err(|e| format!("Could not start the setup: {e}"))
+    let mut child = spawn(CREATE_BREAKAWAY_FROM_JOB).or_else(|_| spawn(0)).map_err(|e| format!("Could not start the setup: {e}"))?;
+    child.wait().map(|s| s.code()).map_err(|e| format!("Could not wait for the setup: {e}"))
 }
 
 #[cfg(not(windows))]
-fn run_setup(_: &Path) -> Result<(), String> {
+fn run_setup(_: &Path) -> Result<Option<i32>, String> {
     Err("Installing updates works on Windows only.".into())
 }

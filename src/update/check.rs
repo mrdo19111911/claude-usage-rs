@@ -63,8 +63,9 @@ impl App {
         };
         let mut st = self.st.lock().unwrap();
         // The 3 days start only when nothing waits to be installed: a version found with
-        // autoUpdate on is tried again at the next hourly look, and after a restart.
-        if res.is_ok() && !waits_to_install(newer, st.settings.auto_update, INSTALLS) {
+        // autoUpdate on is tried again at the next hourly look, and after a restart
+        // (not an all-users copy: the user installs it by a click).
+        if res.is_ok() && !waits_to_install(newer, st.settings.auto_update, installs_itself()) {
             st.update_checked_at = Some(t);
         }
         if let Some(v) = found {

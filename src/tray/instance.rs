@@ -41,8 +41,26 @@ pub fn claim_instance(demo: bool, quit: bool) -> bool {
         return true;
     }
     eprintln!("The dashboard is already running: hover its icon in the tray.");
-    // A double-click shows no stderr: the running one opens its dashboard instead.
-    signal_running(demo);
+    // A double-click shows no stderr: the running one opens its dashboard instead. Its
+    // window comes a moment after its mutex, so look for 3 s (docs/specs/relaunch.md).
+    if !found_within(30, std::time::Duration::from_millis(100), || signal_running(demo)) {
+        // Running with no window: nothing to signal, and silence would look like a dead app.
+        let style = MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND;
+        unsafe { MessageBoxW(ptr::null_mut(), wide(words::STUCK).as_ptr(), wide(words::APP).as_ptr(), style) };
+    }
+    false
+}
+
+// Calls `find` up to `tries` times, `gap` apart, until it says true.
+pub(super) fn found_within(tries: u32, gap: std::time::Duration, mut find: impl FnMut() -> bool) -> bool {
+    for i in 0..tries {
+        if i > 0 {
+            thread::sleep(gap);
+        }
+        if find() {
+            return true;
+        }
+    }
     false
 }
 

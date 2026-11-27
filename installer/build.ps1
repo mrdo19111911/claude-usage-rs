@@ -13,9 +13,16 @@ $dev = (Resolve-Path target\release\scas.exe -ErrorAction SilentlyContinue).Path
 if ($dev -and (Get-Process scas -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $dev })) { & $dev --quit | Out-Null }
 # Rust keeps source paths for its panic messages: hide this computer's (user name, folders).
 # The encoded form (0x1f between flags): the paths may hold spaces.
-$env:CARGO_ENCODED_RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~" + [char]0x1f + "--remap-path-prefix=$root=."
+# Static C runtime (+crt-static): scas.exe must not import VCRUNTIME140.dll, so a VC++
+# Runtime update can't shut it down via Restart Manager (docs/specs/static-crt.md). This
+# env overrides .cargo/config rustflags, so the flag is repeated here.
+$env:CARGO_ENCODED_RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=~" + [char]0x1f + "--remap-path-prefix=$root=." + [char]0x1f + "-C" + [char]0x1f + "target-feature=+crt-static"
 cargo build --release
 if ($LASTEXITCODE) { throw "cargo build failed" }
+
+# Guard: the release exe must be statically linked to the C runtime.
+findstr /M /C:"VCRUNTIME140" target\release\scas.exe > $null 2>&1
+if ($LASTEXITCODE -eq 0) { throw "static CRT failed: target\release\scas.exe still imports VCRUNTIME140" }
 
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",

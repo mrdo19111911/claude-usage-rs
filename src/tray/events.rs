@@ -8,6 +8,14 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
     if UI.with(|u| u.borrow().is_none()) {
         return DefWindowProcW(hwnd, msg, wp, lp);
     }
+    match closing(msg, wp) {
+        Some(Closing::Ask) => {
+            ask_exit(false);
+            return 0;
+        }
+        Some(Closing::Now) => exit(),
+        None => {}
+    }
     match msg {
         WM_TRAY => {
             // NOTIFYICON_VERSION_4: the event in lParam's low word, the icon's place in wParam.
@@ -48,6 +56,25 @@ pub(super) unsafe extern "system" fn msg_proc(hwnd: HWND, msg: u32, wp: WPARAM, 
             0
         }
         _ => DefWindowProcW(hwnd, msg, wp, lp),
+    }
+}
+
+// What a message asking the tray window to go means for the program. It must end with its
+// window: left running it would hold the single-instance mutex with no icon, and every
+// later launch would exit unseen (docs/specs/relaunch.md).
+#[derive(Debug, PartialEq)]
+pub(super) enum Closing {
+    // As the Exit menu: a Desktop switch under way finishes first.
+    Ask,
+    Now,
+}
+
+pub(super) fn closing(msg: u32, wp: WPARAM) -> Option<Closing> {
+    match msg {
+        WM_CLOSE => Some(Closing::Ask),
+        WM_ENDSESSION if wp != 0 => Some(Closing::Now),
+        WM_DESTROY => Some(Closing::Now),
+        _ => None,
     }
 }
 

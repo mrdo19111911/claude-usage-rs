@@ -24,7 +24,7 @@ const LIVE_SESSION: &str = "SELECT COUNT(*), MIN(expires_utc), MAX(expires_utc) 
      AND (expires_utc = 0 OR expires_utc > ?1)";
 
 /// What a cookie store holds of claude.ai's session.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Session {
     /// Live until then (Unix ms); None: a cookie without expiry.
     Live(Option<i64>),

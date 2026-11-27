@@ -16,7 +16,8 @@ function updText(u) {
     case 'checking': return 'Checking…';
     case 'downloading': return `Downloading ${esc(u.latest || 'the update')}…`;
     case 'installing': return 'Installing… the app will restart';
-    case 'available': return `Version ${esc(u.latest)} available${news}`;
+    // With the error of a setup that did not install (UAC declined, a failed install).
+    case 'available': return `Version ${esc(u.latest)} available${news}` + (u.error ? ` · <span class="err">${esc(u.error)}</span>` : '');
     case 'upToDate': return 'Up to date' + when;
     case 'error': return `<span class="err">${esc(u.error || 'The update check failed')}</span>${when}`;
     // Idle after a restart: the last check is remembered, its answer is not.

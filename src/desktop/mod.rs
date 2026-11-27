@@ -12,6 +12,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod cookie_session;
+mod session_cache;
 pub mod sessions;
 mod sessions_io;
 mod sessions_load;

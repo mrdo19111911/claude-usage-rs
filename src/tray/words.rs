@@ -22,6 +22,8 @@ pub(super) const NO_USE: &str = "no use yet";
 // The tray menu's pin and exit items.
 pub(super) const PIN_ITEM: &str = "Keep widget on screen";
 pub(super) const EXIT_ITEM: &str = "Exit (stops auto-switch)";
+// A second launch found the first one running with no tray window (docs/specs/relaunch.md).
+pub(super) const STUCK: &str = "Smartlog Claude Auto Switch is already running, but its tray icon is gone. Open Task Manager, end scas.exe on the Details tab, then start it again.";
 // Exit asked from the menu while Claude Desktop switches.
 pub(super) const EXIT_WAIT: &str = "Claude Desktop is switching accounts. Smartlog Claude Auto Switch will close when it is done.";
 

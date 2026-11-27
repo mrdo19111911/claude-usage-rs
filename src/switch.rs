@@ -136,6 +136,21 @@ impl App {
         Ok(())
     }
 
+    // Claude CLI's auto-switch: moves to the picked account, if any. Takes the state lock itself.
+    pub(crate) fn auto_switch(&self) {
+        let next = self.pick_auto(&mut self.st.lock().unwrap());
+        // Outside the lock: activate checks the login with Anthropic first.
+        let Some((id, reason)) = next else { return };
+        if let Err(e) = self.activate(&id, &reason) {
+            let mut st = self.st.lock().unwrap();
+            // A 429 says "waited"; the same line twice in a row is not repeated.
+            let msg = text::auto_failed(&e);
+            if st.events.first().map(|e| &e.msg) != Some(&msg) {
+                self.log(&mut st, msg);
+            }
+        }
+    }
+
     // The account automatic switching moves to, with the reason; None to stay
     // (docs/specs/auto-switch-deadline.md).
     pub(crate) fn pick_auto(&self, st: &mut State) -> Option<(String, String)> {

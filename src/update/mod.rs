@@ -1,12 +1,13 @@
 // Checking GitHub for a newer release and installing it (docs/specs/update.md).
 // check.rs: asking GitHub; github.rs: the release and its setup (pure parts);
-// install.rs: download and run it.
+// install.rs: download and run it; setup.rs: who needs admin, the setup's end.
 
 use crate::*;
 
 mod check;
 mod github;
 mod install;
+mod setup;
 pub(crate) use github::*;
 
 // One source for the version: Cargo.toml.
@@ -21,6 +22,8 @@ pub(crate) const INSTALLS: bool = cfg!(windows);
 pub(crate) fn waits_to_install(newer: bool, auto_update: bool, installs: bool) -> bool {
     newer && auto_update && installs
 }
+// `installs` there, for this copy: an all-users copy never installs by itself.
+pub(crate) use setup::installs_itself;
 
 const FIRST_LOOK: Duration = Duration::from_secs(60);
 const LOOK_EVERY: Duration = Duration::from_secs(3600);
@@ -106,8 +109,9 @@ impl App {
         }
         let auto = self.st.lock().unwrap().settings.auto_update;
         // Blocked (a switch or a sign-in), or the install failed: the check time was not
-        // saved (check.rs), so the next hourly look tries again.
-        if waits_to_install(true, auto, INSTALLS) && self.update_blocked().is_none() {
+        // saved (check.rs), so the next hourly look tries again. An all-users copy stays
+        // "available": its setup asks for admin, which must follow a click.
+        if waits_to_install(true, auto, installs_itself()) && self.update_blocked().is_none() {
             let _ = self.install_update();
         }
     }

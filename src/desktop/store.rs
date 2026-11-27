@@ -1,7 +1,7 @@
 // Saved sign-ins of Claude Desktop, and backups of its own.
 
-use super::cookie_session::{read_session, session_state, Session};
-use super::{copy_cookies, is_sign_in_key, subdirs};
+use super::cookie_session::{session_state, Session};
+use super::{copy_cookies, is_sign_in_key, session_cache, subdirs};
 use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,8 +30,9 @@ impl Store {
     }
 
     /// The claude.ai session its saved cookie store holds (None: none saved, or unknown).
+    /// Asked every few seconds: the file is read only when it changed (session_cache).
     pub fn saved_session(&self, account: &str, now_ms: i64) -> Option<Session> {
-        read_session(&self.profile(account).join("Cookies"), now_ms)
+        session_cache::saved_session(&self.profile(account).join("Cookies"), now_ms)
     }
 
     /// A sign-in is saved and not known to have expired: a switch there opens signed in.

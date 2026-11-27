@@ -3,8 +3,7 @@
 // Claude Desktop under it, then the other accounts. A click opens the dashboard, a
 // right-click a menu. The widget can be pinned on the desktop: it then stays on top,
 // drags anywhere and keeps its place (widget.json).
-// Plain Win32 through windows-sys, drawn with GDI: SO_SANH_KHAY_WIDGET.md says why.
-// One concern per file (docs/specs/modules.md); each starts with `use super::*;`.
+// Plain Win32, drawn with GDI (SO_SANH_KHAY_WIDGET.md). One concern per file, `use super::*;`.
 
 mod buttons;
 mod chart_data;
@@ -141,7 +140,8 @@ fn ui<R>(f: impl FnOnce(&mut Ui) -> R) -> R {
 }
 
 pub fn start(state: StateFn, act: ActFn, url: String, data_dir: PathBuf) {
-    thread::spawn(move || unsafe { run(state, act, url, data_dir.join("widget.json")) });
+    // The program ends with its tray thread, never left running unseen (docs/specs/relaunch.md).
+    thread::spawn(move || unsafe { run(state, act, url, data_dir.join("widget.json")); exit() });
 }
 
 unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {

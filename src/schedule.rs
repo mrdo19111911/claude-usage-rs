@@ -44,6 +44,21 @@ pub(crate) fn is_due(a: &Account, t: i64, force: bool, cfg: &PollCfg) -> bool {
     force || (t >= a.next_check && (a.in_use || cfg.poll_others || first))
 }
 
+// A tick with no account due still runs the auto-switch rules, this often: another
+// account's limit can reset while the one in use waits for its own (check-schedule.md).
+pub(crate) const QUIET_AUTO_MS: i64 = MIN;
+// When a quiet tick last ran them (one poller per process).
+pub(crate) static QUIET_AUTO_AT: AtomicI64 = AtomicI64::new(0);
+
+// Whether a quiet tick at `t` runs them; notes it when so.
+pub(crate) fn quiet_auto_due(last: &AtomicI64, t: i64) -> bool {
+    let due = t - last.load(Ordering::SeqCst) >= QUIET_AUTO_MS;
+    if due {
+        last.store(t, Ordering::SeqCst);
+    }
+    due
+}
+
 // A random generator for one account's next check: the clock and the account's id.
 pub(crate) fn rng_for(id: &str) -> XorShift {
     XorShift::from_clock(id.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3)))

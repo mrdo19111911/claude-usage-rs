@@ -140,33 +140,23 @@ impl App {
             let need = cfg.poll_others && idle_refresh::needed(&st.accounts, t);
             st.accounts.iter().filter(|a| is_due(a, t, force, &cfg) || (need && a.waiting)).map(|a| a.id.clone()).collect()
         };
-        if ids.is_empty() {
-            // The 4:00 renewal is checked on quiet polls too (docs/specs/desktop-renew.md).
-            self.desktop_renew();
-            self.polling.store(false, Ordering::SeqCst);
-            return;
-        }
+        let polled = !ids.is_empty();
         for id in ids {
             self.poll_account(&id, force);
         }
-        let next = self.pick_auto(&mut self.st.lock().unwrap());
-        // Outside the lock: activate checks the login with Anthropic first.
-        if let Some((id, reason)) = next {
-            if let Err(e) = self.activate(&id, &reason) {
-                let mut st = self.st.lock().unwrap();
-                // A 429 says "waited"; the same line twice in a row is not repeated.
-                let msg = crate::switch::text::auto_failed(&e);
-                if st.events.first().map(|e| &e.msg) != Some(&msg) {
-                    self.log(&mut st, msg);
-                }
-            }
+        // Claude CLI's auto-switch, then Claude Desktop's (desktop_auto.rs). On a quiet tick
+        // too, once a minute: another account's limit may have reset since the last look
+        // (docs/specs/check-schedule.md).
+        if polled || quiet_auto_due(&QUIET_AUTO_AT, now()) {
+            self.auto_switch();
+            self.desktop_auto();
         }
-        // Then Claude Desktop's, when its account is at 100% (desktop_auto.rs).
-        self.desktop_auto();
-        // At 4:00, renewing saved Desktop sign-ins due soon (desktop_renew.rs).
+        // At 4:00, renewing saved Desktop sign-ins due soon, on quiet ticks too (desktop_renew.rs).
         self.desktop_renew();
-        self.save(&self.st.lock().unwrap());
-        self.last_poll.store(now(), Ordering::Relaxed);
+        if polled {
+            self.save(&self.st.lock().unwrap());
+            self.last_poll.store(now(), Ordering::Relaxed);
+        }
         self.polling.store(false, Ordering::SeqCst);
     }
 }

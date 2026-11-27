@@ -13,6 +13,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadPr
 
 const ENDSESSION_CLOSEAPP: LPARAM = 1;
 const QUIT_GRACE: Duration = Duration::from_secs(30);
+// How long the PowerShell that starts Claude Desktop may take.
+const START_GRACE: Duration = Duration::from_secs(30);
 // Errors shown after "Claude Desktop switch failed:".
 pub(super) const NOT_CLOSED: &str = "Claude Desktop did not close";
 pub(super) const NOT_STARTED: &str = "Could not start Claude Desktop; start it from the Start menu";
@@ -169,9 +171,26 @@ impl super::App for RealApp {
         let ok = Command::new("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", script])
             .creation_flags(CREATE_NO_WINDOW)
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
+            .spawn()
+            .is_ok_and(|child| ran_ok(child, START_GRACE));
         if ok { Ok(()) } else { Err(NOT_STARTED.into()) }
+    }
+}
+
+// Whether the helper ended well within `limit`. One that hangs is ended (it is our own
+// PowerShell, not Claude Desktop) and counts as failed: waited on forever, the switch would
+// never end and every later switch would be refused.
+fn ran_ok(mut child: std::process::Child, limit: Duration) -> bool {
+    let end = Instant::now() + limit;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) if Instant::now() < end => sleep(Duration::from_millis(100)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
     }
 }
