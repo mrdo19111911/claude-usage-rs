@@ -19,3 +19,10 @@ pub(crate) fn needed(accounts: &[Account], t: i64) -> bool {
 pub(crate) fn may_refresh(need: bool, force: bool, left_at: i64, t: i64) -> bool {
     (need || force) && (left_at == 0 || t - left_at >= LEFT_GUARD_MS)
 }
+
+// Whether this account may refresh its own stored sign-in now. The live Claude Code login
+// is never refreshed here; an account in use keeps fresh figures on its in-use schedule;
+// a parked account only when `may_refresh` allows (docs/specs/idle-refresh.md).
+pub(crate) fn refresh_allowed(is_live: bool, in_use: bool, need: bool, force: bool, left_at: i64, t: i64) -> bool {
+    !is_live && (in_use || may_refresh(need, force, left_at, t))
+}

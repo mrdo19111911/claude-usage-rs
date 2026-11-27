@@ -41,7 +41,7 @@ impl App {
         // (docs/specs/no-foreign-credentials.md).
         // A parked account's sign-in is refreshed only when needed (docs/specs/idle-refresh.md);
         // until then one whose token has run out waits, its last figures standing.
-        let allow = !is_live && idle_refresh::may_refresh(need, force, left_at, now());
+        let allow = idle_refresh::refresh_allowed(is_live, in_use, need, force, left_at, now());
         if !is_live && !allow && crate::creds::expires_soon(&creds) {
             return self.wait_for_refresh(id);
         }
