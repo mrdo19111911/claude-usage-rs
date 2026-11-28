@@ -17,7 +17,7 @@ impl App {
             fs::read_to_string(&self.creds_file).ok()?
         };
         let v: Value = serde_json::from_str(raw.trim()).ok()?;
-        v.get("claudeAiOauth").filter(|c| c.is_object()).cloned()
+        v.get("claudeAiOauth").filter(|c| c.is_object() && signed_in(c)).cloned()
     }
 
     pub(crate) fn write_live(&self, oauth: &Value) -> Result<(), String> {
@@ -124,4 +124,9 @@ pub(crate) fn plan_label(c: &Value) -> String {
         Some(f) => f.to_uppercase().collect::<String>() + ch.as_str(),
         None => "Claude".into(),
     }
+}
+
+// Claude Code's ended login keeps claudeAiOauth with both tokens empty: signed out.
+pub(crate) fn signed_in(oauth: &Value) -> bool {
+    ["accessToken", "refreshToken"].iter().any(|k| oauth.get(k).and_then(Value::as_str).is_some_and(|t| !t.is_empty()))
 }
