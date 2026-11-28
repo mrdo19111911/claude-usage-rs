@@ -27,11 +27,10 @@ pub(super) unsafe fn place(file: &Path) -> Rect {
 
 // Keeps its place (not maximised or minimised) for next time.
 pub(super) unsafe fn keep_place(h: HWND, file: &Path) {
-    if IsIconic(h) != 0 || IsZoomed(h) != 0 {
-        return;
-    }
     let mut r: RECT = mem::zeroed();
     GetWindowRect(h, &mut r);
     let rect = Rect { x: r.left, y: r.top, w: r.right - r.left, h: r.bottom - r.top };
-    let _ = fs::write(file, rect_json(rect).to_string());
+    if let Some(rect) = kept(rect, IsIconic(h) != 0, IsZoomed(h) != 0) {
+        let _ = fs::write(file, rect_json(rect).to_string());
+    }
 }

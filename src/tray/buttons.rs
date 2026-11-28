@@ -167,7 +167,7 @@ pub(super) unsafe fn draw_buttons(p: &Painter, b: &[(RECT, Pick)]) {
 static BUSY: AtomicBool = AtomicBool::new(false);
 
 // A click on a row button: Desktop asks first; the switch runs off the tray thread, a
-// failure shows in a box, then the tray refreshes (TIMER_REFRESH, as msg_proc handles it).
+// failure shows in a box; the tray refreshes as after any change (events::changed).
 pub(super) unsafe fn switch(hwnd: HWND, k: Pick) {
     if BUSY.load(Ordering::SeqCst) {
         return;
@@ -182,13 +182,14 @@ pub(super) unsafe fn switch(hwnd: HWND, k: Pick) {
     if BUSY.swap(true, Ordering::SeqCst) {
         return;
     }
-    let (act, msg) = ui(|u| (u.act.clone(), u.msg as usize));
+    let act = ui(|u| u.act.clone());
     thread::spawn(move || {
         let r = act(k.act());
         BUSY.store(false, Ordering::SeqCst);
+        // A Desktop switch has only started: this refresh sees it running (events::changed).
+        changed();
         if let Err(e) = r {
             MessageBoxW(ptr::null_mut(), wide(&e).as_ptr(), wide(words::APP).as_ptr(), MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND);
         }
-        PostMessageW(msg as HWND, WM_TIMER, TIMER_REFRESH, 0);
     });
 }

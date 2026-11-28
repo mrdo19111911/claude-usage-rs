@@ -33,7 +33,15 @@ pub(crate) struct App {
 }
 
 impl App {
+    // The tray reads the state again (tray/events.rs): posted, so safe under the state lock.
+    pub(crate) fn changed(&self) {
+        #[cfg(windows)]
+        tray::changed();
+    }
+
+    // Every kept change goes through here, so this is also where the tray hears of it.
     pub(crate) fn save(&self, st: &State) {
+        self.changed();
         if self.demo {
             return;
         }

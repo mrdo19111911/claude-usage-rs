@@ -16,14 +16,10 @@ pub(super) fn is_demo(state: &str) -> bool {
 }
 
 // From a second launch: asks the running tray of the same kind to open its dashboard.
-// False if none found.
+// False if none found, or if it cannot be asked (Windows refuses a message to an elevated one).
 pub fn signal_running(demo: bool) -> bool {
     let h = unsafe { FindWindowW(wide(tray_class(demo)).as_ptr(), ptr::null()) };
-    if h.is_null() {
-        return false;
-    }
-    unsafe { PostMessageW(h, WM_OPEN_APP, 0, 0) };
-    true
+    !h.is_null() && unsafe { PostMessageW(h, WM_OPEN_APP, 0, 0) } != 0
 }
 
 // At start: false when this launch must end now. With `--quit` it asks the running one
@@ -36,8 +32,8 @@ pub fn claim_instance(demo: bool, quit: bool) -> bool {
     }
     let name = wide(&format!("Local\\claude-usage-dashboard{}", if demo { "-demo" } else { "" }));
     // The handle lasts as long as this process.
-    unsafe { CreateMutexW(ptr::null(), 0, name.as_ptr()) };
-    if unsafe { GetLastError() } != ERROR_ALREADY_EXISTS {
+    let h = unsafe { CreateMutexW(ptr::null(), 0, name.as_ptr()) };
+    if first_copy(h.is_null(), unsafe { GetLastError() }) {
         return true;
     }
     eprintln!("The dashboard is already running: hover its icon in the tray.");
@@ -49,6 +45,13 @@ pub fn claim_instance(demo: bool, quit: bool) -> bool {
         unsafe { MessageBoxW(ptr::null_mut(), wide(words::STUCK).as_ptr(), wide(words::APP).as_ptr(), style) };
     }
     false
+}
+
+// Whether this launch is the only copy, from CreateMutexW's answer: it made the mutex.
+// No handle (`none`: the running copy's mutex refuses us, as when that one is elevated)
+// is not the first copy either.
+pub(super) fn first_copy(none: bool, last_error: u32) -> bool {
+    !none && last_error != ERROR_ALREADY_EXISTS
 }
 
 // Calls `find` up to `tries` times, `gap` apart, until it says true.

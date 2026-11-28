@@ -22,7 +22,7 @@ mod rows;
 mod sections;
 mod widget;
 mod words;
-pub use events::{request_exit, request_open};
+pub use events::{changed, request_exit, request_open};
 pub use instance::claim_instance;
 use buttons::*;
 use chart_data::*;
@@ -71,7 +71,7 @@ const WM_EXIT_APP: u32 = WM_APP + 2;
 // A second launch asks this one to open the dashboard: see signal_running.
 const WM_OPEN_APP: u32 = WM_APP + 3;
 static MSG_HWND: AtomicPtr<core::ffi::c_void> = AtomicPtr::new(ptr::null_mut());
-// The icon and the open widgets, every 2 s.
+// The icon and the open widgets: on a change (events::changed) and every tick_ms.
 const TIMER_REFRESH: usize = 1;
 // Hides the hover widget once the pointer has left both it and the icon.
 const TIMER_HOVER: usize = 2;
@@ -186,7 +186,7 @@ unsafe fn run(state: StateFn, act: ActFn, url: String, file: PathBuf) {
     });
     add_icon();
     MSG_HWND.store(msg, Ordering::SeqCst);
-    SetTimer(msg, TIMER_REFRESH, 2000, None);
+    SetTimer(msg, TIMER_REFRESH, tick_ms(false), None);
     if ui(|u| u.pin_on) {
         show_pinned();
     }

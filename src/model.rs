@@ -143,6 +143,10 @@ pub(crate) struct State {
     // days later, restarts or not.
     #[serde(default)]
     pub(crate) update_checked_at: Option<i64>,
+    // The newer release the last check found (version, release page): offered again after
+    // a restart, when the next check may be 3 days off.
+    #[serde(default)]
+    pub(crate) update_found: Option<(String, Option<String>)>,
     // The `cgemini` profile: the user's Gemini key and what goes with it (gemini/).
     #[serde(default)]
     pub(crate) gemini: Option<gemini::Config>,
@@ -160,6 +164,7 @@ impl Default for State {
             events: vec![],
             desktop: vec![],
             update_checked_at: None,
+            update_found: None,
             gemini: None,
             desktop_renew: Default::default(),
         }

@@ -20,7 +20,7 @@ function paneWidth() {
 // with no history here (a Desktop-only account), no figures yet, or in table view.
 function sideBody(a, u, now) {
   const W = Math.max(300, paneWidth());
-  if (a && a.usage && !tableView) return `<div class="panes">${pane(a, 1, now, W)}${pane(a, 2, now, W)}</div>`;
+  if (a && a.usage && !tableView) return `<div class="panes">${pane(a, 1, now, W, 'sides')}${pane(a, 2, now, W, 'sides')}</div>`;
   return u ? usageBars(u) : '';
 }
 

@@ -137,6 +137,8 @@ function winChart(a, k, now, W = 300) {
 }
 
 // A redraw would drop the tooltip under the pointer: cards and panels wait while it is on a chart.
+// charts: each drawn chart by its place's id and data-key (pane, card.js), so the same
+// account drawn in "In use now" and on its card keeps two geometries.
 let hovering = false, charts = {};
 // Crosshair and tooltip: the figure in force at the pointer's time.
 for (const root of [$('#cards'), $('#sides')]) {
@@ -146,7 +148,7 @@ root.addEventListener('mousemove', e => {
   root.querySelectorAll('.tip').forEach(t => { if (!svg || t.parentNode !== svg.parentNode) t.style.display = 'none'; });
   root.querySelectorAll('.cross').forEach(l => { if (!svg || l.ownerSVGElement !== svg) l.style.display = 'none'; });
   if (!svg) return;
-  const c = charts[svg.dataset.key];
+  const c = charts[root.id + svg.dataset.key];
   if (!c || c.pts.length < 2) return;
   const box = svg.getBoundingClientRect(), sx = (e.clientX - box.left) / box.width * c.W;
   // Right of now on a chart with a pace line: what that line expects.

@@ -41,7 +41,9 @@ impl App {
                     // Only a refused grant needs a new sign-in; a server error passes.
                     return Err(if code < 500 { ApiErr::Auth(format!("{msg} — /login this account again")) } else { ApiErr::Other(msg) });
                 }
-                Err(e) => last = e.to_string(),
+                // Only a request that never left goes to the next address (renew.rs).
+                Err(ureq::Error::Transport(t)) if crate::renew::not_sent(t.kind()) => last = t.to_string(),
+                Err(e) => return Err(ApiErr::Other(e.to_string())),
             }
         }
         Err(ApiErr::Other(last))
@@ -83,7 +85,8 @@ impl App {
     // tokens are single-use: the live login's belongs to Claude Code alone (a refresh
     // here would leave a running Claude Code holding a dead one), so for it
     // `may_refresh` is false and an expired token waits until Claude Code refreshes it.
-    pub(crate) fn fetch_usage(&self, creds: &Value, may_refresh: bool) -> Result<(Value, Option<Value>), ApiErr> {
+    // Refreshed tokens are already kept for account `id` when this returns (renew.rs).
+    pub(crate) fn fetch_usage(&self, id: &str, creds: &Value, may_refresh: bool) -> Result<(Value, Option<Value>), ApiErr> {
         let mut c = creds.clone();
         let mut changed = false;
         let expired = expires_soon(&c);
@@ -91,14 +94,14 @@ impl App {
             return Err(ApiErr::Other("token expired: Claude Code renews it the next time it runs".into()));
         }
         if expired {
-            c = self.refresh(&c)?;
+            c = self.renew(id, &c)?;
             changed = true;
         }
         let j = match self.get_usage(&c).map_err(|e| api_err(e, "usage")) {
             Ok(j) => j,
             Err(ApiErr::Auth(_)) if !changed && !may_refresh => return Err(ApiErr::Other("usage HTTP 401: Claude Code renews the token the next time it runs".into())),
             Err(ApiErr::Auth(_)) if !changed => {
-                c = self.refresh(&c)?;
+                c = self.renew(id, &c)?;
                 changed = true;
                 self.get_usage(&c).map_err(|e| api_err(e, "usage"))?
             }
@@ -111,20 +114,26 @@ impl App {
     // handed to Claude Code; renews it first when it has expired (it is parked: only
     // the dashboard holds it). Returns the login to hand over.
     // Errors are plain (switch_text.rs); the raw text goes to stderr for support.
-    pub(crate) fn verify_login(&self, creds: &Value, uuid: Option<&str>) -> Result<Value, String> {
+    // A renewed login is kept for account `id` at once; one Anthropic refuses, or another
+    // account's, is marked on it (renew.rs).
+    pub(crate) fn verify_login(&self, id: &str, creds: &Value, uuid: Option<&str>) -> Result<Value, String> {
         let fail = |e: ApiErr| {
             eprintln!("Could not check a saved login with Anthropic: {}", e.text());
-            crate::switch::text::check_failed(&e)
+            let msg = crate::switch::text::check_failed(&e);
+            if matches!(e, ApiErr::Auth(_)) {
+                self.refuse(id, &msg);
+            }
+            msg
         };
         let mut c = creds.clone();
         let mut renewed = false;
         if expires_soon(&c) {
-            c = self.refresh(&c).map_err(fail)?;
+            c = self.renew(id, &c).map_err(fail)?;
             renewed = true;
         }
         let who = match self.get_profile(&c) {
             Err(ApiErr::Auth(_)) if !renewed => {
-                c = self.refresh(&c).map_err(fail)?;
+                c = self.renew(id, &c).map_err(fail)?;
                 self.get_profile(&c)
             }
             r => r,
@@ -132,6 +141,7 @@ impl App {
         .map_err(fail)?;
         if uuid.is_some_and(|u| u != who.0) {
             eprintln!("A saved login of account {uuid:?} belongs to account {}", who.0);
+            self.refuse(id, crate::switch::text::OTHER_ACCOUNT);
             return Err(crate::switch::text::OTHER_ACCOUNT.into());
         }
         Ok(c)

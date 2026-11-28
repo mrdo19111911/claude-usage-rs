@@ -31,6 +31,12 @@ fn title_on(r: Rect, work: Rect) -> bool {
     across >= 100 && r.y >= work.y - 16 && r.y <= work.y + work.h - 30
 }
 
+// The place to keep for next time: a normal window's only (a minimised one's rectangle is
+// off screen, a maximised one's is the screen), and never an empty one.
+pub(super) fn kept(r: Rect, minimised: bool, maximised: bool) -> Option<Rect> {
+    (!minimised && !maximised && r.w > 0 && r.h > 0).then_some(r)
+}
+
 pub(super) fn rect_json(r: Rect) -> Value {
     serde_json::json!({"x": r.x, "y": r.y, "w": r.w, "h": r.h})
 }

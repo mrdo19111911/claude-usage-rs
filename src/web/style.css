@@ -17,7 +17,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
-  main { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
+  main { padding: 20px 16px 48px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px; margin-bottom: 22px; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
   h2 { margin: 0; font-size: 14px; letter-spacing: .12em; font-weight: 600; color: var(--muted); text-transform: uppercase; }

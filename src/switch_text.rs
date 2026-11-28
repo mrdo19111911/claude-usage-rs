@@ -80,7 +80,6 @@ pub(crate) const OPENED_BY_CLAUDE: &str = "This app was opened by Claude, so res
 pub(crate) const STILL_READING: &str = "Still reading which account Claude Code uses; try again in a few seconds";
 pub(crate) const NOT_FOUND: &str = "This account is no longer in the list. Reload the page.";
 pub(crate) const SOMETHING_WRONG: &str = "Something went wrong; reload the page.";
-pub(crate) const NAME_NEEDED: &str = "Type a name for this account.";
 pub(crate) const OTHER_ACCOUNT: &str = "This account's saved sign-in now belongs to a different account. Sign in to it again.";
 pub(crate) const SLOWED: &str = "Anthropic asked the app to check less often, so it was not switched. Try again in a few minutes.";
 

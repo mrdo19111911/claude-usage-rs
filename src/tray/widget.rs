@@ -179,7 +179,7 @@ pub(super) unsafe fn paint(hwnd: HWND, pinned: bool) {
     let dc = BeginPaint(hwnd, &mut ps);
     let mut rc: RECT = mem::zeroed();
     GetClientRect(hwnd, &mut rc);
-    // Drawn off screen first: no flicker on the 2 s refresh.
+    // Drawn off screen first: no flicker on a refresh.
     let mem_dc = CreateCompatibleDC(dc);
     let bmp = CreateCompatibleBitmap(dc, rc.right, rc.bottom);
     let old = SelectObject(mem_dc, bmp);

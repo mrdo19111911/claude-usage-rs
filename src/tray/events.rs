@@ -127,12 +127,14 @@ pub(super) fn exit_step(asked: bool, switching: bool) -> ExitStep {
 
 // Every exit request (menu, dashboard): at once, or once the Desktop switch is done.
 pub(super) fn ask_exit(from_menu: bool) {
-    // A fresh read: the model can be 2 s old.
+    // A fresh read: the model can be 30 s old.
     let state = ui(|u| u.state.clone());
     if exit_step(true, model(&state()).desk_switching) == ExitStep::Now {
         exit();
     }
     ui(|u| u.exit_pending = true);
+    // The next refresh sees the switch and watches it closely (tick_ms).
+    changed();
     if from_menu {
         let text = wide(words::EXIT_WAIT);
         let style = MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND;
@@ -142,6 +144,7 @@ pub(super) fn ask_exit(from_menu: bool) {
 
 // Takes the icon out of the tray, then ends the program.
 pub(super) fn exit() -> ! {
+    dash::keep();
     // The window out of the borrow first: Shell_NotifyIconW can re-enter msg_proc.
     if let Some(msg) = UI.with(|u| u.borrow().as_ref().map(|u| u.msg)) {
         let mut n: NOTIFYICONDATAW = unsafe { mem::zeroed() };
@@ -153,9 +156,26 @@ pub(super) fn exit() -> ! {
     std::process::exit(0);
 }
 
+// How long until the tray reads the state on its own. Changes come at once (`changed`);
+// this only moves the texts that follow the clock ("2 min ago", "resets in 2h05m"). A
+// Claude Desktop switch ends with no word, so it is watched closely while it runs.
+pub(super) fn tick_ms(desk_switching: bool) -> u32 {
+    if desk_switching { 2_000 } else { 30_000 }
+}
+
+// From any thread, the state lock held or not (posted, never sent): the state changed,
+// the tray reads it again. Nothing without a tray window (tests, before start).
+pub fn changed() {
+    let h = MSG_HWND.load(Ordering::SeqCst);
+    if !h.is_null() {
+        unsafe { PostMessageW(h, WM_TIMER, TIMER_REFRESH, 0) };
+    }
+}
+
 pub(super) unsafe fn refresh() {
     let state = ui(|u| u.state.clone());
     let m = model(&state());
+    SetTimer(ui(|u| u.msg), TIMER_REFRESH, tick_ms(m.desk_switching), None);
     // An exit asked during a Desktop switch: the switch is done now.
     if exit_step(ui(|u| u.exit_pending), m.desk_switching) == ExitStep::Now {
         exit();

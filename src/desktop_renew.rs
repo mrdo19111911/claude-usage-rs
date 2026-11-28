@@ -17,6 +17,10 @@ pub(crate) const RENEW_WITHIN: i64 = 7 * DAY_MS;
 pub(crate) const MUST_WITHIN: i64 = 2 * DAY_MS;
 // How long Desktop stays on the account being renewed, from the switch's start.
 pub(crate) const STAY_MS: i64 = 3 * 60_000;
+// Going back is given up this long after the renewal began; `renewing` is then cleared.
+pub(crate) const GIVE_UP_MS: i64 = 15 * 60_000;
+// The least time between two tries to go back (each closes and restarts Desktop).
+pub(crate) const BACK_GAP_MS: i64 = 5 * 60_000;
 // Renewed: it now ends at least this far away.
 const RENEWED_MS: i64 = 20 * DAY_MS;
 
@@ -42,17 +46,27 @@ pub(crate) enum Step {
     Renew(String),
     Back(String),
     Done,
+    GiveUp,
+}
+
+/// Whether to try going back now; `last`: the last try (ms, 0: none).
+pub(crate) fn back_due(last: i64, now: i64) -> bool {
+    now - last >= BACK_GAP_MS
 }
 
 /// What to do now. `until`: when a saved sign-in ends (None: ended or unknown).
 pub(crate) fn next_step(on: bool, st: &RenewState, signed_in: Option<&str>, desk: &[DesktopAccount], until: &dyn Fn(&str) -> Option<i64>, code_running: bool, c: &Clock) -> Step {
     if let Some(r) = &st.renewing {
-        return if c.ms - r.at < STAY_MS {
+        // Negative: the clock was set back, so `at` says nothing.
+        let age = c.ms - r.at;
+        return if (0..STAY_MS).contains(&age) {
             Step::Wait
         } else if signed_in == Some(r.back.as_str()) {
             Step::Done
-        } else {
+        } else if (0..GIVE_UP_MS).contains(&age) {
             Step::Back(r.back.clone())
+        } else {
+            Step::GiveUp
         };
     }
     let Some(cur) = signed_in.filter(|_| on && c.hour == RENEW_HOUR) else { return Step::Wait };
@@ -105,7 +119,17 @@ impl App {
                     self.save(&st);
                 }
             }
+            Step::GiveUp => {
+                let Some(r) = st.desktop_renew.renewing.take() else { return };
+                let left = signed_in.as_deref().map_or("signed out".into(), |u| label(&st, u));
+                let msg = format!("Claude Desktop: could not go back to {} after a renewal; it was left on {left}", label(&st, &r.back));
+                self.log(&mut st, msg);
+                self.save(&st);
+            }
             Step::Back(back) => {
+                if !back_due(self.desktop_auto_at.load(Ordering::SeqCst), c.ms) {
+                    return;
+                }
                 self.desktop_auto_at.store(c.ms, Ordering::SeqCst);
                 drop(st);
                 if let Err(e) = self.start_desktop_switch(Some(back)) {

@@ -72,10 +72,11 @@ function paneLeft(w) {
 
 // One window: its title row (the name, weekly with the model chips, and what is left),
 // then its chart over the window; `W` as winChart's. No bar: the chart's dot and its reset
-// line say the same (docs/specs/account-cards.md, "Less space").
-function pane(a, k, now, W) {
+// line say the same (docs/specs/account-cards.md, "Less space"). `at`: the id of the place
+// it is drawn in ('cards' or 'sides'); hover reads that place's chart (chart.js).
+function pane(a, k, now, W, at = 'cards') {
   const c = winChart(a, k, now, W);
-  charts[`${a.id}:${k}`] = c;
+  charts[`${at}${a.id}:${k}`] = c;
   const w = effWin(k === 1 ? a.usage.five : a.usage.week);
   return `<div class="pane"><div class="pane-t"><span class="pane-n">${k === 1 ? '5-hour' : 'Weekly'}${k === 2 ? chips(a.usage) : ''}</span>${paneLeft(w)}</div>${c.svg}<div class="tip"></div></div>`;
 }
@@ -110,7 +111,6 @@ function cardPaneWidth() {
 function renderCards(force) {
   if (hovering && !force) return;
   const now = Date.now() - clockSkew, W = Math.max(300, cardPaneWidth());
-  charts = {};
   $('#cards').innerHTML = accountRows().map(({ a, d }) => card(a, d, now, W)).join('')
     || '<p class="note">No accounts yet. Click “+ Add account” and sign in.</p>';
 }

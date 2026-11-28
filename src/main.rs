@@ -22,6 +22,7 @@ mod app;
 mod creds;
 mod model;
 mod poll;
+mod renew;
 mod port;
 mod server;
 mod signin;
@@ -165,27 +166,10 @@ fn main() {
     update::start(app.clone());
     let poller = app.clone();
     thread::spawn(move || loop {
+        // Each account has its own next check (next_check_at): a look for due ones, and for
+        // a fresh /login or Desktop sign-in, every 5 s.
         poller.poll_all(false);
-        let start = now();
-        let mut last_sync = start;
-        loop {
-            thread::sleep(Duration::from_secs(1));
-            // Each account has its own next check (next_check_at); look for due ones.
-            if now() - start >= 5_000 {
-                break;
-            }
-            // Notice a fresh /login (or Desktop sign-in) quickly instead of waiting a whole poll cycle.
-            if !poller.demo && now() - last_sync >= 10_000 {
-                last_sync = now();
-                let before = poller.st.lock().unwrap().accounts.len();
-                poller.sync_active();
-                let mut st = poller.st.lock().unwrap();
-                poller.sync_desktop(&mut st);
-                if st.accounts.len() != before {
-                    break;
-                }
-            }
-        }
+        thread::sleep(Duration::from_secs(5));
     });
 
     for rq in server.incoming_requests() {

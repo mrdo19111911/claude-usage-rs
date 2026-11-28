@@ -19,7 +19,7 @@ new ResizeObserver(([e]) => {
 
 $('#viewToggle').onclick = () => { tableView = !tableView; $('#viewToggle').textContent = tableView ? 'Chart view' : 'Table view'; render(); };
 $('#refresh').onclick = () => act(api('/api/refresh', { method: 'POST' }));
-$('#import').onclick = () => act(api('/api/import', { method: 'POST' }));
+$('#import').onclick = () => act(api('/api/refresh', { method: 'POST' }));
 $('#exit').onclick = () => {
   if (!confirm('Close Smartlog Claude Auto Switch? Usage checks and auto-switch stop until you open it again.')) return;
   api('/api/exit', { method: 'POST' }).then(() => {

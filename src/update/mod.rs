@@ -34,6 +34,14 @@ pub(crate) fn check_due(last: Option<i64>, t: i64) -> bool {
     last.is_none_or(|l| t - l >= CHECK_EVERY_MS)
 }
 
+// At start: the newer release an earlier check found is offered again (the next check may
+// be 3 days off); not once it is installed.
+pub(crate) fn offer_again(u: &mut Status, found: Option<&(String, Option<String>)>) {
+    if let Some((v, url)) = found.filter(|f| newer(&f.0, VERSION)) {
+        (u.phase, u.latest, u.url, u.logged) = (Phase::Available, Some(v.clone()), url.clone(), Some(v.clone()));
+    }
+}
+
 #[derive(Serialize, Clone, Copy, PartialEq, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Phase {
@@ -72,7 +80,15 @@ pub(crate) fn start(app: Arc<App>) {
     if app.demo {
         return;
     }
-    app.update.lock().unwrap().checked_at = app.st.lock().unwrap().update_checked_at;
+    let (at, found) = {
+        let st = app.st.lock().unwrap();
+        (st.update_checked_at, st.update_found.clone())
+    };
+    {
+        let mut u = app.update.lock().unwrap();
+        u.checked_at = at;
+        offer_again(&mut u, found.as_ref());
+    }
     thread::spawn(move || {
         thread::sleep(FIRST_LOOK);
         loop {

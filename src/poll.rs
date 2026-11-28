@@ -16,6 +16,10 @@ pub(crate) mod idle_refresh;
 
 impl App {
     pub(crate) fn poll_account(&self, id: &str, force: bool) {
+        // The demo asks Anthropic nothing (a card's Check now comes here directly).
+        if self.demo {
+            return;
+        }
         let (creds, is_active, account_uuid, slow_until, in_use, need, left_at) = {
             let st = self.st.lock().unwrap();
             let cfg = st.settings.poll.clone();
@@ -45,7 +49,7 @@ impl App {
         if !is_live && !allow && crate::creds::expires_soon(&creds) {
             return self.wait_for_refresh(id);
         }
-        let res = self.fetch_usage(&creds, allow);
+        let res = self.fetch_usage(id, &creds, allow);
         if !is_live && !allow && matches!(&res, Err(ApiErr::Other(m)) if m.contains("Claude Code renews")) {
             return self.wait_for_refresh(id);
         }
@@ -74,11 +78,8 @@ impl App {
             }
         }
         match res {
-            Ok((j, new_creds)) => {
-                if let Some(c) = new_creds {
-                    // Only a parked account is refreshed here (see fetch_usage).
-                    a.creds = c;
-                }
+            // Refreshed tokens are in the account already (renew.rs).
+            Ok((j, _)) => {
                 let five = to_win(&j["five_hour"]);
                 let week = to_win(&j["seven_day"]);
                 let t = now();
@@ -100,10 +101,13 @@ impl App {
                 a.slow_until = now() + wait;
                 a.next_check = a.slow_until;
                 a.error = Some(format!("Anthropic asked to slow down (HTTP 429); next check in {} min", (wait + 59_999) / 60_000));
+                a.waiting = false;
             }
             Err(e) => {
                 a.error = Some(e.text());
                 a.next_check = now() + RETRY_MS;
+                // Not asked on every tick while an account in use is near a limit.
+                a.waiting = false;
             }
         }
         // The usage log, after the state's lock is let go (usage_log.rs).

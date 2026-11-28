@@ -31,12 +31,13 @@ impl App {
 
     // GitHub's answer `res`, got at `t`.
     pub(crate) fn take_answer(&self, res: Result<Value, String>, t: i64) -> Result<(), String> {
-        let (newer, found) = match &res {
+        let (newer, found, offer) = match &res {
             Ok(r) => {
                 let tag = r["tag_name"].as_str().unwrap_or("");
                 let latest = tag.trim_start_matches('v').to_string();
                 let url = r["html_url"].as_str().filter(|u| u.starts_with("https://github.com/")).map(String::from);
                 let newer = newer(tag, VERSION);
+                let offer = newer.then(|| (latest.clone(), url.clone()));
                 let mut u = self.update.lock().unwrap();
                 *u = Status {
                     phase: if newer { Phase::Available } else { Phase::UpToDate },
@@ -50,7 +51,7 @@ impl App {
                 if first {
                     u.logged = Some(latest.clone());
                 }
-                (newer, first.then_some(latest))
+                (newer, first.then_some(latest), offer)
             }
             Err(e) => {
                 self.set_update(|u| {
@@ -58,10 +59,14 @@ impl App {
                     u.checked_at = Some(t);
                     u.error = Some(e.clone());
                 });
-                (false, None)
+                (false, None, None)
             }
         };
         let mut st = self.st.lock().unwrap();
+        // Saved, so the offer is shown again after a restart (mod.rs, offer_again).
+        if res.is_ok() {
+            st.update_found = offer;
+        }
         // The 3 days start only when nothing waits to be installed: a version found with
         // autoUpdate on is tried again at the next hourly look, and after a restart
         // (not an all-users copy: the user installs it by a click).

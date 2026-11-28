@@ -38,10 +38,11 @@ pub(crate) fn next_check_at(u: &Usage, in_use: bool, t: i64, cfg: &PollCfg, rng:
 }
 
 // Whether the account is asked now: Check now (`force`) asks all; else its time has come
-// and it is in use, or other accounts are asked about, or it has never had figures.
+// and it is in use, or other accounts are asked about, or it has no figures yet, or its
+// last check failed (an error left standing would keep it out of auto-switch for good).
 pub(crate) fn is_due(a: &Account, t: i64, force: bool, cfg: &PollCfg) -> bool {
-    let first = a.usage.is_none() && a.error.is_none();
-    force || (t >= a.next_check && (a.in_use || cfg.poll_others || first))
+    let unsettled = a.usage.is_none() || a.error.is_some();
+    force || (t >= a.next_check && (a.in_use || cfg.poll_others || unsettled))
 }
 
 // A tick with no account due still runs the auto-switch rules, this often: another
@@ -82,6 +83,16 @@ pub(crate) fn mark_in_use(v: &mut [Account], active: Option<&str>, desk: Option<
             if let Some(u) = usage_now(a, t) {
                 a.next_check = next_check_at(&u, on, u.fetched_at, cfg, rng).max(a.slow_until);
             }
+        }
+    }
+}
+
+// `pollOthers` was turned on: each parked account's check (far off until now) is worked out
+// again from `t`; an error's retry time and a 429's wait stand.
+pub(crate) fn reschedule_parked(v: &mut [Account], t: i64, cfg: &PollCfg, rng: &mut dyn FnMut() -> u64) {
+    for a in v.iter_mut().filter(|a| !a.in_use && a.error.is_none()) {
+        if let Some(u) = usage_now(a, t) {
+            a.next_check = next_check_at(&u, false, t, cfg, rng).max(a.slow_until);
         }
     }
 }

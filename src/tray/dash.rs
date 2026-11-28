@@ -122,6 +122,17 @@ unsafe fn make(url: &str, dir: &Path) -> bool {
     }
 }
 
+// Keeps the open window's place for next time; nothing when none is open. On its close,
+// and when the program ends with it open (events::exit: the window gets no WM_CLOSE then).
+pub(super) fn keep() {
+    let h = WIN.with(Cell::get);
+    VIEW.with(|s| {
+        if let Some((_, _, file)) = s.borrow().as_ref() {
+            unsafe { keep_place(h, file) };
+        }
+    });
+}
+
 // A page outside the dashboard: in the browser, not here.
 fn leave(url: &str) -> bool {
     if url.starts_with("http://") || url.starts_with("https://") {
@@ -144,11 +155,8 @@ unsafe extern "system" fn dash_proc(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -
         }
         WM_CLOSE => {
             // The WebView first (its processes end), then the window.
-            if let Some((view, ctx, file)) = VIEW.with(|s| s.borrow_mut().take()) {
-                keep_place(h, &file);
-                drop(view);
-                drop(ctx);
-            }
+            keep();
+            drop(VIEW.with(|s| s.borrow_mut().take()));
             DestroyWindow(h);
             0
         }

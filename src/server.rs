@@ -12,7 +12,8 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         return gemini::serve(app, rq);
     }
     let mut body = String::new();
-    let _ = rq.as_reader().read_to_string(&mut body);
+    // No request of the page's is near 1 MB: more is not read.
+    let _ = std::io::Read::read_to_string(&mut std::io::Read::take(rq.as_reader(), 1 << 20), &mut body);
     let body: Value = serde_json::from_str(&body).unwrap_or(json!({}));
     let from_page = rq.headers().iter().any(|h| h.field.equiv("X-CUD") && h.value.as_str() == "1");
     // Only this machine's own names: a page that points its own domain at 127.0.0.1
@@ -64,7 +65,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
             return answer;
         }
         match (method.as_str(), path.as_str()) {
-            ("POST", "/api/refresh") | ("POST", "/api/import") => {
+            ("POST", "/api/refresh") => {
                 app.poll_all(true);
             }
             ("POST", "/api/exit") => {
@@ -86,7 +87,12 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 if let Some(v) = body["weekThreshold"].as_f64() {
                     st.settings.week_threshold = (v as i64).clamp(50, 100);
                 }
+                let (others, mut r) = (st.settings.poll.poll_others, rng_for("others"));
                 st.settings.poll.apply_json(&body)?;
+                let cfg = st.settings.poll.clone();
+                if cfg.poll_others && !others {
+                    reschedule_parked(&mut st.accounts, now(), &cfg, &mut || r.next_u64());
+                }
                 let s = &mut st.settings;
                 for (key, field) in [("autoSwitch", &mut s.auto_switch), ("autoUpdate", &mut s.auto_update), ("shareDesktopSessions", &mut s.share_desktop_sessions), ("useSoonestReset", &mut s.use_soonest_reset), ("renewDesktop", &mut s.renew_desktop)] {
                     if let Some(v) = body[key].as_bool() {
@@ -125,14 +131,11 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
                 match (method.as_str(), parts.get(1).copied()) {
                     ("POST", Some("switch")) => app.start_desktop_switch(Some(uuid.to_string()))?,
                     ("POST", Some("auto")) => app.set_desktop_auto(uuid, body["enabled"].as_bool().ok_or(crate::switch::text::SOMETHING_WRONG)?)?,
-                    ("POST", Some("rename")) => {
-                        let label = body["label"].as_str().map(str::trim).filter(|s| !s.is_empty()).ok_or(crate::switch::text::NAME_NEEDED)?;
-                        let mut st = app.st.lock().unwrap();
-                        let d = st.desktop.iter_mut().find(|d| d.uuid == uuid).ok_or(crate::switch::text::NOT_FOUND)?;
-                        d.label = label.chars().take(60).collect();
-                        app.save(&st);
-                    }
                     ("DELETE", None) => {
+                        // Not the real saved sign-ins from the demo, nor under a running switch.
+                        if app.demo || app.switching.load(Ordering::SeqCst) {
+                            return Err("Claude Desktop is switching accounts; try again when it is done.".into());
+                        }
                         if app.desktop_dir.as_deref().and_then(desktop::signed_in).as_deref() == Some(uuid) {
                             return Err("Claude Desktop is signed in to this account now; switch away first".into());
                         }
@@ -184,6 +187,7 @@ pub(crate) fn handle(app: &Arc<App>, mut rq: tiny_http::Request) {
         }
         Ok((200, app.public_state(), "application/json"))
     })();
+    if method != "GET" { app.changed() } // a write with no save: a Desktop switch started
 
     let (code, text, ctype) = result.unwrap_or_else(|e| (400, json!({ "error": e }).to_string(), "application/json"));
     let resp = tiny_http::Response::from_string(text)

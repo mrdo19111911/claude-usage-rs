@@ -83,7 +83,10 @@ impl App {
                 app.log(&mut st, msg);
                 app.save(&st);
                 app.switching.store(false, Ordering::SeqCst);
+                app.changed();
             });
+            // The tray reads the state at once: its Desktop buttons go while this runs.
+            self.changed();
             Ok(())
         }
     }
@@ -98,7 +101,7 @@ impl App {
             (a.creds.clone(), a.account_uuid.clone())
         };
         // A login Anthropic refuses, or another account's, is never handed over.
-        let checked = if self.demo { creds } else { self.verify_login(&creds, uuid.as_deref())? };
+        let checked = if self.demo { creds } else { self.verify_login(id, &creds, uuid.as_deref())? };
         let mut st = self.st.lock().unwrap();
         let acc = {
             let a = st.accounts.iter_mut().find(|a| a.id == id).ok_or(text::NOT_FOUND)?;
